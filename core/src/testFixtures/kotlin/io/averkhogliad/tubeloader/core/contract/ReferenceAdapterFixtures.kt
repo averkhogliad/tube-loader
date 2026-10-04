@@ -4,9 +4,9 @@ import io.averkhogliad.tubeloader.core.DownloadError
 import io.averkhogliad.tubeloader.core.DownloadResult
 import io.averkhogliad.tubeloader.core.FindResult
 import io.averkhogliad.tubeloader.core.LoadMetaResult
-import io.averkhogliad.tubeloader.core.MediaKind
+import io.averkhogliad.tubeloader.core.TrackKind
 import io.averkhogliad.tubeloader.core.Quality
-import io.averkhogliad.tubeloader.core.VideoMeta
+import io.averkhogliad.tubeloader.core.MediaMeta
 import kotlin.time.Duration.Companion.seconds
 
 private const val REFERENCE_STREAM_URL = "https://cdn.reference.example/stream/ref-1/hls-720"
@@ -47,18 +47,18 @@ fun referenceAdapterFixtures(): SourceAdapterFixtures {
         ),
         meta = listOf(
             MetaCase(
-                name = "parses the recorded meta into VideoMeta and qualities",
+                name = "parses the recorded meta into MediaMeta and qualities",
                 id = "ref-1",
                 expected = LoadMetaResult.Found(
-                    VideoMeta(
+                    MediaMeta(
                         id = "ref-1",
                         title = "Reference clip",
                         author = "Reference author",
                         duration = 93.seconds,
                         thumbnailUrl = "https://cdn.reference.example/meta/ref-1.jpg",
                         qualities = listOf(
-                            Quality("hls-360", MediaKind.Video, "360p"),
-                            Quality("hls-720", MediaKind.Video, "720p"),
+                            Quality("hls-360", TrackKind.Video, "360p"),
+                            Quality("hls-720", TrackKind.Video, "720p"),
                         ),
                     ),
                 ),
@@ -73,20 +73,20 @@ fun referenceAdapterFixtures(): SourceAdapterFixtures {
             DownloadCase(
                 name = "writes the recorded stream of the chosen quality",
                 id = "ref-1",
-                quality = Quality("hls-720", MediaKind.Video, "720p"),
+                quality = Quality("hls-720", TrackKind.Video, "720p"),
                 expected = DownloadResult.Success,
                 expectedContent = responses.bodyFor(REFERENCE_STREAM_URL),
             ),
             DownloadCase(
                 name = "returns NetworkTransient when the recorded response is unreachable",
                 id = "ref-2",
-                quality = Quality("hls-720", MediaKind.Video, "720p"),
+                quality = Quality("hls-720", TrackKind.Video, "720p"),
                 expected = DownloadResult.Failed(DownloadError.NetworkTransient),
             ),
             DownloadCase(
                 name = "returns NotFound when the recording has no stream for the quality",
                 id = "ref-1",
-                quality = Quality("hls-1080", MediaKind.Video, "1080p"),
+                quality = Quality("hls-1080", TrackKind.Video, "1080p"),
                 expected = DownloadResult.Failed(DownloadError.NotFound),
             ),
         ),

@@ -2,7 +2,7 @@ package io.averkhogliad.tubeloader.core
 
 import kotlin.time.Duration
 
-data class VideoMeta(
+data class MediaMeta(
     val id: String,
     val title: String,
     val author: String,

@@ -1,9 +1,9 @@
 package io.averkhogliad.tubeloader.core
 
-enum class MediaKind { Video, Audio }
+enum class TrackKind { Video, Audio }
 
 data class Quality(
     val id: String,
-    val kind: MediaKind,
+    val kind: TrackKind,
     val label: String,
 )

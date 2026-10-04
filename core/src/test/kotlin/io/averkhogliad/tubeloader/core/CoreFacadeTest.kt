@@ -36,7 +36,7 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
-private val videoIds = Arb.string(1..12)
+private val mediaIds = Arb.string(1..12)
 private val inputs = Arb.string(1..24)
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -53,16 +53,16 @@ class CoreFacadeTest : FreeSpec({
         "returns Resolved with the id and source when one adapter claims the input" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir)
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
 
                 // when
                 val actual = world.facade.findByUrl(inputs.next())
 
                 // then
                 actual shouldBe ResolveResult.Resolved(
-                    VideoRef(world.facade.availableSources.single(), videoId),
+                    MediaRef(world.facade.availableSources.single(), mediaId),
                 )
             }
         }
@@ -101,8 +101,8 @@ class CoreFacadeTest : FreeSpec({
                 val first = FakeSourceAdapter(displayName = "alpha")
                 val second = FakeSourceAdapter(displayName = "beta")
                 first.onFind = { FindResult.Unsupported }
-                val videoId = videoIds.next()
-                second.onFind = { FindResult.Found(videoId) }
+                val mediaId = mediaIds.next()
+                second.onFind = { FindResult.Found(mediaId) }
                 val world = facadeWorld(tempDir, adapters = listOf(first, second))
 
                 // when
@@ -110,7 +110,7 @@ class CoreFacadeTest : FreeSpec({
 
                 // then
                 actual shouldBe ResolveResult.Resolved(
-                    VideoRef(world.facade.availableSources[1], videoId),
+                    MediaRef(world.facade.availableSources[1], mediaId),
                 )
             }
         }
@@ -156,16 +156,16 @@ class CoreFacadeTest : FreeSpec({
                 val first = FakeSourceAdapter(displayName = "alpha")
                 val second = FakeSourceAdapter(displayName = "beta")
                 first.onFind = { FindResult.Unsupported }
-                val videoId = videoIds.next()
-                second.onFind = { FindResult.Found(videoId) }
+                val mediaId = mediaIds.next()
+                second.onFind = { FindResult.Found(mediaId) }
                 val world = facadeWorld(tempDir, adapters = listOf(first, second))
                 val secondSource = world.facade.availableSources[1]
 
                 // when
-                val actual = world.facade.findById(secondSource.id, videoId)
+                val actual = world.facade.findById(secondSource.id, mediaId)
 
                 // then
-                actual shouldBe ResolveResult.Resolved(VideoRef(secondSource, videoId))
+                actual shouldBe ResolveResult.Resolved(MediaRef(secondSource, mediaId))
             }
         }
 
@@ -176,7 +176,7 @@ class CoreFacadeTest : FreeSpec({
 
                 // when + then
                 shouldThrow<IllegalStateException> {
-                    world.facade.findById(SourceId(99), videoIds.next())
+                    world.facade.findById(SourceId(99), mediaIds.next())
                 }
             }
         }
@@ -186,7 +186,7 @@ class CoreFacadeTest : FreeSpec({
         "returns metadata from the resolved adapter" {
             runTest {
                 // given
-                val meta = Arb.videoMetas().next()
+                val meta = Arb.mediaMetas().next()
                 val world = facadeWorld(tempDir)
                 world.adapters.single().onFind = { FindResult.Found(meta.id) }
                 world.adapters.single().onLoadMeta = { LoadMetaResult.Found(meta) }
@@ -204,9 +204,9 @@ class CoreFacadeTest : FreeSpec({
             runTest {
                 // given
                 val world = facadeWorld(tempDir)
-                world.adapters.single().onFind = { FindResult.Found(videoIds.next()) }
+                world.adapters.single().onFind = { FindResult.Found(mediaIds.next()) }
                 world.adapters.single().onLoadMeta = { LoadMetaResult.NotFound }
-                val ref = world.resolve(videoIds.next())
+                val ref = world.resolve(mediaIds.next())
 
                 // when
                 val actual = world.facade.loadMeta(ref)
@@ -221,10 +221,10 @@ class CoreFacadeTest : FreeSpec({
         "walks the download from Queued through Downloading to Completed" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val release = CompletableDeferred<Unit>()
                 world.adapters.single().onDownload = { _, _ -> release.await(); DownloadResult.Success }
 
@@ -248,10 +248,10 @@ class CoreFacadeTest : FreeSpec({
         "keeps answering the commands while a download holds the io open" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir, initialConfig = AppConfig(maxParallelDownloads = 1))
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val release = CompletableDeferred<Unit>()
                 world.adapters.single().onDownload = { _, _ -> release.await(); DownloadResult.Success }
 
@@ -277,10 +277,10 @@ class CoreFacadeTest : FreeSpec({
         "hands the core-issued partial path to the adapter" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir)
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val target = world.targetPath()
 
                 // when
@@ -288,7 +288,7 @@ class CoreFacadeTest : FreeSpec({
 
                 // then
                 val passed = world.adapters.single().downloaded.single()
-                passed.id shouldBe videoId
+                passed.id shouldBe mediaId
                 passed.targetPath shouldNotBe target
                 passed.targetPath.parent shouldBe target.parent
                 passed.targetPath.fileName.toString() shouldContain handle.taskId.toString()
@@ -298,11 +298,11 @@ class CoreFacadeTest : FreeSpec({
         "accepts a video resolved by findById without a url" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir)
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
                 val source = world.facade.availableSources.single()
-                val ref = (world.facade.findById(source.id, videoId) as ResolveResult.Resolved).ref
+                val ref = (world.facade.findById(source.id, mediaId) as ResolveResult.Resolved).ref
 
                 // when
                 val handle = world.enqueue(ref)
@@ -322,11 +322,11 @@ class CoreFacadeTest : FreeSpec({
                 "reports $error when the adapter reports it" {
                     runTest {
                         // given
-                        val videoId = videoIds.next()
+                        val mediaId = mediaIds.next()
                         val world = facadeWorld(tempDir)
-                        world.adapters.single().onFind = { FindResult.Found(videoId) }
+                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
                         world.adapters.single().onDownload = { _, _ -> DownloadResult.Failed(error) }
-                        val ref = world.resolve(videoId)
+                        val ref = world.resolve(mediaId)
 
                         // when
                         val handle = world.enqueue(ref)
@@ -342,10 +342,10 @@ class CoreFacadeTest : FreeSpec({
         "fails the task with ExtractorBroken when the adapter throws" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val target = world.targetPath()
                 val release = CompletableDeferred<Unit>()
                 world.adapters.single().onDownload = { _, _ ->
@@ -375,12 +375,12 @@ class CoreFacadeTest : FreeSpec({
             "fails the task and deletes the partial when mux fails" {
                 runTest {
                     // given
-                    val videoId = videoIds.next()
+                    val mediaId = mediaIds.next()
                     val tool = FakeMediaTool()
                     tool.onMux = { _, _, _ -> Result.failure(IllegalStateException("mux failed")) }
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(videoId) }
-                    val ref = world.resolve(videoId)
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    val ref = world.resolve(mediaId)
                     val target = world.targetPath()
                     val audio = world.targetPath()
                     world.adapters.single().onDownload = { download, _ ->
@@ -401,11 +401,11 @@ class CoreFacadeTest : FreeSpec({
             "passes both tracks to mux in video-then-audio order" {
                 runTest {
                     // given
-                    val videoId = videoIds.next()
+                    val mediaId = mediaIds.next()
                     val tool = FakeMediaTool()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(videoId) }
-                    val ref = world.resolve(videoId)
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    val ref = world.resolve(mediaId)
                     val target = world.targetPath()
                     val audio = world.targetPath()
                     var pathGivenToAdapter: Path? = null
@@ -431,15 +431,15 @@ class CoreFacadeTest : FreeSpec({
             "keeps both tasks when the generator repeats an occupied id" {
                 runTest {
                     // given
-                    val videoId = videoIds.next()
+                    val mediaId = mediaIds.next()
                     val generated = listOf(TaskId(1), TaskId(1), TaskId(2))
                     var index = 0
                     val world = facadeWorld(
                         tempDir,
                         taskIdGenerator = TaskIdGenerator { generated[index++] },
                     )
-                    world.adapters.single().onFind = { FindResult.Found(videoId) }
-                    val ref = world.resolve(videoId)
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    val ref = world.resolve(mediaId)
 
                     // when
                     val first = world.enqueue(ref)
@@ -456,10 +456,10 @@ class CoreFacadeTest : FreeSpec({
             "fails when the generator keeps returning an occupied id" {
                 runTest {
                     // given
-                    val videoId = videoIds.next()
+                    val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir, taskIdGenerator = TaskIdGenerator { TaskId(1) })
-                    world.adapters.single().onFind = { FindResult.Found(videoId) }
-                    val ref = world.resolve(videoId)
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    val ref = world.resolve(mediaId)
                     world.enqueue(ref)
 
                     // when
@@ -475,7 +475,7 @@ class CoreFacadeTest : FreeSpec({
             "stamps the reservation and the terminal status from the injected clock" {
                 runTest {
                     // given
-                    val videoId = videoIds.next()
+                    val mediaId = mediaIds.next()
                     val startedAt = Instant.parse("2026-09-30T10:00:00Z")
                     val finishedAt = Instant.parse("2026-09-30T10:05:00Z")
                     val moments = ArrayDeque(listOf(startedAt, finishedAt))
@@ -483,8 +483,8 @@ class CoreFacadeTest : FreeSpec({
                         override fun now(): Instant = moments.removeFirst()
                     }
                     val world = facadeWorld(tempDir, clock = clock)
-                    world.adapters.single().onFind = { FindResult.Found(videoId) }
-                    val ref = world.resolve(videoId)
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    val ref = world.resolve(mediaId)
 
                     // when
                     val handle = world.enqueue(ref)
@@ -500,10 +500,10 @@ class CoreFacadeTest : FreeSpec({
             "leaves finishedAt null while the task is running" {
                 runTest {
                     // given
-                    val videoId = videoIds.next()
+                    val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(videoId) }
-                    val ref = world.resolve(videoId)
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    val ref = world.resolve(mediaId)
                     val release = CompletableDeferred<Unit>()
                     world.adapters.single().onDownload = { _, _ -> release.await(); DownloadResult.Success }
 
@@ -524,10 +524,10 @@ class CoreFacadeTest : FreeSpec({
             "produces the final file atomically and leaves no partial behind" {
                 runTest {
                     // given
-                    val videoId = videoIds.next()
+                    val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(videoId) }
-                    val ref = world.resolve(videoId)
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    val ref = world.resolve(mediaId)
                     val target = world.targetPath()
 
                     // when
@@ -543,13 +543,13 @@ class CoreFacadeTest : FreeSpec({
             "deletes the partial file when the adapter returns DownloadResult.Failed" {
                 runTest {
                     // given
-                    val videoId = videoIds.next()
+                    val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(videoId) }
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
                     world.adapters.single().onDownload = { _, _ ->
                         DownloadResult.Failed(DownloadError.NetworkTransient)
                     }
-                    val ref = world.resolve(videoId)
+                    val ref = world.resolve(mediaId)
                     val target = world.targetPath()
 
                     // when
@@ -565,10 +565,10 @@ class CoreFacadeTest : FreeSpec({
             "replaces the target file that appears while the download is running" {
                 runTest {
                     // given
-                    val videoId = videoIds.next()
+                    val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(videoId) }
-                    val ref = world.resolve(videoId)
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    val ref = world.resolve(mediaId)
                     val target = world.targetPath()
                     Files.writeString(target, "stale")
                     world.adapters.single().onDownload = { download, _ ->
@@ -591,10 +591,10 @@ class CoreFacadeTest : FreeSpec({
             "reports Determinate for absolute source progress" {
                 runTest {
                     // given
-                    val videoId = videoIds.next()
+                    val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(videoId) }
-                    val ref = world.resolve(videoId)
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    val ref = world.resolve(mediaId)
                     val absolute = Arb.absoluteProgresses().next()
                     val reported = CompletableDeferred<Unit>()
                     val release = CompletableDeferred<Unit>()
@@ -619,10 +619,10 @@ class CoreFacadeTest : FreeSpec({
             "reports Determinate for fractional source progress" {
                 runTest {
                     // given
-                    val videoId = videoIds.next()
+                    val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(videoId) }
-                    val ref = world.resolve(videoId)
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    val ref = world.resolve(mediaId)
                     val fraction = Arb.fractions().next()
                     val reported = CompletableDeferred<Unit>()
                     val release = CompletableDeferred<Unit>()
@@ -655,10 +655,10 @@ class CoreFacadeTest : FreeSpec({
                 "falls back to Indeterminate for $source" {
                     runTest {
                         // given
-                        val videoId = videoIds.next()
+                        val mediaId = mediaIds.next()
                         val world = facadeWorld(tempDir)
-                        world.adapters.single().onFind = { FindResult.Found(videoId) }
-                        val ref = world.resolve(videoId)
+                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        val ref = world.resolve(mediaId)
                         val reported = CompletableDeferred<Unit>()
                         val release = CompletableDeferred<Unit>()
                         world.adapters.single().onDownload = { _, onProgress ->
@@ -681,10 +681,10 @@ class CoreFacadeTest : FreeSpec({
             "updates progress without changing the status when a late callback arrives" {
                 runTest {
                     // given
-                    val videoId = videoIds.next()
+                    val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(videoId) }
-                    val ref = world.resolve(videoId)
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    val ref = world.resolve(mediaId)
                     val absolute = Arb.absoluteProgresses().next()
                     lateinit var lateProgress: (SourceProgress) -> Unit
                     val reported = CompletableDeferred<Unit>()
@@ -714,10 +714,10 @@ class CoreFacadeTest : FreeSpec({
         "refuses to enqueue after the queue stopped and does not keep the reservation" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir, taskIdGenerator = TaskIdGenerator { TaskId(1) })
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 world.queue.shutdown(5.seconds) shouldBe true
 
                 // when
@@ -735,10 +735,10 @@ class CoreFacadeTest : FreeSpec({
         "refuses to enqueue when the parent scope died and does not leave the task in Queued" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir)
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
 
                 // when the assembly cancels the scope it owns
                 world.parentScope.cancel()
@@ -756,10 +756,10 @@ class CoreFacadeTest : FreeSpec({
         "cancels the running download and leaves no partial behind" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir)
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val target = world.targetPath()
                 val started = CompletableDeferred<Unit>()
                 world.adapters.single().onDownload = { _, _ ->
@@ -786,10 +786,10 @@ class CoreFacadeTest : FreeSpec({
         "cancels the download that waited for a slot" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir, initialConfig = AppConfig(maxParallelDownloads = 1))
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val gate = CompletableDeferred<Unit>()
                 world.adapters.single().onDownload = { _, _ -> gate.await(); DownloadResult.Success }
                 val running = world.enqueue(ref)
@@ -812,10 +812,10 @@ class CoreFacadeTest : FreeSpec({
         "leaves no trace of the stopped session for the next start" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir)
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val interrupted = world.targetPath()
                 world.adapters.single().onDownload = { _, _ ->
                     CompletableDeferred<Unit>().await()
@@ -827,9 +827,9 @@ class CoreFacadeTest : FreeSpec({
 
                 // when the assembly builds a fresh core over the same directories
                 val restarted = facadeWorld(world.tempDir)
-                restarted.adapters.single().onFind = { FindResult.Found(videoId) }
+                restarted.adapters.single().onFind = { FindResult.Found(mediaId) }
                 val target = restarted.targetPath()
-                val next = restarted.enqueue(restarted.resolve(videoId), target)
+                val next = restarted.enqueue(restarted.resolve(mediaId), target)
 
                 // then
                 partialsIn(world.tempDir) shouldBe emptyList()
@@ -844,10 +844,10 @@ class CoreFacadeTest : FreeSpec({
         "publishes Cancelling while the task is stopping and Cancelled after it stopped" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir)
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val stopping = CompletableDeferred<Unit>()
                 world.adapters.single().onDownload = { _, _ ->
                     try {
@@ -879,10 +879,10 @@ class CoreFacadeTest : FreeSpec({
         "does not move the file when the adapter survives the cancellation request" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir)
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val release = CompletableDeferred<Unit>()
                 world.adapters.single().onDownload = { _, _ ->
                     withContext(NonCancellable) { release.await() }
@@ -909,10 +909,10 @@ class CoreFacadeTest : FreeSpec({
         "keeps Failed when the cancellation completes after the adapter broke" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir)
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val release = CompletableDeferred<Unit>()
                 world.adapters.single().onDownload = { _, _ ->
                     withContext(NonCancellable) { release.await() }
@@ -939,13 +939,13 @@ class CoreFacadeTest : FreeSpec({
         "keeps the task Failed when the cancel command arrives after the adapter broke" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir)
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
                 world.adapters.single().onDownload = { _, _ ->
                     DownloadResult.Failed(DownloadError.NetworkTransient)
                 }
-                val ref = world.resolve(videoId)
+                val ref = world.resolve(mediaId)
                 val handle = world.enqueue(ref)
                 val broken = DownloadStatus.Failed(DownloadError.NetworkTransient)
                 world.state(handle.taskId).status shouldBe broken
@@ -961,10 +961,10 @@ class CoreFacadeTest : FreeSpec({
         "keeps Cancelled when the cancel command arrives again after the task stopped" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir)
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 world.adapters.single().onDownload = { _, _ ->
                     CompletableDeferred<Unit>().await(); DownloadResult.Success
                 }
@@ -983,10 +983,10 @@ class CoreFacadeTest : FreeSpec({
         "cancels a task that has not started yet and leaves nothing behind" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val target = world.targetPath()
                 val handle = world.enqueue(ref, target)
 
@@ -1005,10 +1005,10 @@ class CoreFacadeTest : FreeSpec({
         "keeps the task Completed when the cancel command arrives after the work is done" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir)
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val handle = world.enqueue(ref)
                 world.state(handle.taskId).status shouldBe DownloadStatus.Completed
 
@@ -1023,10 +1023,10 @@ class CoreFacadeTest : FreeSpec({
         "leaves the other task of the same source untouched" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(tempDir)
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val cancelledStarted = CompletableDeferred<Unit>()
                 val survivorStarted = CompletableDeferred<Unit>()
                 val releaseSurvivor = CompletableDeferred<Unit>()
@@ -1062,14 +1062,14 @@ class CoreFacadeTest : FreeSpec({
         "cancels a waiting task and lets the task behind it start when a slot frees up" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(
                     tempDir,
                     initialConfig = AppConfig(maxParallelDownloads = 1),
                     dispatcher = StandardTestDispatcher(testScheduler),
                 )
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val gate = CompletableDeferred<Unit>()
                 var started = 0
                 world.adapters.single().onDownload = { _, _ ->
@@ -1104,14 +1104,14 @@ class CoreFacadeTest : FreeSpec({
         "starts the tasks that waited on the old limit" {
             runTest {
                 // given
-                val videoId = videoIds.next()
+                val mediaId = mediaIds.next()
                 val world = facadeWorld(
                     tempDir,
                     initialConfig = AppConfig(maxParallelDownloads = 1),
                     dispatcher = StandardTestDispatcher(testScheduler),
                 )
-                world.adapters.single().onFind = { FindResult.Found(videoId) }
-                val ref = world.resolve(videoId)
+                world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                val ref = world.resolve(mediaId)
                 val gate = CompletableDeferred<Unit>()
                 var started = 0
                 world.adapters.single().onDownload = { _, _ ->
@@ -1152,7 +1152,7 @@ private class FacadeWorld(
     private val latest = mutableMapOf<TaskId, DownloadState>()
     private var targets = 0
 
-    fun enqueue(ref: VideoRef, target: Path): DownloadHandle {
+    fun enqueue(ref: MediaRef, target: Path): DownloadHandle {
         val handle = facade.enqueue(ref, Arb.qualities().next(), target)
         witness.launch {
             handle.state.collect { state ->
@@ -1163,12 +1163,12 @@ private class FacadeWorld(
         return handle
     }
 
-    fun enqueue(ref: VideoRef): DownloadHandle = enqueue(ref, targetPath())
+    fun enqueue(ref: MediaRef): DownloadHandle = enqueue(ref, targetPath())
 
     fun targetPath(): Path = tempDir.resolve("video-${targets++}.mp4")
 
-    fun resolve(videoId: String): VideoRef =
-        VideoRef(facade.availableSources.single(), videoId)
+    fun resolve(mediaId: String): MediaRef =
+        MediaRef(facade.availableSources.single(), mediaId)
 
     fun state(taskId: TaskId): DownloadState = latest.getValue(taskId)
 

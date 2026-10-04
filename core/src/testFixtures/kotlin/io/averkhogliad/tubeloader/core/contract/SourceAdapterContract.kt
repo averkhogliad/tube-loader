@@ -19,7 +19,7 @@ import kotlin.io.path.readBytes
 
 /**
  * Contract suite every adapter must pass, driven by golden fixtures: the recording of the source
- * plus the reference `VideoMeta` / `Quality` / outcome the adapter has to reproduce.
+ * plus the reference `MediaMeta` / `Quality` / outcome the adapter has to reproduce.
  *
  * An adapter plugs in with one call — its dependencies are wired inside the factory lambda:
  *
