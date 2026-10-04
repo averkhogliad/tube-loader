@@ -148,6 +148,29 @@ class TomlConfigTest : FreeSpec({
             config.keys shouldBe setOf("a.b", "a.c")
         }
 
+        "keeps an array value under its own key" {
+            // given
+            val toml = "tags = [1, 2, 3]"
+
+            // when
+            val config = TomlConfig.fromString(toml)
+
+            // then
+            config.keys shouldBe setOf("tags")
+            config.getTableOrNull("tags") shouldBe emptyMap()
+        }
+
+        "keeps a single character key as written" {
+            // given
+            val toml = "a = 1"
+
+            // when
+            val config = TomlConfig.fromString(toml)
+
+            // then
+            config.keys shouldBe setOf("a")
+        }
+
         "keeps a quoted key inside a table as a single leaf" {
             // given
             val toml = """
