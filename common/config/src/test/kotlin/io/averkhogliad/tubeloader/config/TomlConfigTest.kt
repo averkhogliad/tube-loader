@@ -88,6 +88,80 @@ class TomlConfigTest : FreeSpec({
             }
         }
 
+        "strips single quotes from a quoted key" {
+            // given
+            val toml = "'quoted-key' = 1"
+
+            // when
+            val config = TomlConfig.fromString(toml)
+
+            // then
+            config.keys shouldBe setOf("quoted-key")
+        }
+
+        "strips double quotes from a quoted key" {
+            // given
+            val toml = "\"quoted-key\" = 1"
+
+            // when
+            val config = TomlConfig.fromString(toml)
+
+            // then
+            config.keys shouldBe setOf("quoted-key")
+        }
+
+        "keeps an unquoted key as written" {
+            // given
+            val toml = "long-key = 1"
+
+            // when
+            val config = TomlConfig.fromString(toml)
+
+            // then
+            config.keys shouldBe setOf("long-key")
+        }
+
+        "skips a node it cannot flatten, such as an array of tables" {
+            // given
+            val toml = """
+                [[items]]
+                x = 1
+                [other]
+                y = 2
+            """.trimIndent()
+
+            // when
+            val config = TomlConfig.fromString(toml)
+
+            // then
+            config.keys shouldBe setOf("other.y")
+        }
+
+        "flattens an inline table into dotted keys" {
+            // given
+            val toml = "a = { b = 1, c = 2 }"
+
+            // when
+            val config = TomlConfig.fromString(toml)
+
+            // then
+            config.keys shouldBe setOf("a.b", "a.c")
+        }
+
+        "keeps a quoted key inside a table as a single leaf" {
+            // given
+            val toml = """
+                [tbl]
+                'q.k' = 1
+            """.trimIndent()
+
+            // when
+            val config = TomlConfig.fromString(toml)
+
+            // then
+            config.keys shouldBe setOf("tbl.q.k")
+        }
+
         "closes the input stream after reading" {
             // given
             val closed = AtomicBoolean(false)
