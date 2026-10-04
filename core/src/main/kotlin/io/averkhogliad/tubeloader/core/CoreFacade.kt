@@ -4,8 +4,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.yield
@@ -31,8 +29,7 @@ class CoreFacade(
     private val adaptersBySourceId: Map<SourceId, SourceAdapter> =
         sources.zip(adapters).associate { (source, adapter) -> source.id to adapter }
 
-    private val _states = MutableStateFlow<Map<TaskId, DownloadState>>(emptyMap())
-    private val states: StateFlow<Map<TaskId, DownloadState>> = _states.asStateFlow()
+    private val states = MutableStateFlow<Map<TaskId, DownloadState>>(emptyMap())
 
     suspend fun findByUrl(input: String): ResolveResult {
         val matches = mutableListOf<MediaRef>()
@@ -146,18 +143,18 @@ class CoreFacade(
     private fun register(taskId: TaskId, startedAt: Instant): Boolean {
         val initial = DownloadState(taskId, DownloadStatus.Queued, startedAt = startedAt)
         while (true) {
-            val current = _states.value
+            val current = states.value
             if (taskId in current) return false
-            if (_states.compareAndSet(current, current + (taskId to initial))) return true
+            if (states.compareAndSet(current, current + (taskId to initial))) return true
         }
     }
 
     private fun forget(taskId: TaskId) {
-        _states.update { it - taskId }
+        states.update { it - taskId }
     }
 
     private fun transition(taskId: TaskId, status: DownloadStatus) {
-        _states.update { states ->
+        states.update { states ->
             val current = states[taskId] ?: return@update states
             if (current.status.isTerminal) return@update states
             states + (taskId to current.copy(
@@ -168,7 +165,7 @@ class CoreFacade(
     }
 
     private fun updateProgress(taskId: TaskId, progress: Progress) {
-        _states.update { states ->
+        states.update { states ->
             val current = states[taskId] ?: return@update states
             states + (taskId to current.copy(progress = progress))
         }
