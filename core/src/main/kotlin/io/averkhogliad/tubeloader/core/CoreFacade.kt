@@ -35,11 +35,11 @@ class CoreFacade(
     private val states: StateFlow<Map<TaskId, DownloadState>> = _states.asStateFlow()
 
     suspend fun findByUrl(input: String): ResolveResult {
-        val matches = mutableListOf<VideoRef>()
+        val matches = mutableListOf<MediaRef>()
         var notFound = false
         for ((source, adapter) in sources.zip(adapters)) {
             when (val result = adapter.find(input)) {
-                is FindResult.Found -> matches += VideoRef(source, result.id)
+                is FindResult.Found -> matches += MediaRef(source, result.mediaId)
                 FindResult.NotFound -> notFound = true
                 FindResult.Unsupported -> Unit
             }
@@ -57,19 +57,19 @@ class CoreFacade(
             ?: error("Unknown source id: $sourceId")
         val source = sources[sourceId.index]
         return when (val result = adapter.find(id)) {
-            is FindResult.Found -> ResolveResult.Resolved(VideoRef(source, result.id))
+            is FindResult.Found -> ResolveResult.Resolved(MediaRef(source, result.mediaId))
             FindResult.NotFound -> ResolveResult.NotFound
             FindResult.Unsupported -> ResolveResult.Unsupported
         }
     }
 
-    suspend fun loadMeta(ref: VideoRef): LoadMetaResult {
+    suspend fun loadMeta(ref: MediaRef): LoadMetaResult {
         val adapter = adaptersBySourceId[ref.source.id]
             ?: error("Unknown source: ${ref.source.id}")
-        return adapter.loadMeta(ref.videoId)
+        return adapter.loadMeta(ref.mediaId)
     }
 
-    fun enqueue(ref: VideoRef, quality: Quality, targetPath: Path): DownloadHandle {
+    fun enqueue(ref: MediaRef, quality: Quality, targetPath: Path): DownloadHandle {
         val adapter = adaptersBySourceId[ref.source.id]
             ?: error("Unknown source: ${ref.source.id}")
         if (targetPath.parent == null) {
@@ -78,7 +78,7 @@ class CoreFacade(
         val startedAt = clock.now()
         val taskId = allocateTaskId(startedAt)
         val job = try {
-            queue.submit { runDownload(taskId, adapter, ref.videoId, quality, targetPath) }
+            queue.submit { runDownload(taskId, adapter, ref.mediaId, quality, targetPath) }
         } catch (refused: IllegalStateException) {
             forget(taskId)
             throw refused
@@ -97,7 +97,7 @@ class CoreFacade(
     private suspend fun runDownload(
         taskId: TaskId,
         adapter: SourceAdapter,
-        videoId: String,
+        mediaId: String,
         quality: Quality,
         targetPath: Path,
     ) {
@@ -108,7 +108,7 @@ class CoreFacade(
             yield()
             Files.createFile(part)
             transition(taskId, DownloadStatus.Downloading)
-            val outcome = adapter.downloadVideo(videoId, quality, part) { source ->
+            val outcome = adapter.download(mediaId, quality, part) { source ->
                 updateProgress(taskId, source.toProgress())
             }
             if (outcome is DownloadResult.Failed) {

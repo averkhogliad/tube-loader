@@ -16,18 +16,18 @@ import kotlin.time.Duration.Companion.seconds
 
 fun Arb.Companion.qualities(
     ids: Gen<String> = Arb.string(1..8),
-    kinds: Gen<MediaKind> = Arb.enum(),
+    kinds: Gen<TrackKind> = Arb.enum(),
     labels: Gen<String> = Arb.string(1..12),
 ): Arb<Quality> = Arb.bind(ids, kinds, labels, ::Quality)
 
-fun Arb.Companion.videoMetas(
+fun Arb.Companion.mediaMetas(
     ids: Gen<String> = Arb.string(1..8),
     titles: Gen<String> = Arb.string(1..16),
     authors: Gen<String> = Arb.string(1..16),
     durations: Gen<Duration> = Arb.long(0L..10_000L).map { it.seconds },
     thumbnails: Gen<String?> = Arb.string(1..16).orNull(),
     qualities: Gen<List<Quality>> = Arb.list(Arb.qualities(), 1..3),
-): Arb<VideoMeta> = Arb.bind(ids, titles, authors, durations, thumbnails, qualities, ::VideoMeta)
+): Arb<MediaMeta> = Arb.bind(ids, titles, authors, durations, thumbnails, qualities, ::MediaMeta)
 
 fun Arb.Companion.absoluteProgresses(
     totals: Arb<Long> = Arb.long(1L..1_000_000L),

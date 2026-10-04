@@ -2,7 +2,7 @@ package io.averkhogliad.tubeloader.core
 
 import java.nio.file.Path
 
-data class MuxCall(val video: Path, val audio: Path, val output: Path)
+data class MuxCall(val videoTrack: Path, val audioTrack: Path, val output: Path)
 
 data class RemuxCall(val input: Path, val output: Path)
 
@@ -19,14 +19,14 @@ class FakeMediaTool : MediaTool {
     override fun close() = Unit
 
     override suspend fun mux(
-        video: Path,
-        audio: Path,
+        videoTrack: Path,
+        audioTrack: Path,
         output: Path,
         onProgress: (Progress) -> Unit,
     ): Result<Unit> {
-        muxCalls += MuxCall(video, audio, output)
+        muxCalls += MuxCall(videoTrack, audioTrack, output)
         progress?.let(onProgress)
-        return onMux(video, audio, output)
+        return onMux(videoTrack, audioTrack, output)
     }
 
     override suspend fun remux(

@@ -15,11 +15,11 @@ import java.nio.file.Path
  */
 interface MediaTool : Closeable {
     /**
-     * Joins one video track and one audio track into a single file by copying both streams.
+     * Joins a [videoTrack] and an [audioTrack] into a single file by copying both streams.
      */
     suspend fun mux(
-        video: Path,
-        audio: Path,
+        videoTrack: Path,
+        audioTrack: Path,
         output: Path,
         onProgress: (Progress) -> Unit,
     ): Result<Unit>

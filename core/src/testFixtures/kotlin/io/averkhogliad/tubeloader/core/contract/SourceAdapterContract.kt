@@ -19,7 +19,7 @@ import kotlin.io.path.readBytes
 
 /**
  * Contract suite every adapter must pass, driven by golden fixtures: the recording of the source
- * plus the reference `VideoMeta` / `Quality` / outcome the adapter has to reproduce.
+ * plus the reference `MediaMeta` / `Quality` / outcome the adapter has to reproduce.
  *
  * An adapter plugs in with one call — its dependencies are wired inside the factory lambda:
  *
@@ -120,7 +120,7 @@ fun sourceAdapterContract(
         }
     }
 
-    "downloadVideo" - {
+    "download" - {
         fixtures.download.forEach { case ->
             case.name {
                 // given
@@ -129,7 +129,7 @@ fun sourceAdapterContract(
                 val progress = mutableListOf<SourceProgress>()
 
                 // when
-                val actual = adapter.downloadVideo(case.id, case.quality, target) { progress += it }
+                val actual = adapter.download(case.id, case.quality, target) { progress += it }
 
                 // then
                 withClue("outcome") { actual shouldBe case.expected }
@@ -150,7 +150,7 @@ fun sourceAdapterContract(
             val progress = mutableListOf<SourceProgress>()
 
             // when
-            adapter.downloadVideo(case.id, case.quality, target) { progress += it }
+            adapter.download(case.id, case.quality, target) { progress += it }
 
             // then
             progress.shouldNotBeEmpty()
@@ -173,7 +173,7 @@ fun sourceAdapterContract(
             val target = downloadTargetOf(tempDir, adapterName, case).also { it.deleteIfExists() }
 
             // when
-            adapter.downloadVideo(case.id, case.quality, target) {}
+            adapter.download(case.id, case.quality, target) {}
 
             // then
             Files.size(target) shouldBe case.expectedContent!!.size.toLong()

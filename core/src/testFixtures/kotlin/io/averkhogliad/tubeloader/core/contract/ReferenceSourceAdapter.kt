@@ -5,11 +5,11 @@ import io.averkhogliad.tubeloader.core.DownloadError
 import io.averkhogliad.tubeloader.core.DownloadResult
 import io.averkhogliad.tubeloader.core.FindResult
 import io.averkhogliad.tubeloader.core.LoadMetaResult
-import io.averkhogliad.tubeloader.core.MediaKind
+import io.averkhogliad.tubeloader.core.MediaMeta
 import io.averkhogliad.tubeloader.core.Quality
 import io.averkhogliad.tubeloader.core.SourceAdapter
 import io.averkhogliad.tubeloader.core.SourceProgress
-import io.averkhogliad.tubeloader.core.VideoMeta
+import io.averkhogliad.tubeloader.core.TrackKind
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -58,14 +58,14 @@ class ReferenceSourceAdapter(
         return LoadMetaResult.Found(parseMeta(id, text))
     }
 
-    override suspend fun downloadVideo(
-        id: String,
+    override suspend fun download(
+        mediaId: String,
         quality: Quality,
         targetPath: Path,
         onProgress: (SourceProgress) -> Unit,
     ): DownloadResult {
         val bytes = try {
-            fixtures.responses.bodyFor(streamUrl(id, quality.id))
+            fixtures.responses.bodyFor(streamUrl(mediaId, quality.id))
         } catch (_: IOException) {
             return DownloadResult.Failed(DownloadError.NetworkTransient)
         } catch (_: IllegalArgumentException) {
@@ -83,7 +83,7 @@ class ReferenceSourceAdapter(
         onProgress(update)
     }
 
-    private fun parseMeta(id: String, text: String): VideoMeta {
+    private fun parseMeta(id: String, text: String): MediaMeta {
         val fields = text.lineSequence()
             .filter { it.isNotBlank() }
             .associate { it.substringBefore('=') to it.substringAfter('=') }
@@ -91,10 +91,10 @@ class ReferenceSourceAdapter(
             .filter { it.startsWith(QUALITY_PREFIX) }
             .map { line ->
                 val (qualityId, kind, label) = line.removePrefix(QUALITY_PREFIX).split('|')
-                Quality(qualityId, MediaKind.valueOf(kind), label)
+                Quality(qualityId, TrackKind.valueOf(kind), label)
             }
             .toList()
-        return VideoMeta(
+        return MediaMeta(
             id = id,
             title = fields.getValue("title"),
             author = fields.getValue("author"),

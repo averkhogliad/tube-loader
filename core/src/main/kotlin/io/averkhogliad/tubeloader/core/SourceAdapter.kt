@@ -5,7 +5,7 @@ import java.nio.file.Path
 enum class DownloadCapability { Delegate, Native, ResolveOnly }
 
 sealed interface FindResult {
-    data class Found(val id: String) : FindResult
+    data class Found(val mediaId: String) : FindResult
 
     data object Unsupported : FindResult
 
@@ -13,7 +13,7 @@ sealed interface FindResult {
 }
 
 sealed interface LoadMetaResult {
-    data class Found(val meta: VideoMeta) : LoadMetaResult
+    data class Found(val meta: MediaMeta) : LoadMetaResult
 
     data object NotFound : LoadMetaResult
 }
@@ -27,8 +27,8 @@ interface SourceAdapter {
 
     suspend fun loadMeta(id: String): LoadMetaResult
 
-    suspend fun downloadVideo(
-        id: String,
+    suspend fun download(
+        mediaId: String,
         quality: Quality,
         targetPath: Path,
         onProgress: (SourceProgress) -> Unit,

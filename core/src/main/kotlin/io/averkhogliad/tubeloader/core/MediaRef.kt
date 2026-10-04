@@ -1,6 +1,6 @@
 package io.averkhogliad.tubeloader.core
 
-data class VideoRef(
+data class MediaRef(
     val source: Source,
-    val videoId: String,
+    val mediaId: String,
 )
