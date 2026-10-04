@@ -58,7 +58,7 @@ class ReferenceSourceAdapter(
         return LoadMetaResult.Found(parseMeta(id, text))
     }
 
-    override suspend fun downloadVideo(
+    override suspend fun download(
         id: String,
         quality: Quality,
         targetPath: Path,

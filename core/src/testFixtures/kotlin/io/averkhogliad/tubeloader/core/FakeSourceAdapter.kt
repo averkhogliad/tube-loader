@@ -17,7 +17,7 @@ class FakeSourceAdapter(
 
     override suspend fun loadMeta(id: String): LoadMetaResult = onLoadMeta(id)
 
-    override suspend fun downloadVideo(
+    override suspend fun download(
         id: String,
         quality: Quality,
         targetPath: Path,

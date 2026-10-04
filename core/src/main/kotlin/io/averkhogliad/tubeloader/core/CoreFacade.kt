@@ -108,7 +108,7 @@ class CoreFacade(
             yield()
             Files.createFile(part)
             transition(taskId, DownloadStatus.Downloading)
-            val outcome = adapter.downloadVideo(mediaId, quality, part) { source ->
+            val outcome = adapter.download(mediaId, quality, part) { source ->
                 updateProgress(taskId, source.toProgress())
             }
             if (outcome is DownloadResult.Failed) {
