@@ -420,8 +420,8 @@ class CoreFacadeTest : FreeSpec({
 
                     // then
                     val call = tool.muxCalls.single()
-                    call.video shouldBe pathGivenToAdapter
-                    call.audio shouldBe audio
+                    call.videoTrack shouldBe pathGivenToAdapter
+                    call.audioTrack shouldBe audio
                     call.output shouldBe pathGivenToAdapter
                 }
             }
