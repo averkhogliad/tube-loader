@@ -12,7 +12,7 @@ class FileConfigSource(
 
     override fun load(): Config? {
         if (!Files.exists(path)) {
-            if (required) throw IllegalStateException("Required config file not found: $path")
+            if (required) error("Required config file not found: $path")
             return null
         }
         return TomlConfig.fromFile(path)

@@ -28,9 +28,7 @@ class MergedConfig(
             putAll(this@merge)
             for ((key, theirs) in other) {
                 val mine = this@merge[key]
-                this[key] = if (mine is Map<*, *> && mine.keys.all { it is String } &&
-                    theirs is Map<*, *> && theirs.keys.all { it is String }
-                ) {
+                this[key] = if (mine.isStringKeyedMap() && theirs.isStringKeyedMap()) {
                     @Suppress("UNCHECKED_CAST")
                     (mine as Map<String, Any>).merge(@Suppress("UNCHECKED_CAST") (theirs as Map<String, Any>))
                 } else {
@@ -39,3 +37,5 @@ class MergedConfig(
             }
         }
 }
+
+private fun Any?.isStringKeyedMap(): Boolean = this is Map<*, *> && keys.all { it is String }
