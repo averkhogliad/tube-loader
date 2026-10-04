@@ -15,3 +15,14 @@ fun mapConfig(vararg pairs: Pair<String, String>): Config =
                 .mapKeys { it.key.removePrefix(prefix) }
         }
     }
+
+fun configOf(table: Map<String, Any>): Config =
+    object : Config {
+        override val keys: Set<String> = table.keys
+
+        override fun getOrNull(path: String): String? = null
+
+        @Suppress("UNCHECKED_CAST")
+        override fun getTableOrNull(path: String): Map<String, Any>? =
+            table[path] as? Map<String, Any>
+    }
