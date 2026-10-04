@@ -7,8 +7,8 @@
 
 | Модуль | Роль |
 | --- | --- |
-| `common` | Java platform: согласованные версии без кода |
-| `common:config` | Тонкие интерфейсы конфигурации без логики; переиспользуется ядром |
+| `common` | Java platform (`java-platform`): ограничений и потребителей пока нет |
+| `common:config` | Интерфейсы конфигурации, разбор TOML, merge и каскад источников; переиспользуется ядром |
 | `core` | Headless-ядро: роутинг URL, оркестрация загрузок, нормализация прогресса и ошибок, staging |
 | Фронтенды (план) | Compose Desktop GUI (M1), mosaic TUI (M2) — тонкие клиенты: команды вниз, события вверх |
 
@@ -29,16 +29,23 @@
 
 | Технология | Роль |
 | --- | --- |
-| Compose Desktop | Рендеринг M1; слой презентации отделён от рендеринга (ADR-0002), ручной флоу состояний |
+| Compose Desktop (план) | Рендеринг M1; слой презентации отделён от рендеринга (ADR-0002), ручной флоу состояний. В сборке зависимостей нет: фронтенда пока нет |
 
 ## Тесты
 
 | Технология | Роль | Стандарт |
 | --- | --- | --- |
-| kotest | Runner (JUnit6), property-тесты: `Arb`/`Exhaustive`/`checkAll` | `docs/standards/testing.md` |
-| mockk | Моки: query-методы заглушаются, command-методы верифицируются с `capture` | `docs/standards/testing.md` |
+| kotest | Runner (JUnit6), property-тесты: `Arb`/`Exhaustive`, сэмпл — `gen.next()` | `docs/standards/testing.md` |
+| mockk | Моки: подключён к `:core`, в тестах пока не применён; query-методы заглушаются, command-методы верифицируются с `capture` | `docs/standards/testing.md` |
 | JUnit Platform launcher | Тестовая платформа Gradle | — |
-| Kover | Покрытие в `:core` и `:common:config`; без гейта | — |
+| Kover | Покрытие в `:core` и `:common:config`; гейт 80% строк / 75% ветвей, `testFixtures` исключены | — |
+
+## Линт
+
+| Технология | Роль |
+| --- | --- |
+| ktlint | Стиль кода; per-module baseline в `config/ktlint/baseline.xml` рядом с модулем |
+| detekt | Статический анализ; per-module baseline `detekt-baseline.xml` рядом с модулем |
 
 ## Внешние инструменты
 

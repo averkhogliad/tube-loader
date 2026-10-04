@@ -54,8 +54,9 @@ trailing lambda. Сначала идут параметры с дефолтам�
 
 ## Где применяется
 
-Швы ядра: контракт `SourceAdapter` (`core/.../SourceAdapter.kt`), порты `MediaTool` и `HttpTool`
-(`core/.../MediaTool.kt`), `DownloadQueue` (`core/.../DownloadQueue.kt`). Новый шов с
+Швы ядра: контракт `SourceAdapter` (`core/.../SourceAdapter.kt`), порты `MediaTool`
+(`core/.../MediaTool.kt`) и `HttpTool` (`core/.../HttpTool.kt`), `DownloadQueue`
+(`core/.../DownloadQueue.kt`). Новый шов с
 колбеком проектируется по этому правилу; отклонение фиксируется в спеке фичи или в ADR.
 
 ## Sealed-типы исходов — только возврат
