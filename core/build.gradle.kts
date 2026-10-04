@@ -25,7 +25,7 @@ dependencies {
     testImplementation(libs.kotest.property)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(testFixtures(project))
+    testImplementation(testFixtures(project()))
     testImplementation(testFixtures(project(":common:config")))
     testRuntimeOnly(libs.junit.platform.launcher)
 }

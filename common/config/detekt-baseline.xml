@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:MergedConfig.kt$MergedConfig$mine is Map&lt;*, *&gt; &amp;&amp; mine.keys.all { it is String } &amp;&amp; theirs is Map&lt;*, *&gt; &amp;&amp; theirs.keys.all { it is String }</ID>
+    <ID>UseCheckOrError:FileConfigSource.kt$FileConfigSource$throw IllegalStateException("Required config file not found: $path")</ID>
+  </CurrentIssues>
+</SmellBaseline>
