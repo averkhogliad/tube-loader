@@ -5,11 +5,11 @@ import io.averkhogliad.tubeloader.core.DownloadError
 import io.averkhogliad.tubeloader.core.DownloadResult
 import io.averkhogliad.tubeloader.core.FindResult
 import io.averkhogliad.tubeloader.core.LoadMetaResult
-import io.averkhogliad.tubeloader.core.TrackKind
+import io.averkhogliad.tubeloader.core.MediaMeta
 import io.averkhogliad.tubeloader.core.Quality
 import io.averkhogliad.tubeloader.core.SourceAdapter
 import io.averkhogliad.tubeloader.core.SourceProgress
-import io.averkhogliad.tubeloader.core.MediaMeta
+import io.averkhogliad.tubeloader.core.TrackKind
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -59,13 +59,13 @@ class ReferenceSourceAdapter(
     }
 
     override suspend fun download(
-        id: String,
+        mediaId: String,
         quality: Quality,
         targetPath: Path,
         onProgress: (SourceProgress) -> Unit,
     ): DownloadResult {
         val bytes = try {
-            fixtures.responses.bodyFor(streamUrl(id, quality.id))
+            fixtures.responses.bodyFor(streamUrl(mediaId, quality.id))
         } catch (_: IOException) {
             return DownloadResult.Failed(DownloadError.NetworkTransient)
         } catch (_: IllegalArgumentException) {

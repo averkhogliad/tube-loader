@@ -81,7 +81,7 @@ class CoreFacadeTest : FreeSpec({
             }
         }
 
-        "returns NotFound when the adapter recognizes the source but not the video" {
+        "returns NotFound when the adapter recognizes the source but not the media" {
             runTest {
                 // given
                 val world = facadeWorld(tempDir)
@@ -200,7 +200,7 @@ class CoreFacadeTest : FreeSpec({
             }
         }
 
-        "returns NotFound when the adapter has no such video" {
+        "returns NotFound when the adapter has no such media" {
             runTest {
                 // given
                 val world = facadeWorld(tempDir)
@@ -295,7 +295,7 @@ class CoreFacadeTest : FreeSpec({
             }
         }
 
-        "accepts a video resolved by findById without a url" {
+        "accepts media resolved by findById without a url" {
             runTest {
                 // given
                 val mediaId = mediaIds.next()

@@ -28,7 +28,7 @@ interface SourceAdapter {
     suspend fun loadMeta(id: String): LoadMetaResult
 
     suspend fun download(
-        id: String,
+        mediaId: String,
         quality: Quality,
         targetPath: Path,
         onProgress: (SourceProgress) -> Unit,

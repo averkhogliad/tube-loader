@@ -18,13 +18,13 @@ class FakeSourceAdapter(
     override suspend fun loadMeta(id: String): LoadMetaResult = onLoadMeta(id)
 
     override suspend fun download(
-        id: String,
+        mediaId: String,
         quality: Quality,
         targetPath: Path,
         onProgress: (SourceProgress) -> Unit,
-    ): DownloadResult = download(DownloadRequest(id, quality, targetPath), onProgress)
+    ): DownloadResult = recordAndDownload(DownloadRequest(mediaId, quality, targetPath), onProgress)
 
-    private suspend fun download(request: DownloadRequest, onProgress: (SourceProgress) -> Unit): DownloadResult {
+    private suspend fun recordAndDownload(request: DownloadRequest, onProgress: (SourceProgress) -> Unit): DownloadResult {
         downloaded += request
         return onDownload(request, onProgress)
     }

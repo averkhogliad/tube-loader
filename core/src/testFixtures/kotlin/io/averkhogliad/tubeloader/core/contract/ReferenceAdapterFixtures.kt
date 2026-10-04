@@ -4,9 +4,9 @@ import io.averkhogliad.tubeloader.core.DownloadError
 import io.averkhogliad.tubeloader.core.DownloadResult
 import io.averkhogliad.tubeloader.core.FindResult
 import io.averkhogliad.tubeloader.core.LoadMetaResult
-import io.averkhogliad.tubeloader.core.TrackKind
-import io.averkhogliad.tubeloader.core.Quality
 import io.averkhogliad.tubeloader.core.MediaMeta
+import io.averkhogliad.tubeloader.core.Quality
+import io.averkhogliad.tubeloader.core.TrackKind
 import kotlin.time.Duration.Companion.seconds
 
 private const val REFERENCE_STREAM_URL = "https://cdn.reference.example/stream/ref-1/hls-720"
@@ -64,7 +64,7 @@ fun referenceAdapterFixtures(): SourceAdapterFixtures {
                 ),
             ),
             MetaCase(
-                name = "returns NotFound for a video that has no record",
+                name = "returns NotFound for media that has no record",
                 id = "ref-absent",
                 expected = LoadMetaResult.NotFound,
             ),
