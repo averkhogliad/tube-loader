@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<baseline version="1.0">
+    <file name="src/main/kotlin/io/averkhogliad/tubeloader/core/AppConfig.kt">
+        <error line="23" column="23" source="standard:function-signature" />
+        <error line="35" column="81" source="standard:function-signature" />
+    </file>
+    <file name="src/main/kotlin/io/averkhogliad/tubeloader/core/CoreFacade.kt">
+        <error line="34" column="17" source="standard:backing-property-naming" />
+        <error line="163" column="23" source="standard:wrapping" />
+        <error line="166" column="13" source="standard:wrapping" />
+        <error line="179" column="70" source="standard:function-signature" />
+        <error line="199" column="1" source="standard:blank-line-between-when-conditions" />
+    </file>
+    <file name="src/test/kotlin/io/averkhogliad/tubeloader/core/AppConfigTest.kt">
+        <error line="9" column="23" source="standard:class-signature" />
+    </file>
+    <file name="src/test/kotlin/io/averkhogliad/tubeloader/core/CoreFacadeTest.kt">
+        <error line="43" column="24" source="standard:class-signature" />
+        <error line="229" column="64" source="standard:statement-wrapping" />
+        <error line="229" column="80" source="standard:statement-wrapping" />
+        <error line="229" column="104" source="standard:statement-wrapping" />
+        <error line="256" column="64" source="standard:statement-wrapping" />
+        <error line="256" column="80" source="standard:statement-wrapping" />
+        <error line="256" column="104" source="standard:statement-wrapping" />
+        <error line="508" column="68" source="standard:statement-wrapping" />
+        <error line="508" column="84" source="standard:statement-wrapping" />
+        <error line="508" column="108" source="standard:statement-wrapping" />
+        <error line="604" column="41" source="standard:statement-wrapping" />
+        <error line="632" column="41" source="standard:statement-wrapping" />
+        <error line="667" column="45" source="standard:statement-wrapping" />
+        <error line="696" column="41" source="standard:statement-wrapping" />
+        <error line="794" column="64" source="standard:statement-wrapping" />
+        <error line="794" column="77" source="standard:statement-wrapping" />
+        <error line="794" column="101" source="standard:statement-wrapping" />
+        <error line="969" column="57" source="standard:statement-wrapping" />
+        <error line="1170" column="45" source="standard:function-signature" />
+        <error line="1175" column="65" source="standard:function-signature" />
+        <error line="1204" column="69" source="standard:function-signature" />
+        <error line="1207" column="48" source="standard:function-signature" />
+    </file>
+    <file name="src/test/kotlin/io/averkhogliad/tubeloader/core/DownloadQueueTest.kt">
+        <error line="30" column="27" source="standard:class-signature" />
+        <error line="389" column="77" source="standard:function-signature" />
+        <error line="400" column="19" source="standard:function-signature" />
+    </file>
+    <file name="src/test/kotlin/io/averkhogliad/tubeloader/core/TaskIdTest.kt">
+        <error line="6" column="20" source="standard:class-signature" />
+    </file>
+    <file name="src/test/kotlin/io/averkhogliad/tubeloader/core/contract/ReferenceAdapterContractTest.kt">
+        <error line="9" column="38" source="standard:class-signature" />
+    </file>
+    <file name="src/test/kotlin/io/averkhogliad/tubeloader/core/gen.kt">
+        <error line="1" column="1" source="standard:filename" />
+    </file>
+    <file name="src/testFixtures/kotlin/io/averkhogliad/tubeloader/core/contract/ReferenceSourceAdapter.kt">
+        <error line="109" column="59" source="standard:function-signature" />
+    </file>
+    <file name="src/testFixtures/kotlin/io/averkhogliad/tubeloader/core/contract/SourceAdapterContract.kt">
+        <error line="40" column="1" source="standard:no-empty-first-line-in-method-block" />
+    </file>
+    <file name="src/testFixtures/kotlin/io/averkhogliad/tubeloader/core/contract/SourceAdapterFixtures.kt">
+        <error line="53" column="60" source="standard:function-signature" />
+        <error line="90" column="65" source="standard:function-signature" />
+        <error line="97" column="81" source="standard:function-signature" />
+    </file>
+</baseline>
