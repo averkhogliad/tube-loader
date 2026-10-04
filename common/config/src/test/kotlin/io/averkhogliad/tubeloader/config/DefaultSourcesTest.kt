@@ -24,7 +24,7 @@ class DefaultSourcesTest : FreeSpec({
             sources.drop(1).forEach { it.shouldBeInstanceOf<FileConfigSource>() }
         }
 
-        "falls back to the process home and working directory by default" {
+        "builds four sources when called without arguments" {
             // when
             val sources = defaultSources()
 
@@ -40,8 +40,11 @@ class DefaultSourcesTest : FreeSpec({
                 workingDir = Path.of("no-such-work"),
             )
 
-            // when + then
-            sources.forEach { it.load().shouldBeNull() }
+            // when
+            val loaded = sources.map { it.load() }
+
+            // then
+            loaded.forEach { it.shouldBeNull() }
         }
 
         "appends a required file source when an explicit file is given" {

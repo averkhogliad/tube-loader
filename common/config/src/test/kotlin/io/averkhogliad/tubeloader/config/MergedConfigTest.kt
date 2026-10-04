@@ -5,17 +5,6 @@ import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.next
 
-private fun configOf(table: Map<String, Any>): Config =
-    object : Config {
-        override val keys: Set<String> = table.keys
-
-        override fun getOrNull(path: String): String? = null
-
-        @Suppress("UNCHECKED_CAST")
-        override fun getTableOrNull(path: String): Map<String, Any>? =
-            table[path] as? Map<String, Any>
-    }
-
 @Suppress("UNCHECKED_CAST")
 private fun nestedOf(table: Map<String, Any>): Map<String, Any> = table["nested"] as Map<String, Any>
 

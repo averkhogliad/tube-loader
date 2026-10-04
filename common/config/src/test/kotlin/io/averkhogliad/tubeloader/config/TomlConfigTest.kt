@@ -3,7 +3,6 @@ package io.averkhogliad.tubeloader.config
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 import java.io.IOException
 import java.io.InputStream
 import java.util.concurrent.atomic.AtomicBoolean
@@ -215,7 +214,6 @@ class TomlConfigTest : FreeSpec({
 
             // then
             table shouldBe emptyMap()
-            table.shouldBeInstanceOf<Map<String, Any>>()
         }
     }
 })
