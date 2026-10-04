@@ -9,6 +9,5 @@
     <ID>SwallowedException:CoreFacade.kt$CoreFacade$failure: Exception</ID>
     <ID>TooGenericExceptionCaught:CoreFacade.kt$CoreFacade$failure: Exception</ID>
     <ID>TooManyFunctions:CoreFacade.kt$CoreFacade</ID>
-    <ID>UnusedPrivateProperty:CoreFacadeTest.kt$private val DownloadStatus.isTerminal: Boolean get() = this is DownloadStatus.Completed || this is DownloadStatus.Cancelled || this is DownloadStatus.Failed</ID>
   </CurrentIssues>
 </SmellBaseline>

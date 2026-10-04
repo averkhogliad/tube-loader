@@ -1206,6 +1206,3 @@ private fun leftoverFilesIn(dir: Path, expected: Path): List<Path> =
 
 private fun partialsIn(dir: Path): List<Path> =
     Files.newDirectoryStream(dir).use { entries -> entries.filter { it.fileName.toString().contains(".part-") } }
-
-private val DownloadStatus.isTerminal: Boolean
-    get() = this is DownloadStatus.Completed || this is DownloadStatus.Cancelled || this is DownloadStatus.Failed
