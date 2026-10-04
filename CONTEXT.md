@@ -6,8 +6,8 @@
 ## Language
 
 **Source (источник)**:
-Сайт или сервис, из которого скачивается контент: Rutube, YouTube. Понятие уровня
-бизнес-требований, не код.
+Сайт или сервис, из которого скачивается контент: Rutube, YouTube. В коде — тип `Source(SourceId,
+displayName)`: часть `MediaRef`, ядро перечисляет их через `CoreFacade.availableSources`.
 _Avoid_: называть «источником» плагин или его код
 
 **SourceAdapter (адаптер источника)**:

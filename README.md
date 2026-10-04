@@ -4,7 +4,7 @@ Desktop download manager for video and audio from multiple sources.
 
 ## What it is
 
-TubeLoader downloads video and audio from several hosting sites, YouTube and Rutube at minimum.
+Tubeloader downloads video and audio from several hosting sites, YouTube and Rutube at minimum.
 The target quality is separate video and audio streams muxed into a single file with FFmpeg, so a
 download is not limited to the progressive formats a site serves. The user pastes a URL and the
 source is routed from that URL, with no manual source picking. New sources are added behind the
