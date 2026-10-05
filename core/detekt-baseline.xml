@@ -2,11 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>LargeClass:CoreFacadeTest.kt$CoreFacadeTest : FreeSpec</ID>
-    <ID>LongParameterList:CoreFacadeTest.kt$( tempDir: Path, adapters: List&lt;FakeSourceAdapter&gt; = listOf(FakeSourceAdapter()), initialConfig: AppConfig = AppConfig(), taskIdGenerator: TaskIdGenerator = RandomTaskIdGenerator, clock: Clock = Clock.System, dispatcher: CoroutineDispatcher = UnconfinedTestDispatcher(), workContext: CoroutineContext = dispatcher, )</ID>
-    <ID>LongParameterList:Gen.kt$( ids: Gen&lt;String&gt; = Arb.string(1..8), titles: Gen&lt;String&gt; = Arb.string(1..16), authors: Gen&lt;String&gt; = Arb.string(1..16), durations: Gen&lt;Duration&gt; = Arb.long(0L..10_000L).map { it.seconds }, thumbnails: Gen&lt;String?&gt; = Arb.string(1..16).orNull(), qualities: Gen&lt;List&lt;Quality&gt;&gt; = Arb.list(Arb.qualities(), 1..3), )</ID>
-    <ID>SwallowedException:CoreFacade.kt$CoreFacade$failure: Exception</ID>
     <ID>TooGenericExceptionCaught:CoreFacade.kt$CoreFacade$failure: Exception</ID>
-    <ID>TooManyFunctions:CoreFacade.kt$CoreFacade</ID>
   </CurrentIssues>
 </SmellBaseline>
