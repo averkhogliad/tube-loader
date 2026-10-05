@@ -45,7 +45,8 @@ class CoreFacade(
     }
 
     suspend fun findById(sourceId: SourceId, id: String): ResolveResult {
-        val adapter = adapterFor(sourceId)
+        val adapter =
+            adaptersBySourceId[sourceId] ?: error("Unknown source id: $sourceId")
         val source = sources[sourceId.index]
         return when (val result = adapter.find(id)) {
             is FindResult.Found -> ResolveResult.Resolved(MediaRef(source, result.mediaId))
