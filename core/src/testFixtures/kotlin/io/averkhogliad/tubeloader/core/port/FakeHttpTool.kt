@@ -1,5 +1,7 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.port
 
+import io.averkhogliad.tubeloader.core.port.HttpBody
+import io.averkhogliad.tubeloader.core.port.HttpTool
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 

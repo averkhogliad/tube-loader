@@ -1,5 +1,7 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.port
 
+import io.averkhogliad.tubeloader.core.domain.Progress
+import io.averkhogliad.tubeloader.core.port.MediaTool
 import java.nio.file.Path
 
 data class MuxCall(val videoTrack: Path, val audioTrack: Path, val output: Path)

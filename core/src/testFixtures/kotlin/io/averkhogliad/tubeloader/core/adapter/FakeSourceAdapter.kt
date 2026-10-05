@@ -1,5 +1,13 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.adapter
 
+import io.averkhogliad.tubeloader.core.adapter.DownloadCapability
+import io.averkhogliad.tubeloader.core.adapter.DownloadResult
+import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
+import io.averkhogliad.tubeloader.core.domain.Quality
+import io.averkhogliad.tubeloader.core.domain.SourceProgress
+import io.averkhogliad.tubeloader.core.download.DownloadRequest
 import java.nio.file.Path
 
 class FakeSourceAdapter(

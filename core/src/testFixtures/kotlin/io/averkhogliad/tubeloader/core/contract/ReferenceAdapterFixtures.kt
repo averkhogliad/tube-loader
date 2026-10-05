@@ -1,12 +1,12 @@
 package io.averkhogliad.tubeloader.core.contract
 
-import io.averkhogliad.tubeloader.core.DownloadError
-import io.averkhogliad.tubeloader.core.DownloadResult
-import io.averkhogliad.tubeloader.core.FindResult
-import io.averkhogliad.tubeloader.core.LoadMetaResult
-import io.averkhogliad.tubeloader.core.MediaMeta
-import io.averkhogliad.tubeloader.core.Quality
-import io.averkhogliad.tubeloader.core.TrackKind
+import io.averkhogliad.tubeloader.core.adapter.DownloadResult
+import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.domain.DownloadError
+import io.averkhogliad.tubeloader.core.domain.MediaMeta
+import io.averkhogliad.tubeloader.core.domain.Quality
+import io.averkhogliad.tubeloader.core.domain.TrackKind
 import kotlin.time.Duration.Companion.seconds
 
 private const val REFERENCE_STREAM_URL = "https://cdn.reference.example/stream/ref-1/hls-720"
