@@ -37,7 +37,6 @@ fun sourceAdapterContract(
     fixtures: SourceAdapterFixtures,
     create: () -> SourceAdapter,
 ): TestFactory = freeSpec {
-
     val tempDir = Files.createTempDirectory("contract-$adapterName")
 
     afterSpec {

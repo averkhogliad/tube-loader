@@ -102,7 +102,4 @@ class DownloadQueue(
     }
 }
 
-private class Waiter(
-    val job: Job,
-    val gate: CompletableDeferred<Unit>,
-)
+private class Waiter(val job: Job, val gate: CompletableDeferred<Unit>)

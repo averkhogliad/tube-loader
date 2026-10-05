@@ -29,11 +29,7 @@ class FakeMediaTool : MediaTool {
         return onMux(videoTrack, audioTrack, output)
     }
 
-    override suspend fun remux(
-        input: Path,
-        output: Path,
-        onProgress: (Progress) -> Unit,
-    ): Result<Unit> {
+    override suspend fun remux(input: Path, output: Path, onProgress: (Progress) -> Unit): Result<Unit> {
         remuxCalls += RemuxCall(input, output)
         progress?.let(onProgress)
         return onRemux(input, output)

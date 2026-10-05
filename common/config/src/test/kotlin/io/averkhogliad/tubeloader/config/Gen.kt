@@ -16,8 +16,7 @@ fun Arb.Companion.flatTables(
     values: Gen<String> = Arb.configValues(),
 ): Arb<Map<String, Any>> = Arb.bind(keys, values) { key, value -> mapOf(key to value) }
 
-fun Arb.Companion.nestedTables(
-    values: Gen<String> = Arb.configValues(),
-): Arb<Map<String, Any>> = Arb.bind(values, values) { outer, inner ->
-    mapOf("nested" to mapOf("a" to outer, "b" to inner))
-}
+fun Arb.Companion.nestedTables(values: Gen<String> = Arb.configValues()): Arb<Map<String, Any>> =
+    Arb.bind(values, values) { outer, inner ->
+        mapOf("nested" to mapOf("a" to outer, "b" to inner))
+    }

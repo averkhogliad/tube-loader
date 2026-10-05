@@ -9,6 +9,5 @@ class ConfigProvider {
         return this
     }
 
-    fun load(): Config =
-        MergedConfig(sources.mapNotNull { it.load() })
+    fun load(): Config = MergedConfig(sources.mapNotNull { it.load() })
 }
