@@ -1,5 +1,13 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.facade
 
+import io.averkhogliad.tubeloader.core.adapter.DownloadResult
+import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.domain.DownloadError
+import io.averkhogliad.tubeloader.core.domain.Progress
+import io.averkhogliad.tubeloader.core.domain.SourceProgress
+import io.averkhogliad.tubeloader.core.download.DownloadStatus
+import io.averkhogliad.tubeloader.core.download.absoluteProgresses
+import io.averkhogliad.tubeloader.core.download.fractions
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.shouldBe

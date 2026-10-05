@@ -1,5 +1,12 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.facade
 
+import io.averkhogliad.tubeloader.core.ResolveResult
+import io.averkhogliad.tubeloader.core.adapter.FakeSourceAdapter
+import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.domain.MediaRef
+import io.averkhogliad.tubeloader.core.domain.SourceId
+import io.averkhogliad.tubeloader.core.download.mediaMetas
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe

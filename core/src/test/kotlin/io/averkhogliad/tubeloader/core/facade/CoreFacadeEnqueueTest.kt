@@ -1,5 +1,12 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.facade
 
+import io.averkhogliad.tubeloader.core.ResolveResult
+import io.averkhogliad.tubeloader.core.adapter.DownloadResult
+import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.config.AppConfig
+import io.averkhogliad.tubeloader.core.domain.TaskId
+import io.averkhogliad.tubeloader.core.download.DownloadStatus
+import io.averkhogliad.tubeloader.core.download.TaskIdGenerator
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldContain

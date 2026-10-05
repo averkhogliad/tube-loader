@@ -1,5 +1,6 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.download
 
+import io.averkhogliad.tubeloader.core.domain.TaskId
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 

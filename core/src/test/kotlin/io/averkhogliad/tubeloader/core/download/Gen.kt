@@ -1,5 +1,9 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.download
 
+import io.averkhogliad.tubeloader.core.domain.MediaMeta
+import io.averkhogliad.tubeloader.core.domain.Quality
+import io.averkhogliad.tubeloader.core.domain.SourceProgress
+import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.kotest.property.Arb
 import io.kotest.property.Gen
 import io.kotest.property.arbitrary.bind

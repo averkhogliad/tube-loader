@@ -1,5 +1,10 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.facade
 
+import io.averkhogliad.tubeloader.core.adapter.DownloadResult
+import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.config.AppConfig
+import io.averkhogliad.tubeloader.core.domain.DownloadError
+import io.averkhogliad.tubeloader.core.download.DownloadStatus
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.property.arbitrary.next

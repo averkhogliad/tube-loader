@@ -1,5 +1,7 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.download
 
+import io.averkhogliad.tubeloader.core.config.AppConfig
+import io.averkhogliad.tubeloader.core.download.DownloadQueue
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
