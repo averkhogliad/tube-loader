@@ -44,7 +44,7 @@
 
 | Технология | Роль |
 | --- | --- |
-| ktlint | Стиль кода; per-module baseline в `config/ktlint/baseline.xml` рядом с модулем |
+| ktlint | Стиль кода; настройки в `.editorconfig`, `max_line_length = 120` |
 | detekt | Статический анализ; per-module baseline `detekt-baseline.xml` рядом с модулем |
 
 ## Внешние инструменты
