@@ -14,9 +14,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 
-class TomlConfig private constructor(
-    private val leaves: Map<String, Any>,
-) : Config {
+class TomlConfig private constructor(private val leaves: Map<String, Any>) : Config {
 
     override val keys: Set<String> = leaves.keys
 
@@ -53,24 +51,26 @@ class TomlConfig private constructor(
             return TomlConfig(leaves)
         }
 
-        fun fromStream(stream: InputStream): TomlConfig =
-            stream.reader(StandardCharsets.UTF_8).use { reader ->
-                fromString(reader.readText())
-            }
+        fun fromStream(stream: InputStream): TomlConfig = stream.reader(StandardCharsets.UTF_8).use { reader ->
+            fromString(reader.readText())
+        }
 
-        fun fromFile(path: Path): TomlConfig =
-            fromString(Files.readString(path))
+        fun fromFile(path: Path): TomlConfig = fromString(Files.readString(path))
 
         private fun walk(node: TomlNode, prefix: String, out: MutableMap<String, Any>) {
             for (child in node.children) {
                 when (child) {
                     is TomlTable -> walk(child, "$prefix${child.name}.", out)
+
                     is TomlInlineTable -> walk(child, "$prefix${child.name}.", out)
+
                     is TomlKeyValuePrimitive -> out[prefix + normalizeKey(child.key)] = child.value.content
+
                     is TomlKeyValueArray -> {
                         val array = child.value as TomlArray
                         out[prefix + normalizeKey(child.key)] = array.parse(TomlInputConfig())
                     }
+
                     else -> Unit
                 }
             }

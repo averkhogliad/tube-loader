@@ -157,10 +157,12 @@ class CoreFacade(
         states.update { snapshot ->
             val current = snapshot[taskId] ?: return@update snapshot
             if (current.status.isTerminal) return@update snapshot
-            snapshot + (taskId to current.copy(
-                status = status,
-                finishedAt = if (status.isTerminal) clock.now() else current.finishedAt,
-            ))
+            snapshot + (
+                taskId to current.copy(
+                    status = status,
+                    finishedAt = if (status.isTerminal) clock.now() else current.finishedAt,
+                )
+                )
         }
     }
 
@@ -193,6 +195,7 @@ private val DownloadStatus.isTerminal: Boolean
 
 private fun SourceProgress.toProgress(): Progress = when (this) {
     SourceProgress.Indeterminate -> Progress.Indeterminate
+
     is SourceProgress.Absolute ->
         if (total > 0 && processed in 0..total) Progress.Determinate(processed, total) else Progress.Indeterminate
 

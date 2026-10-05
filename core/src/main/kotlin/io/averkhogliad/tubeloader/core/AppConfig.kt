@@ -17,14 +17,10 @@ data class AppConfig(
     companion object {
         const val DEFAULT_MAX_PARALLEL_DOWNLOADS = 3
 
-        fun fromConfig(
-            config: Config,
-            keyPrefix: String = "download",
-        ): AppConfig =
-            AppConfig(
-                maxParallelDownloads = maxParallelDownloads(config, keyPrefix),
-                defaultTargetDir = defaultTargetDir(config, keyPrefix),
-            )
+        fun fromConfig(config: Config, keyPrefix: String = "download"): AppConfig = AppConfig(
+            maxParallelDownloads = maxParallelDownloads(config, keyPrefix),
+            defaultTargetDir = defaultTargetDir(config, keyPrefix),
+        )
 
         private fun maxParallelDownloads(config: Config, keyPrefix: String): Int {
             val parsed = config.getOrNull("$keyPrefix.max-parallel-downloads")?.trim()?.toIntOrNull()

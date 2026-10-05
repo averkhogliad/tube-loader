@@ -29,12 +29,10 @@ fun Arb.Companion.mediaMetas(
     qualities: Gen<List<Quality>> = Arb.list(Arb.qualities(), 1..3),
 ): Arb<MediaMeta> = Arb.bind(ids, titles, authors, durations, thumbnails, qualities, ::MediaMeta)
 
-fun Arb.Companion.absoluteProgresses(
-    totals: Arb<Long> = Arb.long(1L..1_000_000L),
-): Arb<SourceProgress.Absolute> = totals.flatMap { total ->
-    Arb.long(0L..total).map { processed -> SourceProgress.Absolute(processed, total) }
-}
+fun Arb.Companion.absoluteProgresses(totals: Arb<Long> = Arb.long(1L..1_000_000L)): Arb<SourceProgress.Absolute> =
+    totals.flatMap { total ->
+        Arb.long(0L..total).map { processed -> SourceProgress.Absolute(processed, total) }
+    }
 
-fun Arb.Companion.fractions(
-    ratios: Arb<Double> = Arb.double(0.0..1.0),
-): Arb<SourceProgress.Fraction> = ratios.map { SourceProgress.Fraction(it) }
+fun Arb.Companion.fractions(ratios: Arb<Double> = Arb.double(0.0..1.0)): Arb<SourceProgress.Fraction> =
+    ratios.map { SourceProgress.Fraction(it) }

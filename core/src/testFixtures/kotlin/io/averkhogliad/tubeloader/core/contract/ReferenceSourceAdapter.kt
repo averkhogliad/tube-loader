@@ -26,9 +26,7 @@ private const val QUALITY_PREFIX = "quality="
  *
  * It is never used by production code — it exists to prove the contract suite is runnable.
  */
-class ReferenceSourceAdapter(
-    private val fixtures: SourceAdapterFixtures,
-) : SourceAdapter {
+class ReferenceSourceAdapter(private val fixtures: SourceAdapterFixtures) : SourceAdapter {
 
     override val capability: DownloadCapability = DownloadCapability.Native
 
@@ -106,6 +104,5 @@ class ReferenceSourceAdapter(
 
     private fun metaUrl(id: String) = "https://api.reference.example/video/$id"
 
-    private fun streamUrl(id: String, qualityId: String) =
-        "https://cdn.reference.example/stream/$id/$qualityId"
+    private fun streamUrl(id: String, qualityId: String) = "https://cdn.reference.example/stream/$id/$qualityId"
 }

@@ -17,20 +17,11 @@ interface MediaTool : Closeable {
     /**
      * Joins a [videoTrack] and an [audioTrack] into a single file by copying both streams.
      */
-    suspend fun mux(
-        videoTrack: Path,
-        audioTrack: Path,
-        output: Path,
-        onProgress: (Progress) -> Unit,
-    ): Result<Unit>
+    suspend fun mux(videoTrack: Path, audioTrack: Path, output: Path, onProgress: (Progress) -> Unit): Result<Unit>
 
     /**
      * Rewrites a single input into [output] by copying its streams, so the result is a normalized
      * container of the same content.
      */
-    suspend fun remux(
-        input: Path,
-        output: Path,
-        onProgress: (Progress) -> Unit,
-    ): Result<Unit>
+    suspend fun remux(input: Path, output: Path, onProgress: (Progress) -> Unit): Result<Unit>
 }

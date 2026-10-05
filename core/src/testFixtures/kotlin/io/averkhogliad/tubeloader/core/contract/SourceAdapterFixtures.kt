@@ -50,11 +50,10 @@ class RecordedResponses(
             return RecordedResponses(bodies, unreachable)
         }
 
-        private fun readResource(path: String): ByteArray =
-            RecordedResponses::class.java.classLoader
-                ?.getResourceAsStream(path)
-                ?.use { it.readBytes() }
-                ?: throw IllegalArgumentException("missing golden fixture: $path")
+        private fun readResource(path: String): ByteArray = RecordedResponses::class.java.classLoader
+            ?.getResourceAsStream(path)
+            ?.use { it.readBytes() }
+            ?: throw IllegalArgumentException("missing golden fixture: $path")
 
         private const val UNREACHABLE = "!unreachable"
     }
@@ -87,8 +86,7 @@ data class SourceAdapterFixtures(
 /**
  * Convenience for adapters whose recording lives under `golden/<name>/` on the classpath.
  */
-fun recordedResponsesOf(sourceName: String): RecordedResponses =
-    RecordedResponses.fromResources("golden/$sourceName")
+fun recordedResponsesOf(sourceName: String): RecordedResponses = RecordedResponses.fromResources("golden/$sourceName")
 
 /**
  * Where the suite writes the files it asserts on. Kept out of the fixture model because the path is
