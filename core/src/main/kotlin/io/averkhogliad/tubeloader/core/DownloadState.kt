@@ -25,5 +25,5 @@ sealed interface DownloadStatus {
 
     data object Cancelled : DownloadStatus
 
-    data class Failed(val error: DownloadError) : DownloadStatus
+    data class Failed(val error: DownloadError, val cause: Throwable? = null) : DownloadStatus
 }

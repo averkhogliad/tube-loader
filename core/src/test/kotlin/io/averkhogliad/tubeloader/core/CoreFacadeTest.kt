@@ -8,6 +8,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.types.shouldBeSameInstanceAs
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.string
@@ -27,6 +28,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.coroutines.CoroutineContext
@@ -355,9 +357,10 @@ class CoreFacadeTest :
                     val ref = world.resolve(mediaId)
                     val target = world.targetPath()
                     val release = CompletableDeferred<Unit>()
+                    val thrown = IllegalStateException("adapter broke")
                     world.adapters.single().onDownload = { _, _ ->
                         release.await()
-                        error("adapter broke")
+                        throw thrown
                     }
 
                     // when
@@ -374,7 +377,36 @@ class CoreFacadeTest :
                     testScheduler.advanceUntilIdle()
                     val failed = world.state(handle.taskId).status as DownloadStatus.Failed
                     failed.error shouldBe DownloadError.ExtractorBroken
+                    failed.cause shouldBeSameInstanceAs thrown
                     leftoverFilesIn(target.parent, target) shouldBe emptyList()
+                }
+            }
+
+            "keeps the cause when a local io operation fails" {
+                runTest {
+                    // given
+                    val mediaId = mediaIds.next()
+                    val world = facadeWorld(
+                        tempDir,
+                        taskIdGenerator = TaskIdGenerator { TaskId(1) },
+                        dispatcher = StandardTestDispatcher(testScheduler),
+                    )
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    val ref = world.resolve(mediaId)
+                    // a directory where the partial file belongs makes Files.createFile fail
+                    val target = world.targetPath()
+                    Files.createDirectory(target.resolveSibling("${target.fileName}.part-00000001"))
+
+                    // when
+                    val handle = world.enqueue(ref, target)
+                    testScheduler.advanceUntilIdle()
+
+                    // then
+                    // a local io failure is not an extractor problem, but the M1 error set has no class
+                    // for it: the cause carries the real verdict until the set grows
+                    val failed = world.state(handle.taskId).status as DownloadStatus.Failed
+                    failed.error shouldBe DownloadError.ExtractorBroken
+                    failed.cause.shouldBeInstanceOf<IOException>()
                 }
             }
 

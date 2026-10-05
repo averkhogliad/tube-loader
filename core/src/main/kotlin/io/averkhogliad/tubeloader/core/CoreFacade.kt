@@ -128,7 +128,7 @@ class CoreFacade(
             throw cancellation
         } catch (failure: Exception) {
             deleteQuietly(part)
-            transition(taskId, DownloadStatus.Failed(DownloadError.ExtractorBroken))
+            transition(taskId, DownloadStatus.Failed(DownloadError.ExtractorBroken, failure))
         }
     }
 
