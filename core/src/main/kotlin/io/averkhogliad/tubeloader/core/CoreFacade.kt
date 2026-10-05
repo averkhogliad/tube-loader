@@ -154,10 +154,10 @@ class CoreFacade(
     }
 
     private fun transition(taskId: TaskId, status: DownloadStatus) {
-        states.update { states ->
-            val current = states[taskId] ?: return@update states
-            if (current.status.isTerminal) return@update states
-            states + (taskId to current.copy(
+        states.update { snapshot ->
+            val current = snapshot[taskId] ?: return@update snapshot
+            if (current.status.isTerminal) return@update snapshot
+            snapshot + (taskId to current.copy(
                 status = status,
                 finishedAt = if (status.isTerminal) clock.now() else current.finishedAt,
             ))
@@ -165,9 +165,9 @@ class CoreFacade(
     }
 
     private fun updateProgress(taskId: TaskId, progress: Progress) {
-        states.update { states ->
-            val current = states[taskId] ?: return@update states
-            states + (taskId to current.copy(progress = progress))
+        states.update { snapshot ->
+            val current = snapshot[taskId] ?: return@update snapshot
+            snapshot + (taskId to current.copy(progress = progress))
         }
     }
 
