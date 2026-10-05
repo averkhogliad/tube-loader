@@ -169,6 +169,7 @@ class CoreFacade(
     private fun updateProgress(taskId: TaskId, progress: Progress) {
         states.update { snapshot ->
             val current = snapshot[taskId] ?: return@update snapshot
+            if (current.status.isTerminal) return@update snapshot
             snapshot + (taskId to current.copy(progress = progress))
         }
     }

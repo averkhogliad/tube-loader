@@ -691,7 +691,7 @@ class CoreFacadeTest :
                     }
                 }
 
-                "updates progress without changing the status when a late callback arrives" {
+                "updates the progress without changing the status while the task is active" {
                     runTest {
                         // given
                         val mediaId = mediaIds.next()
@@ -713,14 +713,105 @@ class CoreFacadeTest :
                         reported.await()
 
                         // when
+                        lateProgress(SourceProgress.Fraction(0.5))
+
+                        // then
+                        val state = world.state(handle.taskId)
+                        state.status shouldBe DownloadStatus.Downloading
+                        state.progress shouldBe Progress.Determinate(500L, 1000L)
+                        release.complete(Unit)
+                    }
+                }
+
+                "keeps the terminal progress when a callback arrives after the task completed" {
+                    runTest {
+                        // given
+                        val mediaId = mediaIds.next()
+                        val world = facadeWorld(tempDir)
+                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        val ref = world.resolve(mediaId)
+                        val absolute = Arb.absoluteProgresses().next()
+                        lateinit var lateProgress: (SourceProgress) -> Unit
+                        val reported = CompletableDeferred<Unit>()
+                        val release = CompletableDeferred<Unit>()
+                        world.adapters.single().onDownload = { _, onProgress ->
+                            lateProgress = onProgress
+                            onProgress(absolute)
+                            reported.complete(Unit)
+                            release.await()
+                            DownloadResult.Success
+                        }
+                        val handle = world.enqueue(ref)
+                        reported.await()
                         release.complete(Unit)
                         world.awaitState(handle.taskId) { it.status == DownloadStatus.Completed }
+
+                        // when
                         lateProgress(SourceProgress.Fraction(0.5))
 
                         // then
                         val state = world.state(handle.taskId)
                         state.status shouldBe DownloadStatus.Completed
-                        state.progress shouldBe Progress.Determinate(500L, 1000L)
+                        state.progress shouldBe Progress.Determinate(absolute.processed, absolute.total)
+                    }
+                }
+
+                "keeps the terminal progress when a callback arrives after the task was cancelled" {
+                    runTest {
+                        // given
+                        val mediaId = mediaIds.next()
+                        val world = facadeWorld(tempDir)
+                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        val ref = world.resolve(mediaId)
+                        val absolute = Arb.absoluteProgresses().next()
+                        lateinit var lateProgress: (SourceProgress) -> Unit
+                        val reported = CompletableDeferred<Unit>()
+                        world.adapters.single().onDownload = { _, onProgress ->
+                            lateProgress = onProgress
+                            onProgress(absolute)
+                            reported.complete(Unit)
+                            CompletableDeferred<Unit>().await()
+                            DownloadResult.Success
+                        }
+                        val handle = world.enqueue(ref)
+                        reported.await()
+                        handle.cancel()
+                        world.awaitState(handle.taskId) { it.status == DownloadStatus.Cancelled }
+
+                        // when
+                        lateProgress(SourceProgress.Fraction(0.5))
+
+                        // then
+                        val state = world.state(handle.taskId)
+                        state.status shouldBe DownloadStatus.Cancelled
+                        state.progress shouldBe Progress.Determinate(absolute.processed, absolute.total)
+                    }
+                }
+
+                "keeps the terminal progress when a callback arrives after the task failed" {
+                    runTest {
+                        // given
+                        val mediaId = mediaIds.next()
+                        val world = facadeWorld(tempDir)
+                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        val ref = world.resolve(mediaId)
+                        val absolute = Arb.absoluteProgresses().next()
+                        lateinit var lateProgress: (SourceProgress) -> Unit
+                        world.adapters.single().onDownload = { _, onProgress ->
+                            lateProgress = onProgress
+                            onProgress(absolute)
+                            DownloadResult.Failed(DownloadError.NetworkTransient)
+                        }
+                        val handle = world.enqueue(ref)
+                        world.awaitState(handle.taskId) { it.status is DownloadStatus.Failed }
+
+                        // when
+                        lateProgress(SourceProgress.Fraction(0.5))
+
+                        // then
+                        val state = world.state(handle.taskId)
+                        state.status.shouldBeInstanceOf<DownloadStatus.Failed>()
+                        state.progress shouldBe Progress.Determinate(absolute.processed, absolute.total)
                     }
                 }
             }
