@@ -12,6 +12,20 @@
 | `core` | Headless-ядро: роутинг URL, оркестрация загрузок, нормализация прогресса и ошибок, staging |
 | Фронтенды (план) | Compose Desktop GUI (M1), mosaic TUI (M2) — тонкие клиенты: команды вниз, события вверх |
 
+## Подпакеты `core`
+
+Слоистая граница — инвариант `docs/standards/architecture.md`; здесь — только раскладка пакетов
+внутри ядра. Тестовые сорсеты (`testFixtures`, `test`) зеркалят main.
+
+| Пакет | Содержимое |
+| --- | --- |
+| `core.adapter` | Контракт расширения: `SourceAdapter`, `FindResult`, `LoadMetaResult`, `DownloadCapability`, `DownloadResult` |
+| `core.config` | Типизированные настройки ядра: `AppConfig` |
+| `core.domain` | Доменные типы: `MediaMeta`, `MediaRef`, `Progress`, `Quality`, `TrackKind`, `Source`, `SourceId`, `SourceProgress`, `TaskId`, `DownloadError` |
+| `core.download` | Жизненный цикл и исполнение: `DownloadHandle`, `DownloadQueue`, `DownloadState`, `DownloadStatus`, `TaskIdGenerator`, `TaskRegistry` |
+| `core.facade` | Единственная точка входа команд: `CoreFacade` |
+| `core.port` | Порты ядра: `MediaTool`, `HttpTool`, `HttpBody` |
+
 ## Рантайм
 
 | Технология | Роль |
