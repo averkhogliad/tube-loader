@@ -40,6 +40,28 @@ class AppConfigTest : FreeSpec({
             )
         }
 
+        "trims surrounding whitespace around max-parallel-downloads" {
+            // given
+            val config = mapConfig("download.max-parallel-downloads" to " 7 ")
+
+            // when
+            val actual = AppConfig.fromConfig(config)
+
+            // then
+            actual.maxParallelDownloads shouldBe 7
+        }
+
+        "keeps one as the lowest accepted max-parallel-downloads" {
+            // given
+            val config = mapConfig("download.max-parallel-downloads" to "1")
+
+            // when
+            val actual = AppConfig.fromConfig(config)
+
+            // then
+            actual.maxParallelDownloads shouldBe 1
+        }
+
         "falls back to default when max-parallel-downloads is zero or negative" {
             // given
             val zero = mapConfig("download.max-parallel-downloads" to "0")

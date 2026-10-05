@@ -27,9 +27,8 @@ data class AppConfig(
             )
 
         private fun maxParallelDownloads(config: Config, keyPrefix: String): Int {
-            val raw = config.getOrNull("$keyPrefix.max-parallel-downloads") ?: return DEFAULT_MAX_PARALLEL_DOWNLOADS
-            val value = raw.trim().toIntOrNull() ?: return DEFAULT_MAX_PARALLEL_DOWNLOADS
-            return if (value < 1) DEFAULT_MAX_PARALLEL_DOWNLOADS else value
+            val parsed = config.getOrNull("$keyPrefix.max-parallel-downloads")?.trim()?.toIntOrNull()
+            return parsed?.takeIf { it >= 1 } ?: DEFAULT_MAX_PARALLEL_DOWNLOADS
         }
 
         private fun defaultTargetDir(config: Config, keyPrefix: String): Path? =
