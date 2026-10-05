@@ -1,4 +1,4 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.domain
 
 sealed interface DownloadError {
     data object NotFound : DownloadError

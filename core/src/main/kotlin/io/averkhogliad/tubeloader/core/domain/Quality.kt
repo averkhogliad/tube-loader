@@ -1,4 +1,4 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.domain
 
 enum class TrackKind { Video, Audio }
 

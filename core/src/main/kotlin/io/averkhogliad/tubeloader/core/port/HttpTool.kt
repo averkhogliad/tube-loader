@@ -1,4 +1,4 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.port
 
 import java.io.Closeable
 import java.io.InputStream

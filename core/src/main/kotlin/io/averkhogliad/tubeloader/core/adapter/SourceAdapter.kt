@@ -1,5 +1,8 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.adapter
 
+import io.averkhogliad.tubeloader.core.domain.MediaMeta
+import io.averkhogliad.tubeloader.core.domain.Quality
+import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import java.nio.file.Path
 
 enum class DownloadCapability { Delegate, Native, ResolveOnly }

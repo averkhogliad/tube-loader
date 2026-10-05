@@ -1,5 +1,6 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.port
 
+import io.averkhogliad.tubeloader.core.domain.Progress
 import java.io.Closeable
 import java.nio.file.Path
 

@@ -1,4 +1,4 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.domain
 
 sealed interface Progress {
     data object Indeterminate : Progress

@@ -1,4 +1,4 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.config
 
 import io.averkhogliad.tubeloader.config.Config
 import java.nio.file.InvalidPathException

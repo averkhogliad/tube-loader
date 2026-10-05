@@ -1,4 +1,4 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.domain
 
 @JvmInline
 value class SourceId(val index: Int)

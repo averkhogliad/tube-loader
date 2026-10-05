@@ -1,5 +1,7 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.download
 
+import io.averkhogliad.tubeloader.core.domain.Progress
+import io.averkhogliad.tubeloader.core.domain.TaskId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.mapNotNull

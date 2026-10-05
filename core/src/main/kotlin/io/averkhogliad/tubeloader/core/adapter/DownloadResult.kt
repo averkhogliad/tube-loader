@@ -1,5 +1,6 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.adapter
 
+import io.averkhogliad.tubeloader.core.domain.DownloadError
 sealed interface DownloadResult {
     data object Success : DownloadResult
 

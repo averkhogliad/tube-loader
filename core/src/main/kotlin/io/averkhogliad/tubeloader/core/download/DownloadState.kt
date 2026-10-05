@@ -1,5 +1,8 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.download
 
+import io.averkhogliad.tubeloader.core.domain.DownloadError
+import io.averkhogliad.tubeloader.core.domain.Progress
+import io.averkhogliad.tubeloader.core.domain.TaskId
 import kotlin.time.Instant
 
 data class DownloadState(
