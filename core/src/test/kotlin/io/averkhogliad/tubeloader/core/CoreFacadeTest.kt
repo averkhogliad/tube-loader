@@ -1129,6 +1129,34 @@ class CoreFacadeTest :
                 }
             }
 
+            "cancels the task when the adapter throws a CancellationException of its own" {
+                runTest {
+                    // given
+                    val mediaId = mediaIds.next()
+                    val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    val ref = world.resolve(mediaId)
+                    val target = world.targetPath()
+                    val release = CompletableDeferred<Unit>()
+                    world.adapters.single().onDownload = { _, _ ->
+                        release.await()
+                        throw CancellationException("adapter gave up")
+                    }
+                    val handle = world.enqueue(ref, target)
+                    testScheduler.advanceUntilIdle()
+
+                    // when
+                    release.complete(Unit)
+                    testScheduler.advanceUntilIdle()
+
+                    // then
+                    // a CancellationException ends the coroutine as cancelled whatever threw it, so the
+                    // adapter must report its own timeout as a value instead of throwing
+                    world.state(handle.taskId).status shouldBe DownloadStatus.Cancelled
+                    leftoverFilesIn(target.parent, target) shouldBe emptyList()
+                }
+            }
+
             "leaves the other task of the same source untouched" {
                 runTest {
                     // given
