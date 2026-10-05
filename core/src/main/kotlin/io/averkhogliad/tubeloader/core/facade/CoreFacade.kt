@@ -110,7 +110,7 @@ class CoreFacade(
         targetPath: Path,
     ) {
         val part = partialFilePath(targetPath, taskId)
-        try {
+        runCatching {
             registry.transition(taskId, DownloadStatus.LoadingMeta)
             // without a suspension point the phase is conflated away for a collector on another thread
             yield()
@@ -122,7 +122,7 @@ class CoreFacade(
             if (outcome is DownloadResult.Failed) {
                 deleteQuietly(part)
                 registry.transition(taskId, DownloadStatus.Failed(outcome.error))
-                return
+                return@runCatching
             }
             registry.transition(taskId, DownloadStatus.Finalizing)
             // a cancel landing in this window would otherwise go unnoticed and the file would be moved anyway
@@ -134,12 +134,20 @@ class CoreFacade(
                 StandardCopyOption.REPLACE_EXISTING,
             )
             registry.transition(taskId, DownloadStatus.Completed)
-        } catch (cancellation: CancellationException) {
-            deleteQuietly(part)
-            throw cancellation
-        } catch (failure: Exception) {
-            deleteQuietly(part)
-            registry.transition(taskId, DownloadStatus.Failed(DownloadError.ExtractorBroken, failure))
+        }.onFailure { failure ->
+            when (failure) {
+                is CancellationException -> {
+                    deleteQuietly(part)
+                    throw failure
+                }
+
+                is Exception -> {
+                    deleteQuietly(part)
+                    registry.transition(taskId, DownloadStatus.Failed(DownloadError.ExtractorBroken, failure))
+                }
+
+                else -> throw failure
+            }
         }
     }
 
