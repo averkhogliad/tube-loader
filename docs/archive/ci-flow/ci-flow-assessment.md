@@ -1,7 +1,9 @@
 # Оценка CI-флоу
 
 Статус: **исследование**, не решение. Отчёт описывает факты и развилки, не фиксирует выбор.
-Тикет: GitHub issue #16 (`wayfinder:research`), Weeek-карточка 93.
+Тикет: GitHub issue #16 (`wayfinder:research`), Weeek-карточка 93. Тикет закрыт, тема
+реализована — 05.10.2026 отчёт снят в архив: `docs/research/ci-flow-assessment.md` →
+`docs/archive/ci-flow/ci-flow-assessment.md`.
 
 Все утверждения ниже проверены на состоянии репозитория `6257b9e` (2026-10-04) живыми
 запросами к API, прогонами в песочнице вне репозитория и чтением исходников плагинов.
@@ -15,6 +17,14 @@
 baseline-файлов тоже иные: `core/config/ktlint/baseline.xml` и
 `common/config/config/ktlint/baseline.xml`, `core/detekt-baseline.xml` и
 `common/config/detekt-baseline.xml`.
+
+**Исправлено 05.10.2026 (PR #34, коммит `be23283`, ticket #31):** ktlint-baseline больше нет.
+Оба файла (`core/config/ktlint/baseline.xml`, `common/config/config/ktlint/baseline.xml`) удалены,
+все 63 замороженные находки исправлены прогоном `ktlintFormat` по 38 файлам, в `.editorconfig`
+добавлен `max_line_length = 120` — без него ktlint склеивает многострочные сигнатуры в одну
+строку, а detekt `MaxLineLength` их отклоняет. Из detekt-baseline `common/config/detekt-baseline.xml`
+пуст (0 записей), в `core/detekt-baseline.xml` осталось 6. Поэтому разделы 5.5, 5.6 и таблица
+раздела 7 описывают снимок `6257b9e`, а не текущий код.
 
 ## 1. Тело тикета устарело
 
