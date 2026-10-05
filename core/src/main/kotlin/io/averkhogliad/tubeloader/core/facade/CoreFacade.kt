@@ -5,26 +5,15 @@ import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
-import io.averkhogliad.tubeloader.core.domain.DownloadError
-import io.averkhogliad.tubeloader.core.domain.MediaRef
-import io.averkhogliad.tubeloader.core.domain.Progress
-import io.averkhogliad.tubeloader.core.domain.Quality
-import io.averkhogliad.tubeloader.core.domain.Source
-import io.averkhogliad.tubeloader.core.domain.SourceId
-import io.averkhogliad.tubeloader.core.domain.SourceProgress
-import io.averkhogliad.tubeloader.core.domain.TaskId
-import io.averkhogliad.tubeloader.core.download.DownloadHandle
-import io.averkhogliad.tubeloader.core.download.DownloadQueue
-import io.averkhogliad.tubeloader.core.download.DownloadStatus
-import io.averkhogliad.tubeloader.core.download.TaskIdGenerator
-import io.averkhogliad.tubeloader.core.download.TaskRegistry
+import io.averkhogliad.tubeloader.core.domain.*
+import io.averkhogliad.tubeloader.core.download.*
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.yield
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
-import kotlin.coroutines.coroutineContext
 import kotlin.time.Clock
 
 class CoreFacade(
@@ -126,7 +115,7 @@ class CoreFacade(
             }
             registry.transition(taskId, DownloadStatus.Finalizing)
             // a cancel landing in this window would otherwise go unnoticed and the file would be moved anyway
-            coroutineContext.ensureActive()
+            currentCoroutineContext().ensureActive()
             Files.move(
                 part,
                 targetPath,
