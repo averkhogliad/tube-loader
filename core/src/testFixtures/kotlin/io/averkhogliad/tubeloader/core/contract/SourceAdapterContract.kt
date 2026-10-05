@@ -1,10 +1,12 @@
 package io.averkhogliad.tubeloader.core.contract
 
-import io.averkhogliad.tubeloader.core.DownloadResult
-import io.averkhogliad.tubeloader.core.FindResult
-import io.averkhogliad.tubeloader.core.LoadMetaResult
-import io.averkhogliad.tubeloader.core.SourceAdapter
-import io.averkhogliad.tubeloader.core.SourceProgress
+import io.averkhogliad.tubeloader.core.adapter.DownloadResult
+import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
+import io.averkhogliad.tubeloader.core.domain.MediaMeta
+import io.averkhogliad.tubeloader.core.domain.Quality
+import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import io.kotest.assertions.withClue
 import io.kotest.core.factory.TestFactory
 import io.kotest.core.spec.style.freeSpec

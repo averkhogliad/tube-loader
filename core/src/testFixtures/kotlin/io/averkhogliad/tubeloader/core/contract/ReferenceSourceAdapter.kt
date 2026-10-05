@@ -1,15 +1,15 @@
 package io.averkhogliad.tubeloader.core.contract
 
-import io.averkhogliad.tubeloader.core.DownloadCapability
-import io.averkhogliad.tubeloader.core.DownloadError
-import io.averkhogliad.tubeloader.core.DownloadResult
-import io.averkhogliad.tubeloader.core.FindResult
-import io.averkhogliad.tubeloader.core.LoadMetaResult
-import io.averkhogliad.tubeloader.core.MediaMeta
-import io.averkhogliad.tubeloader.core.Quality
-import io.averkhogliad.tubeloader.core.SourceAdapter
-import io.averkhogliad.tubeloader.core.SourceProgress
-import io.averkhogliad.tubeloader.core.TrackKind
+import io.averkhogliad.tubeloader.core.adapter.DownloadCapability
+import io.averkhogliad.tubeloader.core.adapter.DownloadResult
+import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
+import io.averkhogliad.tubeloader.core.domain.DownloadError
+import io.averkhogliad.tubeloader.core.domain.MediaMeta
+import io.averkhogliad.tubeloader.core.domain.Quality
+import io.averkhogliad.tubeloader.core.domain.SourceProgress
+import io.averkhogliad.tubeloader.core.domain.TrackKind
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
