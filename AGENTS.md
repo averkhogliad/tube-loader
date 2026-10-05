@@ -8,10 +8,11 @@
 
 ## Стандарты
 
-Правила написания тестов и тестовый стек — `docs/standards/testing.md`; передача ошибок между
-швами — `docs/standards/errors.md`; порядок параметров (колбеки последними), sealed-исходы —
-`docs/standards/code.md`; архитектурные инварианты — `docs/standards/architecture.md`; правила
-описания исследований — `docs/standards/research.md`; согласование со спекой и тикетом —
+Правила написания тестов и тестовый стек — `docs/standards/testing.md`; прогон сборки и тестов —
+`docs/standards/build.md`; передача ошибок между швами — `docs/standards/errors.md`; порядок
+параметров (колбеки последними), sealed-исходы — `docs/standards/code.md`; архитектурные
+инварианты — `docs/standards/architecture.md`; правила описания исследований —
+`docs/standards/research.md`; согласование со спекой и тикетом —
 `docs/standards/implementation.md`; зоны ответственности CI-скриптов —
 `docs/standards/ci-scripts.md`; фича-специфичные швы — Testing Decisions спеки фичи
 (`docs/features/<feature>/spec.md`).
