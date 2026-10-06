@@ -1,7 +1,6 @@
 package io.averkhogliad.tubeloader.core.config
 
 import io.averkhogliad.tubeloader.config.mapConfig
-import io.averkhogliad.tubeloader.core.config.AppConfig
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe

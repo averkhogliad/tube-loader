@@ -5,9 +5,14 @@ import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import java.nio.file.Path
 
-enum class DownloadCapability { Delegate, Native, ResolveOnly }
+enum class DownloadCapability {
+    Delegate,
+    Native,
+    ResolveOnly,
+}
 
 sealed interface FindResult {
+
     data class Found(val mediaId: String) : FindResult
 
     data object Unsupported : FindResult
@@ -16,12 +21,14 @@ sealed interface FindResult {
 }
 
 sealed interface LoadMetaResult {
+
     data class Found(val meta: MediaMeta) : LoadMetaResult
 
     data object NotFound : LoadMetaResult
 }
 
 interface SourceAdapter {
+
     val capability: DownloadCapability
 
     val displayName: String

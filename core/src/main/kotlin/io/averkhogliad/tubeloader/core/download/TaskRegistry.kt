@@ -9,15 +9,28 @@ import kotlinx.coroutines.flow.update
 import kotlin.time.Clock
 import kotlin.time.Instant
 
-internal class TaskRegistry(private val taskIdGenerator: TaskIdGenerator, private val clock: Clock) {
+private const val DEFAULT_MAX_TASK_ID_ATTEMPTS = 16
+
+internal class TaskRegistry(
+    private val taskIdGenerator: TaskIdGenerator,
+    private val clock: Clock,
+    private val maxTaskIdAttempts: Int = DEFAULT_MAX_TASK_ID_ATTEMPTS,
+) {
+
     private val states = MutableStateFlow<Map<TaskId, DownloadState>>(emptyMap())
 
+    init {
+        require(maxTaskIdAttempts > 0) {
+            "maxTaskIdAttempts must be >= 1, got $maxTaskIdAttempts"
+        }
+    }
+
     fun allocate(startedAt: Instant): TaskId {
-        repeat(MAX_TASK_ID_ATTEMPTS) {
+        repeat(maxTaskIdAttempts) {
             val candidate = taskIdGenerator.next()
             if (register(candidate, startedAt)) return candidate
         }
-        error("TaskId generator produced an occupied id $MAX_TASK_ID_ATTEMPTS times in a row")
+        error("TaskId generator produced an occupied id $maxTaskIdAttempts times in a row")
     }
 
     fun statesFor(taskId: TaskId): Flow<DownloadState> = states.mapNotNull { it[taskId] }
@@ -56,8 +69,6 @@ internal class TaskRegistry(private val taskIdGenerator: TaskIdGenerator, privat
         }
     }
 }
-
-private const val MAX_TASK_ID_ATTEMPTS = 16
 
 private val DownloadStatus.isTerminal: Boolean
     get() = this is DownloadStatus.Completed || this is DownloadStatus.Cancelled || this is DownloadStatus.Failed

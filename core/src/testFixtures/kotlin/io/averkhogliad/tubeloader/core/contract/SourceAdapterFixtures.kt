@@ -59,9 +59,17 @@ class RecordedResponses(
     }
 }
 
-data class FindCase(val name: String, val input: String, val expected: FindResult)
+data class FindCase(
+    val name: String,
+    val input: String,
+    val expected: FindResult,
+)
 
-data class MetaCase(val name: String, val id: String, val expected: LoadMetaResult)
+data class MetaCase(
+    val name: String,
+    val id: String,
+    val expected: LoadMetaResult,
+)
 
 class DownloadCase(
     val name: String,

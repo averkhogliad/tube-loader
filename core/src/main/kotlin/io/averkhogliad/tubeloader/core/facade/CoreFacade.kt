@@ -33,13 +33,13 @@ class CoreFacade(
     taskIdGenerator: TaskIdGenerator,
     private val clock: Clock = Clock.System,
 ) {
-    private val sources: List<Source> = adapters.mapIndexed { index, adapter ->
-        Source(SourceId(index), adapter.displayName)
-    }
+    private val sources: List<Source> = adapters
+        .mapIndexed { index, adapter -> Source(SourceId(index), adapter.displayName) }
 
     val availableSources: List<Source> get() = sources
 
-    private val adaptersBySourceId: Map<SourceId, SourceAdapter> = sources.zip(adapters)
+    private val adaptersBySourceId: Map<SourceId, SourceAdapter> = sources
+        .zip(adapters)
         .associate { (source, adapter) -> source.id to adapter }
 
     private val registry = TaskRegistry(taskIdGenerator, clock)

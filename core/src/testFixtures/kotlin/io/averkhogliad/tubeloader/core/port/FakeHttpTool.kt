@@ -1,7 +1,5 @@
 package io.averkhogliad.tubeloader.core.port
 
-import io.averkhogliad.tubeloader.core.port.HttpBody
-import io.averkhogliad.tubeloader.core.port.HttpTool
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 
@@ -23,8 +21,6 @@ class FakeHttpTool : HttpTool {
     }
 
     fun respondWith(content: ByteArray, contentLength: Long? = content.size.toLong()) {
-        onOpen = { _, _ -> HttpBody(contentLength, ByteArrayInputStream(content)) }
+        onOpen = { _, _ -> HttpBody(ByteArrayInputStream(content), contentLength) }
     }
 }
-
-fun HttpBody.bytes(): ByteArray = body.use(InputStream::readBytes)

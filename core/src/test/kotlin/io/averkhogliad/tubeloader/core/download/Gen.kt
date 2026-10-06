@@ -10,7 +10,6 @@ import io.kotest.property.arbitrary.bind
 import io.kotest.property.arbitrary.double
 import io.kotest.property.arbitrary.enum
 import io.kotest.property.arbitrary.flatMap
-import io.kotest.property.arbitrary.list
 import io.kotest.property.arbitrary.long
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.string

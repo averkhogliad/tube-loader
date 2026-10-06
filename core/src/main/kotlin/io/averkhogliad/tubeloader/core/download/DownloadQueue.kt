@@ -86,8 +86,7 @@ class DownloadQueue(
         // an already completed job: ask the confined worker what is actually in flight
         val idle = withContext(dispatcher) { waiting.isEmpty() && running.isEmpty() }
         stopping.cancel()
-        if (idle) return true
-        return withTimeoutOrNull(timeout) { stopping.join() } != null
+        return idle || withTimeoutOrNull(timeout) { stopping.join() } != null
     }
 
     /** Re-reads the limit, so work that waited for a slot starts when the limit grew. */
