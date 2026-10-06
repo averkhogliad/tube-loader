@@ -69,8 +69,9 @@ class FakeHttpTool : HttpTool {
         return this
     }
 
-    /** Answers requests whose url starts with [prefix] from [stubs]; the last one repeats. */
+    /** Answers requests whose url starts with [prefix] from [stubs]; the last one repeats. Replaces a route with the same prefix. */
     fun route(prefix: String, vararg stubs: HttpStub): FakeHttpTool {
+        routes.removeAll { it.prefix == prefix }
         routes += Route(prefix, stubs.asList())
         return this
     }

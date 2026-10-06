@@ -5,9 +5,9 @@
 #EXT-X-PLAYLIST-TYPE:VOD
 #EXT-X-INDEPENDENT-SEGMENTS
 #EXTINF:2.000,
-0x1080.mp4/segment-1-v1-a1.ts
+https://segments.rutube.ru/0x1080.mp4/segment-1-v1-a1.ts
 #EXTINF:2.000,
-0x1080.mp4/segment-2-v1-a1.ts
+https://segments.rutube.ru/0x1080.mp4/segment-2-v1-a1.ts
 #EXTINF:2.000,
-0x1080.mp4/segment-3-v1-a1.ts
+https://segments.rutube.ru/0x1080.mp4/segment-3-v1-a1.ts
 #EXT-X-ENDLIST

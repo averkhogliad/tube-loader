@@ -40,7 +40,7 @@ class RutubePlaylistTest : FreeSpec({
             runCatching { adapter.download(MEDIA_ID, VIDEO_1080, target()) {} }
 
             // then
-            http.opened.map { it.url } shouldBe listOf(OPTIONS_URL, MASTER_URL, VARIANT_1080)
+            http.opened.map { it.url }.take(3) shouldBe listOf(OPTIONS_URL, MASTER_URL, VARIANT_1080)
         }
 
         "returns ExtractorBroken when the master playlist carries no quality marker" {
@@ -118,7 +118,7 @@ class RutubePlaylistTest : FreeSpec({
             http.opened[2].url shouldBe "https://river-1.rutube.ru/hls-vod/720/0x720.mp4.m3u8?i=1280x720_974"
         }
 
-        "leaves the filesystem untouched while it only navigates the playlists" {
+        "does not write the target itself, leaving finalization to the core" {
             // given
             val http = stub()
             val adapter = RutubeSourceAdapter(http)
@@ -129,7 +129,6 @@ class RutubePlaylistTest : FreeSpec({
 
             // then
             Files.exists(file) shouldBe false
-            Files.exists(file.resolveSibling("clip.mp4.tmp")) shouldBe false
         }
 
         "returns ExtractorBroken when the metadata request itself fails" {

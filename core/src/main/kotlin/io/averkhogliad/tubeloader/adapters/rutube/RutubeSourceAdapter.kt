@@ -12,8 +12,13 @@ import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.HttpTool
 import io.averkhogliad.tubeloader.core.port.bytes
+import java.io.IOException
+import java.io.OutputStream
 import java.net.URI
+import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.serialization.json.Json
@@ -72,13 +77,53 @@ class RutubeSourceAdapter(private val http: HttpTool) : SourceAdapter {
     ): DownloadResult {
         val playlistUrl = playlistUrlOf(mediaId) ?: return broken()
         val height = heightOf(quality.id) ?: return broken()
+        val tmpPath = targetPath.resolveSibling("${targetPath.fileName}.tmp")
+        return try {
+            onProgress(SourceProgress.Indeterminate)
+            val variant = HlsPlaylist.selectVariant(openText(playlistUrl), height) ?: return broken()
 
-        val variant = HlsPlaylist.selectVariant(openText(playlistUrl), height) ?: return broken()
+            onProgress(SourceProgress.Indeterminate)
+            val segments = HlsPlaylist.segments(openText(variant))
+            if (segments.isEmpty()) return broken()
 
-        val segments = HlsPlaylist.segments(openText(variant))
-        if (segments.isEmpty()) return broken()
+            transfer(segments, tmpPath, onProgress)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: IOException) {
+            DownloadResult.Failed(DownloadError.NetworkTransient)
+        } finally {
+            Files.deleteIfExists(tmpPath)
+        }
+    }
 
-        throw UnsupportedOperationException("RutubeSourceAdapter.download: segment transfer is not implemented yet")
+    /**
+     * Copies the segments one by one into [tmpPath]. The file appears with the first segment, so a run
+     * that fails while navigating the playlists leaves nothing behind.
+     */
+    private suspend fun transfer(
+        segments: List<String>,
+        tmpPath: Path,
+        onProgress: (SourceProgress) -> Unit,
+    ): DownloadResult {
+        var done = 0
+        var sink: OutputStream? = null
+        try {
+            for (segment in segments) {
+                val body = http.open(segment, REFERER_HEADERS)
+                if (body.status in 500..599) return DownloadResult.Failed(DownloadError.NetworkTransient)
+                // a missing segment is a broken source, not a transient one
+                if (body.status !in 200..299) return broken()
+                if (sink == null) {
+                    sink = Files.newOutputStream(tmpPath, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+                }
+                sink.write(body.bytes())
+                done += 1
+                onProgress(SourceProgress.Fraction(done.toDouble() / segments.size))
+            }
+        } finally {
+            sink?.close()
+        }
+        return DownloadResult.Success
     }
 
     private fun parseMeta(id: String, text: String): LoadMetaResult {
