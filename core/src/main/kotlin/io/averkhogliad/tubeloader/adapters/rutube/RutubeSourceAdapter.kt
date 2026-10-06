@@ -35,6 +35,7 @@ private const val HTTP_OK = 200
 private const val HTTP_LAST_SUCCESS = 299
 private const val HTTP_MISSING_VIDEO = 244
 private const val HTTP_NOT_FOUND = 404
+private const val HTTP_TOO_MANY_REQUESTS = 429
 private const val HTTP_SERVER_ERROR = 500
 private const val HTTP_LAST_SERVER_ERROR = 599
 
@@ -45,6 +46,12 @@ private const val HTTP_LAST_SERVER_ERROR = 599
 private val MISSING_VIDEO_STATUSES = setOf(HTTP_MISSING_VIDEO, HTTP_NOT_FOUND)
 private val SUCCESS_STATUS = HTTP_OK..HTTP_LAST_SUCCESS
 private val SERVER_ERROR = HTTP_SERVER_ERROR..HTTP_LAST_SERVER_ERROR
+
+/**
+ * What the retry loop is allowed to repeat: a hiccup of the source rather than its verdict. A rate
+ * limit belongs here because the source asks the caller to come back later, not to give up.
+ */
+private val RETRYABLE_STATUS = setOf(HTTP_TOO_MANY_REQUESTS)
 
 private const val MISSING_VIDEO_REASON = "default_does_not_exists_video"
 
@@ -153,7 +160,10 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
             for (segment in segments) {
                 val body = openWithRetry(http, segment)
                 // a missing segment is a broken source, not a transient one
-                if (body.status !in SUCCESS_STATUS) return DownloadResult.Failed(DownloadError.ExtractorBroken)
+                if (body.status !in SUCCESS_STATUS) {
+                    body.body.close()
+                    return DownloadResult.Failed(DownloadError.ExtractorBroken)
+                }
                 if (sink == null) {
                     sink =
                         Files.newOutputStream(
@@ -197,8 +207,9 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
  * classify.
  */
 private suspend fun openWithRetry(http: HttpTool, url: String): HttpBody =
-    withRetry(isRetryable = { body -> body.status in SERVER_ERROR }) { http.open(url, REFERER_HEADERS) }
-        .getOrThrow()
+    withRetry(isRetryable = { body -> body.status in SERVER_ERROR || body.status in RETRYABLE_STATUS }) {
+        http.open(url, REFERER_HEADERS)
+    }.getOrThrow()
 
 private fun classifyMeta(id: String, body: HttpBody): LoadMetaResult {
     val text = body.bytes().decodeToString()
