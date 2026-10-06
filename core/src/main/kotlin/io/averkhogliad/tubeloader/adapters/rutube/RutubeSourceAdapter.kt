@@ -18,7 +18,6 @@ import io.averkhogliad.tubeloader.core.port.bytes
 import io.averkhogliad.tubeloader.retry.RetryPolicy
 import io.averkhogliad.tubeloader.retry.continueIf
 import io.averkhogliad.tubeloader.retry.exponentialBackoff
-import io.averkhogliad.tubeloader.retry.plus
 import io.averkhogliad.tubeloader.retry.retry
 import io.averkhogliad.tubeloader.retry.stopAtAttempts
 import kotlinx.serialization.json.JsonObject
@@ -58,10 +57,11 @@ private val RETRY_BASE_PAUSE = 250.milliseconds
  * Repeats a hiccup of the source rather than its verdict: a server error and a rate limit both ask
  * the caller to come back, so they are retried with a growing pause until the attempts run out.
  */
-private val RETRY_POLICY: RetryPolicy<Throwable> =
-    stopAtAttempts<Throwable>(MAX_ATTEMPTS) +
-        continueIf { failure -> failure is IOException } +
-        exponentialBackoff(RETRY_BASE_PAUSE)
+private val RETRY_POLICY: RetryPolicy =
+    RetryPolicy
+        .stopAtAttempts(MAX_ATTEMPTS)
+        .continueIf { failure -> failure is IOException }
+        .exponentialBackoff(RETRY_BASE_PAUSE)
 
 /**
  * Rutube answers 244 instead of 404 for a missing video when the request carries `no_404=true`,

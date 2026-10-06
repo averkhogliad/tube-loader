@@ -9,8 +9,8 @@ import kotlin.time.Duration
  * exponential backoff needs; [cumulativeDelay] is the sum of the pauses spent so far, which is all a
  * policy can know about the time a retry has cost.
  */
-data class FailedAttempt<E>(
-    val failure: E,
+data class FailedAttempt(
+    val failure: Throwable,
     val number: Int,
     val previousDelay: Duration,
     val cumulativeDelay: Duration,

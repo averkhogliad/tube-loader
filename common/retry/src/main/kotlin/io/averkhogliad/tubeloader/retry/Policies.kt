@@ -9,55 +9,66 @@ import kotlin.time.Duration
 private const val MAX_BACKOFF_STEP = 30
 
 /**
- * Stops once [attempts] attempts have been made, repeating immediately before that.
+ * Appends a stage that stops once [attempts] attempts have been made.
  */
-fun <E> stopAtAttempts(attempts: Int): RetryPolicy<E> {
-    require(attempts >= 1) { "a retry needs at least one attempt, got $attempts" }
-    return RetryPolicy { attempt -> if (attempt.number >= attempts) StopRetrying else ContinueRetrying }
-}
+fun RetryPolicy.stopAtAttempts(attempts: Int): RetryPolicy = then(StopAtAttempts(attempts))
 
 /**
- * Stops as soon as [predicate] turns a failure down.
+ * Appends a stage that stops as soon as [predicate] turns a failure down.
  */
-fun <E> continueIf(predicate: (E) -> Boolean): RetryPolicy<E> =
-    RetryPolicy { attempt -> if (predicate(attempt.failure)) ContinueRetrying else StopRetrying }
+fun RetryPolicy.continueIf(predicate: (Throwable) -> Boolean): RetryPolicy = then(ContinueIf(predicate))
 
 /**
- * Waits the same [delay] before every attempt.
+ * Appends a stage that waits the same [delay] before every attempt.
  */
-fun <E> constantDelay(delay: Duration): RetryPolicy<E> = RetryPolicy { RetryAfter(delay) }
+fun RetryPolicy.constantDelay(delay: Duration): RetryPolicy = then(ConstantDelay(delay))
 
 /**
- * Doubles the pause with every attempt, starting at [base] and never growing past [limit].
+ * Appends a stage that doubles the pause with every attempt, starting at [base] and never growing
+ * past [limit].
  */
-fun <E> exponentialBackoff(base: Duration, limit: Duration = Duration.INFINITE): RetryPolicy<E> =
-    RetryPolicy { attempt ->
-        val step = (attempt.number - 1).coerceAtMost(MAX_BACKOFF_STEP)
-        RetryAfter(minOf(limit, base * (1 shl step)))
-    }
+fun RetryPolicy.exponentialBackoff(base: Duration, limit: Duration = Duration.INFINITE): RetryPolicy =
+    then(ExponentialBackoff(base, limit))
 
 /**
- * Stops once the pauses already spent reach [budget].
+ * Appends a stage that stops once the pauses already spent reach [budget].
  *
  * The budget covers the pauses, not the time the attempts themselves take: a policy sees only what
  * the driver reports, and the driver knows just how long it slept.
  */
-fun <E> withinBudget(budget: Duration): RetryPolicy<E> =
-    RetryPolicy { attempt -> if (attempt.cumulativeDelay >= budget) StopRetrying else ContinueRetrying }
+fun RetryPolicy.withinBudget(budget: Duration): RetryPolicy = then(WithinBudget(budget))
 
-/**
- * Runs both policies on every attempt: a stop on either side stops the retry, and the pause is the
- * longer of the two.
- */
-operator fun <E> RetryPolicy<E>.plus(other: RetryPolicy<E>): RetryPolicy<E> =
-    RetryPolicy { attempt ->
-        val first = this(attempt)
-        val second = other(attempt)
-        when {
-            first is StopRetrying || second is StopRetrying -> StopRetrying
-            first is RetryAfter && second is RetryAfter -> RetryAfter(maxOf(first.delay, second.delay))
-            first is RetryAfter -> first
-            second is RetryAfter -> second
-            else -> ContinueRetrying
-        }
+private class StopAtAttempts(private val attempts: Int) : Stage {
+
+    init {
+        require(attempts >= 1) { "a retry needs at least one attempt, got $attempts" }
     }
+
+    override fun decide(attempt: FailedAttempt): RetryInstruction =
+        if (attempt.number >= attempts) StopRetrying else ContinueRetrying
+}
+
+private class ContinueIf(private val predicate: (Throwable) -> Boolean) : Stage {
+
+    override fun decide(attempt: FailedAttempt): RetryInstruction =
+        if (predicate(attempt.failure)) ContinueRetrying else StopRetrying
+}
+
+private class ConstantDelay(private val delay: Duration) : Stage {
+
+    override fun decide(attempt: FailedAttempt): RetryInstruction = RetryAfter(delay)
+}
+
+private class ExponentialBackoff(private val base: Duration, private val limit: Duration) : Stage {
+
+    override fun decide(attempt: FailedAttempt): RetryInstruction {
+        val step = (attempt.number - 1).coerceAtMost(MAX_BACKOFF_STEP)
+        return RetryAfter(minOf(limit, base * (1 shl step)))
+    }
+}
+
+private class WithinBudget(private val budget: Duration) : Stage {
+
+    override fun decide(attempt: FailedAttempt): RetryInstruction =
+        if (attempt.cumulativeDelay >= budget) StopRetrying else ContinueRetrying
+}

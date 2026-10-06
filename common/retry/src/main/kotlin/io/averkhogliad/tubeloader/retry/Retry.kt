@@ -14,7 +14,7 @@ import kotlin.time.Duration
  * outcome. Cancellation is rethrown rather than retried — a cancelled caller is not waiting for
  * another attempt.
  */
-suspend fun <T> retry(policy: RetryPolicy<Throwable>, block: suspend () -> Result<T>): Result<T> {
+suspend fun <T> retry(policy: RetryPolicy, block: suspend () -> Result<T>): Result<T> {
     var number = 1
     var previousDelay = Duration.ZERO
     var cumulativeDelay = Duration.ZERO
@@ -22,7 +22,7 @@ suspend fun <T> retry(policy: RetryPolicy<Throwable>, block: suspend () -> Resul
         val outcome = block()
         val failure = outcome.exceptionOrNull() ?: return outcome
         if (failure is CancellationException) throw failure
-        val instruction = policy(FailedAttempt(failure, number, previousDelay, cumulativeDelay))
+        val instruction = policy.decide(FailedAttempt(failure, number, previousDelay, cumulativeDelay))
         when (instruction) {
             StopRetrying -> {
                 return outcome
