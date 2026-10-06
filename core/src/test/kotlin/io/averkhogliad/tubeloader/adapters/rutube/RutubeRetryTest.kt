@@ -78,6 +78,23 @@ class RutubeRetryTest :
                 http.opened.size shouldBe 2
             }
 
+            "repeats a rate limit answer and answers from the next response" {
+                // given
+                val http =
+                    FakeHttpTool().route(
+                        OPTIONS_URL,
+                        HttpStub.Respond(textBody("slow down", status = 429)),
+                        recordedStub(RECORDING_OPTIONS),
+                    )
+
+                // when
+                val actual = adapter(http).loadMeta(MEDIA_ID)
+
+                // then
+                actual.shouldBeInstanceOf<LoadMetaResult.Found>()
+                http.opened.size shouldBe 2
+            }
+
             "does not retry a client error" {
                 // given
                 val http = FakeHttpTool().route(OPTIONS_URL, CLIENT_ERROR_STUB, recordedStub(RECORDING_OPTIONS))

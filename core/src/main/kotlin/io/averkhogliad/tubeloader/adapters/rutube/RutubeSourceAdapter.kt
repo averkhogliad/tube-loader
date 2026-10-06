@@ -15,6 +15,8 @@ import io.averkhogliad.tubeloader.core.port.HttpBody
 import io.averkhogliad.tubeloader.core.port.HttpTool
 import io.averkhogliad.tubeloader.core.port.MediaTool
 import io.averkhogliad.tubeloader.core.port.bytes
+import io.averkhogliad.tubeloader.retry.RetryContext
+import io.averkhogliad.tubeloader.retry.RetryExhausted
 import io.averkhogliad.tubeloader.retry.RetryPolicy
 import io.averkhogliad.tubeloader.retry.continueIf
 import io.averkhogliad.tubeloader.retry.exponentialBackoff
@@ -44,23 +46,19 @@ private const val HTTP_TOO_MANY_REQUESTS = 429
 private const val HTTP_SERVER_ERROR = 500
 private const val HTTP_LAST_SERVER_ERROR = 599
 
-/**
- * Carries the status of a response the retry loop refuses. The status has to survive into the
- * policy, which sees only a failure.
- */
-private class HttpStatusException(val status: Int) : IOException("the source answered $status")
-
 private const val MAX_ATTEMPTS = 5
 private val RETRY_BASE_PAUSE = 250.milliseconds
 
 /**
  * Repeats a hiccup of the source rather than its verdict: a server error and a rate limit both ask
  * the caller to come back, so they are retried with a growing pause until the attempts run out.
+ * A response the loop turns down reaches the policy as the reason of the attempt — a transport
+ * failure, or [RetryExhausted] once the attempts ran out on it — so both are accepted here.
  */
 private val RETRY_POLICY: RetryPolicy =
     RetryPolicy
         .stopAtAttempts(MAX_ATTEMPTS)
-        .continueIf { failure -> failure is IOException }
+        .continueIf { failure -> failure is IOException || failure is RetryExhausted }
         .exponentialBackoff(RETRY_BASE_PAUSE)
 
 /**
@@ -72,8 +70,8 @@ private val SUCCESS_STATUS = HTTP_OK..HTTP_LAST_SUCCESS
 private val SERVER_ERROR = HTTP_SERVER_ERROR..HTTP_LAST_SERVER_ERROR
 
 /**
- * What the retry policy is allowed to repeat: a hiccup of the source rather than its verdict. A rate
- * limit belongs here because the source asks the caller to come back later, not to give up.
+ * What the source asks the caller to come back for: a rate limit belongs here because it tells the
+ * caller to retry later, not to give up. Everything else outside [SUCCESS_STATUS] is a verdict.
  */
 private val RETRYABLE_STATUS = setOf(HTTP_TOO_MANY_REQUESTS)
 
@@ -107,13 +105,8 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
 
     override suspend fun loadMeta(id: String): LoadMetaResult {
         val body =
-            try {
-                openWithRetry(http, optionsUrl(id))
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: IOException) {
-                return LoadMetaResult.Failed(DownloadError.NetworkTransient)
-            }
+            openWithRetry(http, optionsUrl(id))
+                .getOrElse { return LoadMetaResult.Failed(DownloadError.NetworkTransient) }
         return classifyMeta(id, body)
     }
 
@@ -135,6 +128,11 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
         }
     }
 
+    /**
+     * Navigates the playlists of [mediaId], copies the segments of the chosen variant and hands the
+     * result over to [finalize] once every one of them is in. A source that names no segment at all
+     * is broken rather than busy; an unreachable one is transient.
+     */
     private suspend fun runDownload(
         mediaId: String,
         quality: Quality,
@@ -142,32 +140,58 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
         targetPath: Path,
         onProgress: (SourceProgress) -> Unit,
     ): DownloadResult {
-        val segments =
-            segmentsOf(mediaId, quality, onProgress)
-                ?: return DownloadResult.Failed(DownloadError.ExtractorBroken)
-        val transferred = transfer(segments, tmpPath, onProgress)
-        return if (transferred is DownloadResult.Success) finalize(tmpPath, targetPath, onProgress) else transferred
+        val segments = segmentsOf(mediaId, quality, onProgress)
+        val found = segments.getOrNull()
+        return when {
+            found == null -> DownloadResult.Failed(DownloadError.NetworkTransient)
+            found.isEmpty() -> DownloadResult.Failed(DownloadError.ExtractorBroken)
+            else -> finalize(transfer(found, tmpPath, onProgress), tmpPath, targetPath, onProgress)
+        }
     }
 
+    /**
+     * The media segments of the variant closest to [quality]: an empty list when the source names
+     * none, and a failure when the source could not be read at all.
+     */
     private suspend fun segmentsOf(
         mediaId: String,
         quality: Quality,
         onProgress: (SourceProgress) -> Unit,
-    ): List<String>? {
+    ): Result<List<String>> {
         onProgress(SourceProgress.Indeterminate)
-        val variant = variantOf(mediaId, quality) ?: return null
-        onProgress(SourceProgress.Indeterminate)
-        // a leaf playlist names its segments relative to its own location
-        return HlsPlaylist.segments(openText(variant), variant).takeIf { it.isNotEmpty() }
+        val variant = variantOf(mediaId, quality)
+        val playlist = variant.getOrNull()
+        return if (playlist.isNullOrEmpty()) {
+            variant.map { emptyList() }
+        } else {
+            onProgress(SourceProgress.Indeterminate)
+            // a leaf playlist names its segments relative to its own location
+            openText(playlist).map { leaf -> HlsPlaylist.segments(leaf, playlist) }
+        }
     }
 
-    private suspend fun variantOf(mediaId: String, quality: Quality): String? {
-        val playlist = playlistUrlOf(mediaId)
+    /**
+     * The leaf playlist of the variant closest to [quality], or an empty answer when the source names
+     * no usable one.
+     */
+    private suspend fun variantOf(mediaId: String, quality: Quality): Result<String> {
         val height = heightOf(quality.id)
-        return if (playlist != null && height != null) HlsPlaylist.selectVariant(openText(playlist), height) else null
+        val playlist = playlistUrlOf(mediaId)
+        val url = playlist.getOrNull()
+        return if (height == null || url.isNullOrEmpty()) {
+            playlist.map { "" }
+        } else {
+            openText(url).map { master -> HlsPlaylist.selectVariant(master, height).orEmpty() }
+        }
     }
 
-    private suspend fun playlistUrlOf(mediaId: String): String? = playlistUrlIn(openText(optionsUrl(mediaId)))
+    private suspend fun playlistUrlOf(mediaId: String): Result<String> =
+        openText(optionsUrl(mediaId)).map { text ->
+            playlistUrlIn(rutubePayload(text)).orEmpty()
+        }
+
+    private suspend fun openText(url: String): Result<String> =
+        openWithRetry(http, url).map { body -> body.bytes().decodeToString() }
 
     /**
      * Copies the segments one by one into [tmpPath]. The file appears with the first segment, so a run
@@ -180,14 +204,12 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
     ): DownloadResult {
         var done = 0
         var sink: OutputStream? = null
+        var failure: DownloadResult? = null
         try {
             for (segment in segments) {
-                val body = openWithRetry(http, segment)
-                // a missing segment is a broken source, not a transient one
-                if (body.status !in SUCCESS_STATUS) {
-                    body.body.close()
-                    return DownloadResult.Failed(DownloadError.ExtractorBroken)
-                }
+                val body = openWithRetry(http, segment).getOrNull()
+                failure = refusalOf(body)
+                val accepted = body?.takeIf { failure == null } ?: break
                 if (sink == null) {
                     sink =
                         Files.newOutputStream(
@@ -196,57 +218,86 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
                             StandardOpenOption.TRUNCATE_EXISTING,
                         )
                 }
-                sink.write(body.bytes())
+                sink.write(accepted.bytes())
                 done += 1
                 onProgress(SourceProgress.Fraction(done.toDouble() / segments.size))
             }
         } finally {
             sink?.close()
         }
-        return DownloadResult.Success
+        return failure ?: DownloadResult.Success
     }
 
     private suspend fun finalize(
+        transferred: DownloadResult,
         tmpPath: Path,
         targetPath: Path,
         onProgress: (SourceProgress) -> Unit,
     ): DownloadResult {
         // the duration of a container rewrite is unpredictable, even for a stream copy
+        if (transferred !is DownloadResult.Success) return transferred
         onProgress(SourceProgress.Indeterminate)
         val remuxed = mediaTool.remux(tmpPath, targetPath) { progress -> onProgress(progress.toSourceProgress()) }
-        if (remuxed.isFailure) return DownloadResult.Failed(DownloadError.ExtractorBroken)
-        Files.deleteIfExists(tmpPath)
-        val size = Files.size(targetPath)
-        // the core reads the completion of a download as an absolute update, not a fraction
-        onProgress(SourceProgress.Absolute(size, size))
-        return DownloadResult.Success
+        return if (remuxed.isFailure) {
+            DownloadResult.Failed(DownloadError.ExtractorBroken)
+        } else {
+            Files.deleteIfExists(tmpPath)
+            val size = Files.size(targetPath)
+            // the core reads the completion of a download as an absolute update, not a fraction
+            onProgress(SourceProgress.Absolute(size, size))
+            DownloadResult.Success
+        }
     }
-
-    private suspend fun openText(url: String): String = openWithRetry(http, url).bytes().decodeToString()
 }
+
+/**
+ * Why a transfer turns an opened response down, or null when it accepts it. A response the retry loop
+ * stopped on and a status the source does not serve are both verdicts, not hiccups, so each of them
+ * ends the transfer. A body turned down here is closed here: the loop is already over, so nothing
+ * else would release it.
+ */
+private fun refusalOf(body: HttpBody?): DownloadResult? =
+    when {
+        body == null -> {
+            DownloadResult.Failed(DownloadError.NetworkTransient)
+        }
+
+        body.status !in SUCCESS_STATUS -> {
+            body.body.close()
+            DownloadResult.Failed(DownloadError.ExtractorBroken)
+        }
+
+        else -> {
+            null
+        }
+    }
 
 /**
  * Opens [url], repeating a transport failure or a server error while [RETRY_POLICY] allows it. A
  * client error is the verdict of the source, not a hiccup, so it comes back as a response for the
- * caller to classify.
- *
- * A response the loop refuses is closed before the failure leaves the block: nothing else holds it
- * once the attempt is over.
+ * caller to classify: the context judges the status of the attempt and closes a body it turns down,
+ * so no bad status is thrown as an exception and no body outlives its attempt.
  */
-private suspend fun openWithRetry(http: HttpTool, url: String): HttpBody =
-    retry(RETRY_POLICY) {
+private suspend fun openWithRetry(http: HttpTool, url: String): Result<HttpBody> =
+    retry(
+        RETRY_POLICY,
+        RetryContext(
+            judging = { body ->
+                if (body.status !in SERVER_ERROR && body.status !in RETRYABLE_STATUS) {
+                    true
+                } else {
+                    body.body.close()
+                    false
+                }
+            },
+        ),
+    ) {
         try {
-            val body = http.open(url, REFERER_HEADERS)
-            if (body.status in SERVER_ERROR || body.status in RETRYABLE_STATUS) {
-                body.body.close()
-                Result.failure(HttpStatusException(body.status))
-            } else {
-                Result.success(body)
-            }
+            Result.success(http.open(url, REFERER_HEADERS))
         } catch (failure: IOException) {
             Result.failure(failure)
         }
-    }.getOrThrow()
+    }
 
 private fun classifyMeta(id: String, body: HttpBody): LoadMetaResult {
     val text = body.bytes().decodeToString()
@@ -287,8 +338,6 @@ private fun playlistUrlIn(options: JsonObject?): String? {
     val balancer = options?.nested("video_balancer") ?: return null
     return (balancer.string("m3u8") ?: balancer.string("default"))?.takeIf { it.isNotBlank() }
 }
-
-private fun playlistUrlIn(text: String): String? = playlistUrlIn(rutubePayload(text))
 
 private fun optionsUrl(id: String) = "$OPTIONS_BASE/$id/?$PLAY_OPTIONS_QUERY"
 

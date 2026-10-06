@@ -5,6 +5,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
+import java.io.IOException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -105,6 +106,124 @@ class RetryTest :
                 // then
                 thrown.shouldBeInstanceOf<CancellationException>()
                 recording.seen shouldBe emptyList()
+            }
+        }
+
+        "judging" - {
+            "accepts the value of the first attempt and never asks for another one" {
+                // given
+                val attempts = Attempts(failures = 0)
+                val judged = mutableListOf<String>()
+                val retries = mutableListOf<FailedAttempt>()
+                val context =
+                    RetryContext<String>(
+                        judging = { value ->
+                            judged += value
+                            true
+                        },
+                        onRetry = { retries += it },
+                    )
+
+                // when
+                val actual = retry(RetryPolicy.stopAtAttempts(3), context) { attempts.answer("payload") }
+
+                // then
+                actual shouldBe Result.success("payload")
+                judged shouldBe listOf("payload")
+                retries shouldBe emptyList()
+            }
+
+            "repeats a value the context turns down" {
+                // given
+                val values = listOf("broken", "broken", "payload")
+                var calls = 0
+                val context = RetryContext<String>(judging = { it == "payload" })
+
+                // when
+                val actual =
+                    retry(RetryPolicy.stopAtAttempts(5), context) { Result.success(values[calls++]) }
+
+                // then
+                actual shouldBe Result.success("payload")
+                calls shouldBe 3
+            }
+
+            "answers a terminal failure carrying the last refused value when the attempts run out" {
+                // given
+                val attempts = Attempts(failures = 0)
+                val context = RetryContext<String>(judging = { false })
+
+                // when
+                val actual = retry(RetryPolicy.stopAtAttempts(3), context) { attempts.answer("broken") }
+
+                // then
+                actual.isFailure shouldBe true
+                actual.exceptionOrNull().shouldBeInstanceOf<RetryExhausted>().lastValue shouldBe "broken"
+                attempts.calls shouldBe 3
+            }
+
+            "answers the transport failure itself when the attempts run out on it" {
+                // given
+                val attempts = Attempts(failures = 5)
+                val context = RetryContext<String>(judging = { false })
+
+                // when
+                val actual = retry(RetryPolicy.stopAtAttempts(2), context) { attempts.answer("payload") }
+
+                // then
+                actual.exceptionOrNull().shouldBeInstanceOf<IOException>()
+            }
+
+            "keeps the previous behaviour when no context is given" {
+                // given
+                val attempts = Attempts(failures = 1)
+
+                // when
+                val actual = retry(RetryPolicy.stopAtAttempts(5)) { attempts.answer("payload") }
+
+                // then
+                actual shouldBe Result.success("payload")
+                attempts.calls shouldBe 2
+            }
+        }
+
+        "onRetry" - {
+            "is told about the attempt before every pause the driver takes" {
+                runTest {
+                    // given
+                    val attempts = Attempts(failures = 5)
+                    val seen = mutableListOf<Triple<Int, Duration, Long>>()
+                    val context =
+                        RetryContext<String>(
+                            onRetry = { attempt ->
+                                seen += Triple(attempt.number, attempt.cumulativeDelay, testScheduler.currentTime)
+                            },
+                        )
+
+                    // when
+                    retry(RetryPolicy.stopAtAttempts(3).constantDelay(100.milliseconds), context) {
+                        attempts.answer("payload")
+                    }
+
+                    // then
+                    seen.map { it.first } shouldBe listOf(1, 2)
+                    seen.map { it.second } shouldBe listOf(Duration.ZERO, 100.milliseconds)
+                    seen.map { it.third } shouldBe listOf(0L, 100L)
+                    testScheduler.currentTime shouldBe 200L
+                }
+            }
+
+            "never fires when the policy stops without asking for a pause" {
+                // given
+                val attempts = Attempts(failures = 5)
+                val seen = mutableListOf<FailedAttempt>()
+                val context = RetryContext<String>(onRetry = { seen += it })
+
+                // when
+                retry(RetryPolicy.stopAtAttempts(1), context) { attempts.answer("payload") }
+
+                // then
+                seen shouldBe emptyList()
             }
         }
     })
