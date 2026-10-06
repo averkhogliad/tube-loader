@@ -24,7 +24,8 @@
 | `core.domain` | Доменные типы: `MediaMeta`, `MediaRef`, `Progress`, `Quality`, `TrackKind`, `Source`, `SourceId`, `SourceProgress`, `TaskId`, `DownloadError` |
 | `core.download` | Жизненный цикл и исполнение: `DownloadHandle`, `DownloadQueue`, `DownloadState`, `DownloadStatus`, `TaskIdGenerator`, `TaskRegistry` |
 | `core.facade` | Единственная точка входа команд: `CoreFacade` |
-| `core.port` | Порты ядра: `MediaTool`, `HttpTool`, `HttpBody` |
+| `core.port` | Порты ядра: `MediaTool`, `HttpTool`, `HttpBody` (несёт `status` ответа) |
+| `adapters.rutube` | Первый `SourceAdapter`: разбор URL, `playOptions`, HLS-скачивание, финализация через `MediaTool` |
 
 ## Рантайм
 
@@ -32,6 +33,7 @@
 | --- | --- |
 | Kotlin/JVM | Единый язык ядра и фронтендов |
 | kotlinx.coroutines | Конкурентность ядра; модель конкурентности — конфайнмент на одном воркере (ADR-0003) |
+| kotlinx.serialization | Разбор JSON-ответов источника в адаптере (`RutubeSourceAdapter`) |
 
 ## Конфигурация
 

@@ -25,7 +25,7 @@
 
 Счётчики тестов берутся из `build/test-results/test/TEST-*.xml` — сумма `tests`, `failures`,
 `errors`, `skipped` по всем `testsuite`. Панель прогона может показать `PASSED` для кейса,
-который прогон не исполнял так, как ожидается. Базовые счётчики репозитория: `:core` — 94,
+который прогон не исполнял так, как ожидается. Базовые счётчики репозитория: `:core` — 162,
 `:common:config` — 44.
 
 ## Gotcha: битый `build/test-results/test/binary/*.bin`
