@@ -3,6 +3,8 @@ package io.averkhogliad.tubeloader.core.port
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.port.MediaTool
 import java.nio.file.Path
+import kotlin.io.path.readBytes
+import kotlin.io.path.writeBytes
 
 data class MuxCall(
     val videoTrack: Path,
@@ -39,5 +41,23 @@ class FakeMediaTool : MediaTool {
         remuxCalls += RemuxCall(input, output)
         progress?.let(onProgress)
         return onRemux(input, output)
+    }
+
+    /**
+     * The mux/remux of the port is a stream copy, so a faithful stub copies the bytes. Adapters and
+     * their contract suite assert on the bytes of the produced file.
+     */
+    fun copyStreams(): FakeMediaTool {
+        this.onMux = { videoTrack, audioTrack, output ->
+            runCatching {
+                output.writeBytes(videoTrack.readBytes() + audioTrack.readBytes())
+            }
+        }
+        this.onRemux = { input, output ->
+            runCatching {
+                output.writeBytes(input.readBytes())
+            }
+        }
+        return this
     }
 }

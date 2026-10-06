@@ -7,10 +7,12 @@ import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
+import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.HttpTool
+import io.averkhogliad.tubeloader.core.port.MediaTool
 import io.averkhogliad.tubeloader.core.port.bytes
 import java.io.IOException
 import java.io.OutputStream
@@ -44,7 +46,10 @@ private val EMBED_PATH = Regex("""^/play/embed/([^/]+)/?$""")
 
 private val json = Json { ignoreUnknownKeys = true }
 
-class RutubeSourceAdapter(private val http: HttpTool) : SourceAdapter {
+class RutubeSourceAdapter(
+    private val http: HttpTool,
+    private val mediaTool: MediaTool,
+) : SourceAdapter {
 
     override val capability: DownloadCapability = DownloadCapability.Native
 
@@ -86,7 +91,10 @@ class RutubeSourceAdapter(private val http: HttpTool) : SourceAdapter {
             val segments = HlsPlaylist.segments(openText(variant))
             if (segments.isEmpty()) return broken()
 
-            transfer(segments, tmpPath, onProgress)
+            val transferred = transfer(segments, tmpPath, onProgress)
+            if (transferred !is DownloadResult.Success) return transferred
+
+            finalize(tmpPath, targetPath, onProgress)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: IOException) {
@@ -94,6 +102,22 @@ class RutubeSourceAdapter(private val http: HttpTool) : SourceAdapter {
         } finally {
             Files.deleteIfExists(tmpPath)
         }
+    }
+
+    private suspend fun finalize(
+        tmpPath: Path,
+        targetPath: Path,
+        onProgress: (SourceProgress) -> Unit,
+    ): DownloadResult {
+        // the duration of a container rewrite is unpredictable, even for a stream copy
+        onProgress(SourceProgress.Indeterminate)
+        val remuxed = mediaTool.remux(tmpPath, targetPath) { progress -> onProgress(progress.toSourceProgress()) }
+        if (remuxed.isFailure) return DownloadResult.Failed(DownloadError.ExtractorBroken)
+        Files.deleteIfExists(tmpPath)
+        val size = Files.size(targetPath)
+        // the core reads the completion of a download as an absolute update, not a fraction
+        onProgress(SourceProgress.Absolute(size, size))
+        return DownloadResult.Success
     }
 
     /**
@@ -180,5 +204,15 @@ class RutubeSourceAdapter(private val http: HttpTool) : SourceAdapter {
         val match = VIDEO_PATH.matchEntire(route) ?: EMBED_PATH.matchEntire(route)
         return match?.groupValues?.get(1)
     }
-
 }
+
+/**
+ * A container rewrite reports its own progress; the adapter speaks a different vocabulary, so the
+ * update is translated at the seam.
+ */
+private fun Progress.toSourceProgress(): SourceProgress =
+    when (this) {
+        is Progress.Indeterminate -> SourceProgress.Indeterminate
+        is Progress.Determinate ->
+            if (total <= 0) SourceProgress.Indeterminate else SourceProgress.Fraction(current.toDouble() / total)
+    }

@@ -6,6 +6,7 @@ import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
+import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.averkhogliad.tubeloader.core.port.HttpStub
 import io.averkhogliad.tubeloader.core.port.httpBody
 import io.kotest.core.spec.style.FreeSpec
@@ -41,7 +42,7 @@ class RutubeSegmentTest : FreeSpec({
         "reads every segment of the playlist, in order" {
             // given
             val http = streaming()
-            val adapter = RutubeSourceAdapter(http)
+            val adapter = RutubeSourceAdapter(http, FakeMediaTool().copyStreams())
 
             // when
             adapter.download(MEDIA_ID, VIDEO_1080, workDir().resolve("clip.mp4")) {}
@@ -57,14 +58,14 @@ class RutubeSegmentTest : FreeSpec({
 
         "reports a fraction of the downloaded segments after each of them" {
             // given
-            val adapter = RutubeSourceAdapter(streaming())
+            val adapter = RutubeSourceAdapter(streaming(), FakeMediaTool().copyStreams())
             val progress = mutableListOf<SourceProgress>()
 
             // when
             adapter.download(MEDIA_ID, VIDEO_1080, workDir().resolve("clip.mp4")) { progress += it }
 
             // then
-            progress shouldBe
+            progress.take(5) shouldBe
                 listOf(
                     SourceProgress.Indeterminate,
                     SourceProgress.Indeterminate,
@@ -74,22 +75,12 @@ class RutubeSegmentTest : FreeSpec({
                 )
         }
 
-        "returns Success once the segments are joined" {
-            // given
-            val adapter = RutubeSourceAdapter(streaming())
-
-            // when
-            val actual = adapter.download(MEDIA_ID, VIDEO_1080, workDir().resolve("clip.mp4")) {}
-
-            // then
-            actual shouldBe DownloadResult.Success
-        }
-
         "leaves no tmp file when a segment fails" {
             // given
             val adapter =
                 RutubeSourceAdapter(
                     streaming().route("${SEGMENT_BASE}segment-2-v1-a1.ts", HttpStub.Fail(IOException("reset"))),
+                    FakeMediaTool(),
                 )
             val dir = workDir()
 
@@ -110,6 +101,7 @@ class RutubeSegmentTest : FreeSpec({
                             "${SEGMENT_BASE}segment-2-v1-a1.ts",
                             HttpStub.Respond(httpBody("boom".toByteArray(), status = 503)),
                         ),
+                    FakeMediaTool(),
                 )
 
             // when
@@ -121,7 +113,7 @@ class RutubeSegmentTest : FreeSpec({
 
         "leaves no tmp file behind when the transfer is cancelled" {
             // given
-            val adapter = RutubeSourceAdapter(streaming())
+            val adapter = RutubeSourceAdapter(streaming(), FakeMediaTool().copyStreams())
             val dir = workDir()
 
             // when

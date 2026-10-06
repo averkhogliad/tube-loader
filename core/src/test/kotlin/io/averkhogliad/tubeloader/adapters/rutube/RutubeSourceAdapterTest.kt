@@ -3,6 +3,7 @@ package io.averkhogliad.tubeloader.adapters.rutube
 import io.averkhogliad.tubeloader.core.adapter.DownloadCapability
 import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
+import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
@@ -13,7 +14,7 @@ class RutubeSourceAdapterTest : FreeSpec({
     "find" - {
         "returns the media id of a canonical video url" {
             // given
-            val adapter = RutubeSourceAdapter(FakeHttpTool())
+            val adapter = RutubeSourceAdapter(FakeHttpTool(), FakeMediaTool())
 
             // when
             val actual = adapter.find("https://rutube.ru/video/$MEDIA_ID/")
@@ -24,7 +25,7 @@ class RutubeSourceAdapterTest : FreeSpec({
 
         "returns the media id of an embed url" {
             // given
-            val adapter = RutubeSourceAdapter(FakeHttpTool())
+            val adapter = RutubeSourceAdapter(FakeHttpTool(), FakeMediaTool())
 
             // when
             val actual = adapter.find("https://rutube.ru/play/embed/$MEDIA_ID")
@@ -35,7 +36,7 @@ class RutubeSourceAdapterTest : FreeSpec({
 
         "ignores query parameters and fragments" {
             // given
-            val adapter = RutubeSourceAdapter(FakeHttpTool())
+            val adapter = RutubeSourceAdapter(FakeHttpTool(), FakeMediaTool())
 
             // when
             val actual = adapter.find("https://rutube.ru/video/$MEDIA_ID/?p=abc#t=1")
@@ -46,7 +47,7 @@ class RutubeSourceAdapterTest : FreeSpec({
 
         "returns Unsupported for a url of another host" {
             // given
-            val adapter = RutubeSourceAdapter(FakeHttpTool())
+            val adapter = RutubeSourceAdapter(FakeHttpTool(), FakeMediaTool())
 
             // when
             val actual = adapter.find("https://example.com/video/$MEDIA_ID/")
@@ -57,7 +58,7 @@ class RutubeSourceAdapterTest : FreeSpec({
 
         "returns Unsupported for an id that is not a 32 character hex string" {
             // given
-            val adapter = RutubeSourceAdapter(FakeHttpTool())
+            val adapter = RutubeSourceAdapter(FakeHttpTool(), FakeMediaTool())
 
             // when
             val actual = adapter.find("https://rutube.ru/video/${MEDIA_ID.dropLast(1)}/")
@@ -68,7 +69,7 @@ class RutubeSourceAdapterTest : FreeSpec({
 
         "returns Unsupported for an uppercase id" {
             // given
-            val adapter = RutubeSourceAdapter(FakeHttpTool())
+            val adapter = RutubeSourceAdapter(FakeHttpTool(), FakeMediaTool())
 
             // when
             val actual = adapter.find("https://rutube.ru/video/${MEDIA_ID.uppercase()}/")
@@ -79,7 +80,7 @@ class RutubeSourceAdapterTest : FreeSpec({
 
         "returns Unsupported for a video url without an id" {
             // given
-            val adapter = RutubeSourceAdapter(FakeHttpTool())
+            val adapter = RutubeSourceAdapter(FakeHttpTool(), FakeMediaTool())
 
             // when
             val actual = adapter.find("https://rutube.ru/video/")
@@ -90,7 +91,7 @@ class RutubeSourceAdapterTest : FreeSpec({
 
         "returns Unsupported for an unrelated rutube path" {
             // given
-            val adapter = RutubeSourceAdapter(FakeHttpTool())
+            val adapter = RutubeSourceAdapter(FakeHttpTool(), FakeMediaTool())
 
             // when
             val actual = adapter.find("https://rutube.ru/video/person/35573563/")
@@ -101,7 +102,7 @@ class RutubeSourceAdapterTest : FreeSpec({
 
         "returns Unsupported for a string that is not a url" {
             // given
-            val adapter = RutubeSourceAdapter(FakeHttpTool())
+            val adapter = RutubeSourceAdapter(FakeHttpTool(), FakeMediaTool())
 
             // when
             val actual = adapter.find("not a url at all")
@@ -114,7 +115,7 @@ class RutubeSourceAdapterTest : FreeSpec({
     "capability and displayName" - {
         "declares a native adapter named Rutube" {
             // given
-            val adapter = RutubeSourceAdapter(FakeHttpTool())
+            val adapter = RutubeSourceAdapter(FakeHttpTool(), FakeMediaTool())
 
             // when + then
             adapter.capability shouldBe DownloadCapability.Native

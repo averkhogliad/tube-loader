@@ -5,6 +5,7 @@ import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
+import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.averkhogliad.tubeloader.core.port.HttpStub
 import io.averkhogliad.tubeloader.core.port.httpBody
 import io.kotest.core.spec.style.FreeSpec
@@ -34,7 +35,7 @@ class RutubePlaylistTest : FreeSpec({
         "walks from the metadata request down to the segments of the chosen quality" {
             // given
             val http = stub()
-            val adapter = RutubeSourceAdapter(http)
+            val adapter = RutubeSourceAdapter(http, FakeMediaTool())
 
             // when
             runCatching { adapter.download(MEDIA_ID, VIDEO_1080, target()) {} }
@@ -49,7 +50,7 @@ class RutubePlaylistTest : FreeSpec({
                 FakeHttpTool()
                     .routeRecording(OPTIONS_URL, "rutube/playOptions-download.json")
                     .routeRecording(MASTER_URL, "rutube/m3u8-master-no-quality.m3u8")
-            val adapter = RutubeSourceAdapter(http)
+            val adapter = RutubeSourceAdapter(http, FakeMediaTool())
 
             // when
             val actual = adapter.download(MEDIA_ID, VIDEO_1080, target()) {}
@@ -64,7 +65,7 @@ class RutubePlaylistTest : FreeSpec({
                 FakeHttpTool()
                     .routeRecording(OPTIONS_URL, "rutube/playOptions-download.json")
                     .routeRecording(MASTER_URL, "rutube/m3u8-master-empty.m3u8")
-            val adapter = RutubeSourceAdapter(http)
+            val adapter = RutubeSourceAdapter(http, FakeMediaTool())
 
             // when
             val actual = adapter.download(MEDIA_ID, VIDEO_1080, target()) {}
@@ -80,7 +81,7 @@ class RutubePlaylistTest : FreeSpec({
                     .routeRecording(OPTIONS_URL, "rutube/playOptions-download.json")
                     .routeRecording(MASTER_URL, "rutube/m3u8-master.m3u8")
                     .routeRecording(VARIANT_1080, "rutube/m3u8-leaf-empty.m3u8")
-            val adapter = RutubeSourceAdapter(http)
+            val adapter = RutubeSourceAdapter(http, FakeMediaTool())
 
             // when
             val actual = adapter.download(MEDIA_ID, VIDEO_1080, target()) {}
@@ -96,7 +97,7 @@ class RutubePlaylistTest : FreeSpec({
                     .routeRecording(OPTIONS_URL, "rutube/playOptions-default-only.json")
                     .routeRecording(MASTER_URL, "rutube/m3u8-master.m3u8")
                     .routeRecording(VARIANT_1080, "rutube/m3u8-leaf.m3u8")
-            val adapter = RutubeSourceAdapter(http)
+            val adapter = RutubeSourceAdapter(http, FakeMediaTool())
 
             // when
             runCatching { adapter.download(MEDIA_ID, VIDEO_1080, target()) {} }
@@ -108,7 +109,7 @@ class RutubePlaylistTest : FreeSpec({
         "prefers the quality of the requested id over a closer-lower one" {
             // given
             val http = stub()
-            val adapter = RutubeSourceAdapter(http)
+            val adapter = RutubeSourceAdapter(http, FakeMediaTool())
             val quality = Quality("720p", TrackKind.Video, "720p")
 
             // when
@@ -121,7 +122,7 @@ class RutubePlaylistTest : FreeSpec({
         "does not write the target itself, leaving finalization to the core" {
             // given
             val http = stub()
-            val adapter = RutubeSourceAdapter(http)
+            val adapter = RutubeSourceAdapter(http, FakeMediaTool())
             val file = target()
 
             // when
@@ -134,7 +135,7 @@ class RutubePlaylistTest : FreeSpec({
         "returns ExtractorBroken when the metadata request itself fails" {
             // given
             val http = FakeHttpTool().always(HttpStub.Respond(httpBody("nope".toByteArray(), status = 500)))
-            val adapter = RutubeSourceAdapter(http)
+            val adapter = RutubeSourceAdapter(http, FakeMediaTool())
 
             // when
             val actual = adapter.download(MEDIA_ID, VIDEO_1080, target()) {}
