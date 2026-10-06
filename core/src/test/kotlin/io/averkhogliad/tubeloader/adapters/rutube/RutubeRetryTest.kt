@@ -129,9 +129,9 @@ class RutubeRetryTest :
                 Files.exists(dir.resolve("clip.mp4.tmp")) shouldBe false
             }
 
-            "gives each segment its own attempt budget" {
+            "gives each segment its own attempts" {
                 // given
-                // two segments each fail once: a budget shared across the stage would exhaust on the first
+                // two segments each fail once: attempts shared across the stage would run out on the first
                 val http =
                     streaming()
                         .route(SEGMENT_1, CONNECTION_RESET_STUB, HttpStub.Respond(textBody("ONE")))

@@ -35,7 +35,7 @@ class RutubeErrorTaxonomyTest :
                 actual shouldBe LoadMetaResult.NotFound
             }
 
-            "reports NetworkTransient once the retry budget of server errors runs out" {
+            "reports NetworkTransient once the attempts of server errors run out" {
                 // given
                 val http = FakeHttpTool().always(SERVER_ERROR_STUB)
 
