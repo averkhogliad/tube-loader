@@ -4,12 +4,15 @@ import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
+import io.averkhogliad.tubeloader.core.port.HttpBody
 import io.averkhogliad.tubeloader.core.port.HttpStub
 import io.averkhogliad.tubeloader.core.port.textBody
+import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.net.UnknownHostException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal const val RECORDING_OPTIONS = "rutube/playOptions-download.json"
 
@@ -57,6 +60,26 @@ internal fun recordedStub(resource: String, status: Int = 200): HttpStub =
     HttpStub.Respond(textBody(FakeHttpTool.resourceText(resource), status))
 
 internal fun recordedStubWith(text: String, status: Int): HttpStub = HttpStub.Respond(textBody(text, status))
+
+/**
+ * A response whose stream reports whether it was closed, so that a body the retry loop discards can
+ * be observed.
+ */
+internal class TrackedBody(val response: HttpStub, private val closed: AtomicBoolean) {
+    val isClosed: Boolean get() = closed.get()
+}
+
+internal fun trackedBody(content: String, status: Int): TrackedBody {
+    val closed = AtomicBoolean()
+    val stream =
+        object : ByteArrayInputStream(content.toByteArray()) {
+            override fun close() {
+                closed.set(true)
+                super.close()
+            }
+        }
+    return TrackedBody(HttpStub.Respond(HttpBody(status, stream)), closed)
+}
 
 internal val SERVER_ERROR_STUB: HttpStub = HttpStub.Respond(textBody("unavailable", status = 503))
 

@@ -50,6 +50,19 @@ class RutubeRetryTest :
                 http.opened.size shouldBe 5
             }
 
+            "closes every response it discards while retrying" {
+                // given
+                // three refusals with distinct bodies: each one is thrown away by the retry loop
+                val discarded = List(3) { trackedBody("unavailable", 503) }
+                val http = FakeHttpTool().route(OPTIONS_URL, *discarded.map { it.response }.toTypedArray())
+
+                // when
+                adapter(http).loadMeta(MEDIA_ID)
+
+                // then
+                discarded.map { it.isClosed } shouldBe listOf(true, true, true)
+            }
+
             "stops before the pause would overrun the retry budget" {
                 // given
                 // a shrunken budget: the second pause would cross it, so the third attempt never opens
@@ -60,7 +73,6 @@ class RutubeRetryTest :
                     withRetry<Int>(
                         attempts = 5,
                         budget = 400.milliseconds,
-                        pause = 250.milliseconds,
                     ) {
                         calls.incrementAndGet()
                         throw IOException("unreachable")

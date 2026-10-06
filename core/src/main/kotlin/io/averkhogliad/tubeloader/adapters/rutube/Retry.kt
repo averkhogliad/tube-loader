@@ -22,35 +22,47 @@ private val RETRY_PAUSE = 250.milliseconds
  * The budget is counted per call rather than per download: a refusal while reading the metadata must
  * not eat the allowance the segments need. Exhaustion comes back as a failure, carrying the last
  * transport error; cancellation is never swallowed.
+ *
+ * A value [isRetryable] turns down is handed to [dispose]: the attempt that opened it is over, and
+ * nothing else will close what it holds.
  */
 internal suspend fun <T> withRetry(
     attempts: Int = MAX_ATTEMPTS,
     budget: Duration = NETWORK_BUDGET,
-    pause: Duration = RETRY_PAUSE,
     isRetryable: (T) -> Boolean = { false },
+    dispose: (T) -> Unit = {},
     block: suspend () -> T,
 ): Result<T> {
     val start = TimeSource.Monotonic.markNow()
     var attempt = 1
     while (true) {
-        val outcome = attemptOnce(block, isRetryable)
+        val outcome = attemptOnce(block, isRetryable, dispose)
         if (outcome.isSuccess) return outcome
         val spent = start.elapsedNow()
-        if (attempt >= attempts || spent + pause > budget) {
+        if (attempt >= attempts || spent + RETRY_PAUSE > budget) {
             val reason = IOException("$UNREACHABLE after $attempt attempts in $spent")
             return Result.failure(reason.apply { addSuppressed(outcome.exceptionOrNull() ?: reason) })
         }
-        delay(pause)
+        delay(RETRY_PAUSE)
         // cancellation has to break the wait here, not survive it into the next attempt
         currentCoroutineContext().ensureActive()
         attempt += 1
     }
 }
 
-private suspend fun <T> attemptOnce(block: suspend () -> T, isRetryable: (T) -> Boolean): Result<T> =
+private suspend fun <T> attemptOnce(
+    block: suspend () -> T,
+    isRetryable: (T) -> Boolean,
+    dispose: (T) -> Unit,
+): Result<T> =
     try {
         val value = block()
-        if (isRetryable(value)) Result.failure(IOException(UNREACHABLE)) else Result.success(value)
+        if (isRetryable(value)) {
+            dispose(value)
+            Result.failure(IOException(UNREACHABLE))
+        } else {
+            Result.success(value)
+        }
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (failure: IOException) {

@@ -207,7 +207,10 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
  * classify.
  */
 private suspend fun openWithRetry(http: HttpTool, url: String): HttpBody =
-    withRetry(isRetryable = { body -> body.status in SERVER_ERROR || body.status in RETRYABLE_STATUS }) {
+    withRetry(
+        isRetryable = { body -> body.status in SERVER_ERROR || body.status in RETRYABLE_STATUS },
+        dispose = { body -> body.body.close() },
+    ) {
         http.open(url, REFERER_HEADERS)
     }.getOrThrow()
 
