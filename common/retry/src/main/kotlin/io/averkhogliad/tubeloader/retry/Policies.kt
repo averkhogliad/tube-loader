@@ -26,9 +26,23 @@ fun RetryPolicy.constantDelay(delay: Duration): RetryPolicy = then(ConstantDelay
 /**
  * Appends a stage that doubles the pause with every attempt, starting at [base] and never growing
  * past [limit].
+ *
+ * [randomizationFactor] spreads the pause over a window around it: a value of 0.1 keeps it within
+ * ±10%, which keeps a fleet of callers from returning to a rate-limited source in lockstep. The
+ * source of randomness is a parameter so that a test can pin it with a seeded generator and still
+ * observe the window.
  */
-fun RetryPolicy.exponentialBackoff(base: Duration, limit: Duration = Duration.INFINITE): RetryPolicy =
-    then(ExponentialBackoff(base, limit))
+fun RetryPolicy.exponentialBackoff(
+    base: Duration,
+    limit: Duration = Duration.INFINITE,
+    randomizationFactor: Double = 0.0,
+    random: () -> Double = Math::random,
+): RetryPolicy {
+    require(randomizationFactor in 0.0..1.0) {
+        "a randomization factor must be within 0.0..1.0, got $randomizationFactor"
+    }
+    return then(ExponentialBackoff(base, limit, randomizationFactor, random))
+}
 
 /**
  * Appends a stage that stops once the pauses already spent reach [budget].
@@ -59,11 +73,18 @@ private class ConstantDelay(private val delay: Duration) : Stage {
     override fun decide(attempt: FailedAttempt): RetryInstruction = RetryAfter(delay)
 }
 
-private class ExponentialBackoff(private val base: Duration, private val limit: Duration) : Stage {
+private class ExponentialBackoff(
+    private val base: Duration,
+    private val limit: Duration,
+    private val randomizationFactor: Double,
+    private val random: () -> Double,
+) : Stage {
 
     override fun decide(attempt: FailedAttempt): RetryInstruction {
         val step = (attempt.number - 1).coerceAtMost(MAX_BACKOFF_STEP)
-        return RetryAfter(minOf(limit, base * (1 shl step)))
+        val pause = base * (1 shl step)
+        val spread = pause * (randomizationFactor * (2 * random() - 1))
+        return RetryAfter(minOf(limit, pause + spread))
     }
 }
 

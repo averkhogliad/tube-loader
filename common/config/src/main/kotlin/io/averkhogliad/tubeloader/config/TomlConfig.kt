@@ -9,6 +9,7 @@ import com.akuleshov7.ktoml.tree.nodes.TomlKeyValuePrimitive
 import com.akuleshov7.ktoml.tree.nodes.TomlNode
 import com.akuleshov7.ktoml.tree.nodes.TomlTable
 import com.akuleshov7.ktoml.tree.nodes.pairs.values.TomlArray
+import com.akuleshov7.ktoml.tree.nodes.pairs.values.TomlValue
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -76,7 +77,11 @@ class TomlConfig private constructor(private val leaves: Map<String, Any>) : Con
 
                     is TomlKeyValueArray -> {
                         val array = child.value as TomlArray
-                        out[prefix + normalizeKey(child.key)] = array.parse(TomlInputConfig())
+                        // the array hands out AST nodes; a reader of the config expects the values
+                        out[prefix + normalizeKey(child.key)] =
+                            array.parse(TomlInputConfig()).map { element ->
+                                (element as? TomlValue)?.content ?: element
+                            }
                     }
 
                     else -> {

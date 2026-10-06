@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.adapters.rutube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
+import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import io.averkhogliad.tubeloader.core.domain.TrackKind
@@ -48,7 +49,7 @@ class RutubeSourceAdapterIT :
             "resolves the relative segment names of a recorded leaf playlist against its own location" {
                 // given
                 val http = recorded()
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool().copyStreams())
+                val adapter = RutubeSourceAdapter(http, FakeMediaTool().copyStreams(), { HttpToolConfig() })
                 val dir = Files.createTempDirectory("rutube-it")
                 val target = dir.resolve("clip.mp4")
 
@@ -63,7 +64,7 @@ class RutubeSourceAdapterIT :
             "walks from the metadata request down to the segments of the recorded master" {
                 // given
                 val http = recorded()
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool().copyStreams())
+                val adapter = RutubeSourceAdapter(http, FakeMediaTool().copyStreams(), { HttpToolConfig() })
                 val dir = Files.createTempDirectory("rutube-it")
                 val target = dir.resolve("clip.mp4")
 
@@ -80,7 +81,7 @@ class RutubeSourceAdapterIT :
 
             "ends on an absolute update and leaves no staging file behind" {
                 // given
-                val adapter = RutubeSourceAdapter(recorded(), FakeMediaTool().copyStreams())
+                val adapter = RutubeSourceAdapter(recorded(), FakeMediaTool().copyStreams(), { HttpToolConfig() })
                 val dir = Files.createTempDirectory("rutube-it")
                 val target = dir.resolve("clip.mp4")
                 val progress = mutableListOf<SourceProgress>()

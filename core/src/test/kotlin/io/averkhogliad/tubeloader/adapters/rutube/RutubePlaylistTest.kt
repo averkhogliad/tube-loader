@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.adapters.rutube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
+import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
@@ -105,7 +106,8 @@ class RutubePlaylistTest :
                 val file = clip("playlist")
 
                 // when
-                RutubeSourceAdapter(streaming(), FakeMediaTool()).download(MEDIA_ID, VIDEO_1080, file) {}
+                RutubeSourceAdapter(streaming(), FakeMediaTool(), { HttpToolConfig() })
+                    .download(MEDIA_ID, VIDEO_1080, file) {}
 
                 // then
                 Files.exists(file) shouldBe false

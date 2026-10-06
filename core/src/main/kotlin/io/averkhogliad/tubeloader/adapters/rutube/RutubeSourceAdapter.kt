@@ -5,6 +5,7 @@ import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
+import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.Progress
@@ -42,24 +43,8 @@ private const val HTTP_OK = 200
 private const val HTTP_LAST_SUCCESS = 299
 private const val HTTP_MISSING_VIDEO = 244
 private const val HTTP_NOT_FOUND = 404
-private const val HTTP_TOO_MANY_REQUESTS = 429
 private const val HTTP_SERVER_ERROR = 500
 private const val HTTP_LAST_SERVER_ERROR = 599
-
-private const val MAX_ATTEMPTS = 5
-private val RETRY_BASE_PAUSE = 250.milliseconds
-
-/**
- * Repeats a hiccup of the source rather than its verdict: a server error and a rate limit both ask
- * the caller to come back, so they are retried with a growing pause until the attempts run out.
- * A response the loop turns down reaches the policy as the reason of the attempt — a transport
- * failure, or [RetryExhausted] once the attempts ran out on it — so both are accepted here.
- */
-private val RETRY_POLICY: RetryPolicy =
-    RetryPolicy
-        .stopAtAttempts(MAX_ATTEMPTS)
-        .continueIf { failure -> failure is IOException || failure is RetryExhausted }
-        .exponentialBackoff(RETRY_BASE_PAUSE)
 
 /**
  * Rutube answers 244 instead of 404 for a missing video when the request carries `no_404=true`,
@@ -68,12 +53,6 @@ private val RETRY_POLICY: RetryPolicy =
 private val MISSING_VIDEO_STATUSES = setOf(HTTP_MISSING_VIDEO, HTTP_NOT_FOUND)
 private val SUCCESS_STATUS = HTTP_OK..HTTP_LAST_SUCCESS
 private val SERVER_ERROR = HTTP_SERVER_ERROR..HTTP_LAST_SERVER_ERROR
-
-/**
- * What the source asks the caller to come back for: a rate limit belongs here because it tells the
- * caller to retry later, not to give up. Everything else outside [SUCCESS_STATUS] is a verdict.
- */
-private val RETRYABLE_STATUS = setOf(HTTP_TOO_MANY_REQUESTS)
 
 private const val MISSING_VIDEO_REASON = "default_does_not_exists_video"
 
@@ -90,8 +69,15 @@ private val EMBED_PATH = Regex("""^/play/embed/([^/]+)/?$""")
  *
  * DownloadError.UrlExpired is never answered here: the metadata request and the segment transfer
  * follow each other, so the signed balancer url cannot expire between them.
+ *
+ * The retry an attempt is wrapped in comes from [config], read on every call rather than captured,
+ * so a setting changed while the application runs reaches the next attempt.
  */
-class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: MediaTool) : SourceAdapter {
+class RutubeSourceAdapter(
+    private val http: HttpTool,
+    private val mediaTool: MediaTool,
+    private val config: () -> HttpToolConfig,
+) : SourceAdapter {
 
     override val capability: DownloadCapability = DownloadCapability.Native
 
@@ -104,10 +90,8 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
     }
 
     override suspend fun loadMeta(id: String): LoadMetaResult {
-        val body =
-            openWithRetry(http, optionsUrl(id))
-                .getOrElse { return LoadMetaResult.Failed(DownloadError.NetworkTransient) }
-        return classifyMeta(id, body)
+        val body = openWithRetry(http, optionsUrl(id), config()).getOrNull()
+        return if (body == null) LoadMetaResult.Failed(DownloadError.NetworkTransient) else classifyMeta(id, body)
     }
 
     override suspend fun download(
@@ -191,7 +175,7 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
         }
 
     private suspend fun openText(url: String): Result<String> =
-        openWithRetry(http, url).map { body -> body.bytes().decodeToString() }
+        openWithRetry(http, url, config()).map { body -> body.bytes().decodeToString() }
 
     /**
      * Copies the segments one by one into [tmpPath]. The file appears with the first segment, so a run
@@ -207,7 +191,7 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
         var failure: DownloadResult? = null
         try {
             for (segment in segments) {
-                val body = openWithRetry(http, segment).getOrNull()
+                val body = openWithRetry(http, segment, config()).getOrNull()
                 failure = refusalOf(body)
                 val accepted = body?.takeIf { failure == null } ?: break
                 if (sink == null) {
@@ -251,6 +235,35 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
 }
 
 /**
+ * Opens [url], repeating a hiccup of the source while the policy built from [settings] allows it. A
+ * client error is the verdict of the source, not a hiccup, so it comes back as a response for the
+ * caller to classify: the context judges the status of the attempt and closes a body it turns down,
+ * so no bad status is thrown as an exception and no body outlives its attempt.
+ */
+private suspend fun openWithRetry(http: HttpTool, url: String, settings: HttpToolConfig): Result<HttpBody> =
+    retry(
+        policyOf(settings),
+        RetryContext(
+            judging = { body ->
+                // a status turned down here is closed here: the loop discards the body, so nothing
+                // else would release it
+                if (body.status in SERVER_ERROR || body.status in settings.retryRetriableStatuses) {
+                    body.body.close()
+                    false
+                } else {
+                    true
+                }
+            },
+        ),
+    ) {
+        try {
+            Result.success(http.open(url, REFERER_HEADERS))
+        } catch (failure: IOException) {
+            Result.failure(failure)
+        }
+    }
+
+/**
  * Why a transfer turns an opened response down, or null when it accepts it. A response the retry loop
  * stopped on and a status the source does not serve are both verdicts, not hiccups, so each of them
  * ends the transfer. A body turned down here is closed here: the loop is already over, so nothing
@@ -273,31 +286,17 @@ private fun refusalOf(body: HttpBody?): DownloadResult? =
     }
 
 /**
- * Opens [url], repeating a transport failure or a server error while [RETRY_POLICY] allows it. A
- * client error is the verdict of the source, not a hiccup, so it comes back as a response for the
- * caller to classify: the context judges the status of the attempt and closes a body it turns down,
- * so no bad status is thrown as an exception and no body outlives its attempt.
+ * Repeats a hiccup of the source rather than its verdict: a status the caller is asked to come back
+ * on is retried with a growing pause until the attempts run out. A response the loop turns down
+ * reaches the policy as the reason of the attempt — a transport failure, or [RetryExhausted] once the
+ * attempts ran out on it — so both are accepted here. The values come from the configuration, so an
+ * adapter holds no retry constant of its own.
  */
-private suspend fun openWithRetry(http: HttpTool, url: String): Result<HttpBody> =
-    retry(
-        RETRY_POLICY,
-        RetryContext(
-            judging = { body ->
-                if (body.status !in SERVER_ERROR && body.status !in RETRYABLE_STATUS) {
-                    true
-                } else {
-                    body.body.close()
-                    false
-                }
-            },
-        ),
-    ) {
-        try {
-            Result.success(http.open(url, REFERER_HEADERS))
-        } catch (failure: IOException) {
-            Result.failure(failure)
-        }
-    }
+private fun policyOf(settings: HttpToolConfig): RetryPolicy =
+    RetryPolicy
+        .stopAtAttempts(settings.retryMaxAttempts)
+        .continueIf { failure -> failure is IOException || failure is RetryExhausted }
+        .exponentialBackoff(settings.retryBaseDelay, randomizationFactor = settings.retryRandomizationFactor)
 
 private fun classifyMeta(id: String, body: HttpBody): LoadMetaResult {
     val text = body.bytes().decodeToString()

@@ -1,5 +1,6 @@
 package io.averkhogliad.tubeloader.adapters.rutube
 
+import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
@@ -44,7 +45,11 @@ internal fun streaming(): FakeHttpTool =
         .routeRecording(SEGMENT_2, "rutube/segment-2.ts")
         .routeRecording(SEGMENT_3, "rutube/segment-3.ts")
 
-internal fun adapter(http: FakeHttpTool) = RutubeSourceAdapter(http, FakeMediaTool().copyStreams())
+internal fun adapter(http: FakeHttpTool, settings: HttpToolConfig = HttpToolConfig()) =
+    RutubeSourceAdapter(http, FakeMediaTool().copyStreams(), { settings })
+
+internal fun adapter(http: FakeHttpTool, media: FakeMediaTool, settings: HttpToolConfig = HttpToolConfig()) =
+    RutubeSourceAdapter(http, media, { settings })
 
 internal fun workDir(prefix: String): Path = Files.createTempDirectory(prefix)
 

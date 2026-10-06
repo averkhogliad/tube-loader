@@ -2,12 +2,13 @@ package io.averkhogliad.tubeloader.adapters.rutube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadCapability
 import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
-private fun adapter() = RutubeSourceAdapter(FakeHttpTool(), FakeMediaTool())
+private fun adapter() = RutubeSourceAdapter(FakeHttpTool(), FakeMediaTool(), { HttpToolConfig() })
 
 class RutubeSourceAdapterTest :
     FreeSpec({

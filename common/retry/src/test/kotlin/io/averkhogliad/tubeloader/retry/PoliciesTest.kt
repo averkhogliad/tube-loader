@@ -5,6 +5,7 @@ import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeSameInstanceAs
 import java.io.IOException
+import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -115,6 +116,105 @@ class PoliciesTest :
 
                 // then
                 far.delay shouldBe 1.milliseconds * (1 shl 30)
+            }
+
+            "keeps the pause exactly when the randomization factor is zero" {
+                // given
+                val policy = RetryPolicy.exponentialBackoff(250.milliseconds, randomizationFactor = 0.0)
+
+                // when
+                val pauses = (1..3).map { policy.decide(failedAttempt(number = it)) }
+
+                // then
+                pauses shouldBe listOf(250, 500, 1000).map { RetryAfter(it.milliseconds) }
+            }
+
+            "spreads the pause over the window the factor names" {
+                // given
+                val rng = Random(7)
+                val policy =
+                    RetryPolicy.exponentialBackoff(
+                        base = 1.seconds,
+                        randomizationFactor = 0.1,
+                        random = { rng.nextDouble() },
+                    )
+                val exact = RetryPolicy.exponentialBackoff(1.seconds)
+
+                // when
+                val pauses = (1..5).map { (policy.decide(failedAttempt(number = it)) as RetryAfter).delay }
+                val plain = (1..5).map { (exact.decide(failedAttempt(number = it)) as RetryAfter).delay }
+
+                // then
+                pauses.zip(plain).forEach { (pause, unjittered) ->
+                    (pause in (unjittered * 0.9)..(unjittered * 1.1)) shouldBe true
+                }
+                pauses shouldBe (pauses.distinct())
+            }
+
+            "repeats the same pauses for the same seed" {
+                // given
+                fun pausesOf(seed: Int): List<Duration> {
+                    val rng = Random(seed)
+                    val policy =
+                        RetryPolicy.exponentialBackoff(
+                            base = 250.milliseconds,
+                            randomizationFactor = 0.5,
+                            random = { rng.nextDouble() },
+                        )
+                    return (1..5).map { (policy.decide(failedAttempt(number = it)) as RetryAfter).delay }
+                }
+
+                // when
+                val first = pausesOf(11)
+                val second = pausesOf(11)
+
+                // then
+                first shouldBe second
+            }
+
+            "rejects a randomization factor outside the unit interval" {
+                // when
+                val thrown =
+                    shouldThrow<IllegalArgumentException> {
+                        RetryPolicy.exponentialBackoff(250.milliseconds, randomizationFactor = 1.5)
+                    }
+
+                // then
+                thrown.message shouldBe "a randomization factor must be within 0.0..1.0, got 1.5"
+            }
+
+            "never grows past the limit even with the jitter on" {
+                // given
+                val policy =
+                    RetryPolicy.exponentialBackoff(
+                        base = 250.milliseconds,
+                        limit = 400.milliseconds,
+                        randomizationFactor = 0.5,
+                        random = { 0.99 },
+                    )
+
+                // when
+                val pauses = (1..4).map { (policy.decide(failedAttempt(number = it)) as RetryAfter).delay }
+
+                // then
+                pauses.forEach { pause -> (pause <= 400.milliseconds) shouldBe true }
+            }
+
+            "applies the ceiling after the jitter" {
+                // given
+                val policy =
+                    RetryPolicy.exponentialBackoff(
+                        base = 250.milliseconds,
+                        limit = 400.milliseconds,
+                        randomizationFactor = 0.5,
+                        random = { 1.0 },
+                    )
+
+                // when
+                val second = policy.decide(failedAttempt(number = 2)) as RetryAfter
+
+                // then
+                second.delay shouldBe 400.milliseconds
             }
         }
 

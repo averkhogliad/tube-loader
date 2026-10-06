@@ -1,5 +1,6 @@
 package io.averkhogliad.tubeloader.adapters.rutube
 
+import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.contract.sourceAdapterContract
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.kotest.core.spec.style.FreeSpec
@@ -12,7 +13,7 @@ class RutubeAdapterContractTest :
         val fixtures = rutubeAdapterFixtures()
         include(
             sourceAdapterContract("rutube", fixtures) {
-                RutubeSourceAdapter(rutubeRecordedHttp(), FakeMediaTool().copyStreams())
+                RutubeSourceAdapter(rutubeRecordedHttp(), FakeMediaTool().copyStreams(), { HttpToolConfig() })
             },
         )
     })
