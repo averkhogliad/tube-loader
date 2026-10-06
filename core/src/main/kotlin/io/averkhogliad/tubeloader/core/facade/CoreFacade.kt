@@ -5,8 +5,19 @@ import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
-import io.averkhogliad.tubeloader.core.domain.*
-import io.averkhogliad.tubeloader.core.download.*
+import io.averkhogliad.tubeloader.core.domain.DownloadError
+import io.averkhogliad.tubeloader.core.domain.MediaRef
+import io.averkhogliad.tubeloader.core.domain.Progress
+import io.averkhogliad.tubeloader.core.domain.Quality
+import io.averkhogliad.tubeloader.core.domain.Source
+import io.averkhogliad.tubeloader.core.domain.SourceId
+import io.averkhogliad.tubeloader.core.domain.SourceProgress
+import io.averkhogliad.tubeloader.core.domain.TaskId
+import io.averkhogliad.tubeloader.core.download.DownloadHandle
+import io.averkhogliad.tubeloader.core.download.DownloadQueue
+import io.averkhogliad.tubeloader.core.download.DownloadStatus
+import io.averkhogliad.tubeloader.core.download.TaskIdGenerator
+import io.averkhogliad.tubeloader.core.download.TaskRegistry
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -28,8 +39,8 @@ class CoreFacade(
 
     val availableSources: List<Source> get() = sources
 
-    private val adaptersBySourceId: Map<SourceId, SourceAdapter> =
-        sources.zip(adapters).associate { (source, adapter) -> source.id to adapter }
+    private val adaptersBySourceId: Map<SourceId, SourceAdapter> = sources.zip(adapters)
+        .associate { (source, adapter) -> source.id to adapter }
 
     private val registry = TaskRegistry(taskIdGenerator, clock)
 
