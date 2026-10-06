@@ -21,6 +21,7 @@ import kotlinx.serialization.json.Json
 private const val OPTIONS_BASE = "https://rutube.ru/api/play/options"
 private const val PLAY_OPTIONS_QUERY = "no_404=true&referer=https%253A%252F%252Frutube.ru&pver=v2"
 private const val REFERER = "https://rutube.ru"
+private val REFERER_HEADERS = mapOf("Referer" to REFERER)
 
 /**
  * Rutube answers this status instead of 404 for a missing video when the request carries
@@ -53,7 +54,7 @@ class RutubeSourceAdapter(private val http: HttpTool) : SourceAdapter {
     }
 
     override suspend fun loadMeta(id: String): LoadMetaResult {
-        val body = http.open(optionsUrl(id), mapOf("Referer" to REFERER))
+        val body = http.open(optionsUrl(id), REFERER_HEADERS)
         val text = body.bytes().decodeToString()
         if (body.status == NOT_FOUND_STATUS && notFoundReason(text)) return LoadMetaResult.NotFound
         return when {
@@ -68,7 +69,17 @@ class RutubeSourceAdapter(private val http: HttpTool) : SourceAdapter {
         quality: Quality,
         targetPath: Path,
         onProgress: (SourceProgress) -> Unit,
-    ): DownloadResult = pending("download")
+    ): DownloadResult {
+        val playlistUrl = playlistUrlOf(mediaId) ?: return broken()
+        val height = heightOf(quality.id) ?: return broken()
+
+        val variant = HlsPlaylist.selectVariant(openText(playlistUrl), height) ?: return broken()
+
+        val segments = HlsPlaylist.segments(openText(variant))
+        if (segments.isEmpty()) return broken()
+
+        throw UnsupportedOperationException("RutubeSourceAdapter.download: segment transfer is not implemented yet")
+    }
 
     private fun parseMeta(id: String, text: String): LoadMetaResult {
         val options =
@@ -100,6 +111,23 @@ class RutubeSourceAdapter(private val http: HttpTool) : SourceAdapter {
     private fun notFoundReason(text: String): Boolean =
         runCatching { json.decodeFromString<ErrorDetail>(text).detail?.name }.getOrNull() == NOT_FOUND_REASON
 
+    private suspend fun playlistUrlOf(id: String): String? {
+        val body = http.open(optionsUrl(id), REFERER_HEADERS)
+        val text = body.bytes().decodeToString()
+        if (body.status !in 200..299) return null
+        val options =
+            try {
+                json.decodeFromString<PlayOptions>(text)
+            } catch (_: Exception) {
+                return null
+            }
+        return options.videoBalancer?.let { it.m3u8 ?: it.fallback }?.takeIf { it.isNotBlank() }
+    }
+
+    private suspend fun openText(url: String): String = http.open(url, REFERER_HEADERS).bytes().decodeToString()
+
+    private fun broken() = DownloadResult.Failed(DownloadError.ExtractorBroken)
+
     private fun optionsUrl(id: String) = "$OPTIONS_BASE/$id/?$PLAY_OPTIONS_QUERY"
 
     private fun mediaIdOf(path: String?): String? {
@@ -108,6 +136,4 @@ class RutubeSourceAdapter(private val http: HttpTool) : SourceAdapter {
         return match?.groupValues?.get(1)
     }
 
-    private fun pending(operation: String): Nothing =
-        throw UnsupportedOperationException("RutubeSourceAdapter.$operation is not implemented yet")
 }
