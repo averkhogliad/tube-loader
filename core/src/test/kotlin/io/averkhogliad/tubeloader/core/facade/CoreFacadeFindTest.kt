@@ -35,9 +35,10 @@ class CoreFacadeFindTest :
                     val actual = world.facade.findByUrl(inputs.next())
 
                     // then
-                    actual shouldBe ResolveResult.Resolved(
-                        MediaRef(world.facade.availableSources.single(), mediaId),
-                    )
+                    actual shouldBe
+                        ResolveResult.Resolved(
+                            MediaRef(world.facade.availableSources.single(), mediaId),
+                        )
                 }
             }
 
@@ -83,9 +84,10 @@ class CoreFacadeFindTest :
                     val actual = world.facade.findByUrl(inputs.next())
 
                     // then
-                    actual shouldBe ResolveResult.Resolved(
-                        MediaRef(world.facade.availableSources[1], mediaId),
-                    )
+                    actual shouldBe
+                        ResolveResult.Resolved(
+                            MediaRef(world.facade.availableSources[1], mediaId),
+                        )
                 }
             }
 

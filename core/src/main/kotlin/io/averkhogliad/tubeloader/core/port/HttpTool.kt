@@ -21,4 +21,6 @@ interface HttpTool : Closeable {
 /**
  * A response opened by [HttpTool]: its metadata and the body stream.
  */
-data class HttpBody(val contentLength: Long?, val body: InputStream)
+data class HttpBody(val body: InputStream, val contentLength: Long? = null)
+
+fun HttpBody.bytes(): ByteArray = body.use(InputStream::readBytes)

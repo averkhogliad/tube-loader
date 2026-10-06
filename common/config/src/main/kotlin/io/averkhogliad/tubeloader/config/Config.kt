@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.config
 
 interface Config {
+
     val keys: Set<String>
 
     fun getOrNull(path: String): String?

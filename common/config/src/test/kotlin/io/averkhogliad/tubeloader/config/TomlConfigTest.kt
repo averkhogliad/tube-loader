@@ -13,21 +13,23 @@ class TomlConfigTest :
         "fromString" - {
             "parses dotted-path sections into flat dotted keys" {
                 // given
-                val toml = """
-                [download]
-                max-parallel-downloads = 3
-                [download.limits]
-                per-host = 1
-                """.trimIndent()
+                val toml =
+                    """
+                    [download]
+                    max-parallel-downloads = 3
+                    [download.limits]
+                    per-host = 1
+                    """.trimIndent()
 
                 // when
                 val config = TomlConfig.fromString(toml)
 
                 // then
-                config.keys shouldBe setOf(
-                    "download.max-parallel-downloads",
-                    "download.limits.per-host",
-                )
+                config.keys shouldBe
+                    setOf(
+                        "download.max-parallel-downloads",
+                        "download.limits.per-host",
+                    )
                 config.getOrNull("download.max-parallel-downloads") shouldBe "3"
             }
 
@@ -46,39 +48,43 @@ class TomlConfigTest :
 
             "getTableOrNull returns nested maps of string leaves and maps" {
                 // given
-                val toml = """
-                [download]
-                max-parallel-downloads = 3
-                enabled = true
-                """.trimIndent()
+                val toml =
+                    """
+                    [download]
+                    max-parallel-downloads = 3
+                    enabled = true
+                    """.trimIndent()
 
                 // when
                 val table = TomlConfig.fromString(toml).getTableOrNull("download")
 
                 // then
-                table shouldBe mapOf(
-                    "max-parallel-downloads" to 3L,
-                    "enabled" to true,
-                )
+                table shouldBe
+                    mapOf(
+                        "max-parallel-downloads" to 3L,
+                        "enabled" to true,
+                    )
             }
 
             "nests dotted keys written inside a table" {
                 // given
-                val toml = """
-                [a]
-                b.c = 1
-                b.d = 2
-                e = 3
-                """.trimIndent()
+                val toml =
+                    """
+                    [a]
+                    b.c = 1
+                    b.d = 2
+                    e = 3
+                    """.trimIndent()
 
                 // when
                 val table = TomlConfig.fromString(toml).getTableOrNull("a")
 
                 // then
-                table shouldBe mapOf(
-                    "b" to mapOf("c" to 1L, "d" to 2L),
-                    "e" to 3L,
-                )
+                table shouldBe
+                    mapOf(
+                        "b" to mapOf("c" to 1L, "d" to 2L),
+                        "e" to 3L,
+                    )
             }
 
             "throws on invalid toml" {
@@ -123,12 +129,13 @@ class TomlConfigTest :
 
             "skips a node it cannot flatten, such as an array of tables" {
                 // given
-                val toml = """
-                [[items]]
-                x = 1
-                [other]
-                y = 2
-                """.trimIndent()
+                val toml =
+                    """
+                    [[items]]
+                    x = 1
+                    [other]
+                    y = 2
+                    """.trimIndent()
 
                 // when
                 val config = TomlConfig.fromString(toml)
@@ -173,10 +180,11 @@ class TomlConfigTest :
 
             "keeps a quoted key inside a table as a single leaf" {
                 // given
-                val toml = """
-                [tbl]
-                'q.k' = 1
-                """.trimIndent()
+                val toml =
+                    """
+                    [tbl]
+                    'q.k' = 1
+                    """.trimIndent()
 
                 // when
                 val config = TomlConfig.fromString(toml)
@@ -188,13 +196,14 @@ class TomlConfigTest :
             "closes the input stream after reading" {
                 // given
                 val closed = AtomicBoolean(false)
-                val stream = object : InputStream() {
-                    override fun read(): Int = if (closed.get()) throw IOException("stream is closed") else -1
+                val stream =
+                    object : InputStream() {
+                        override fun read(): Int = if (closed.get()) throw IOException("stream is closed") else -1
 
-                    override fun close() {
-                        closed.set(true)
+                        override fun close() {
+                            closed.set(true)
+                        }
                     }
-                }
 
                 // when
                 TomlConfig.fromStream(stream)

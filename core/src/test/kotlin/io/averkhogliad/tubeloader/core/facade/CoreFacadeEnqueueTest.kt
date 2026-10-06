@@ -9,7 +9,6 @@ import io.averkhogliad.tubeloader.core.download.DownloadStatus
 import io.averkhogliad.tubeloader.core.download.TaskIdGenerator
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
-import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
@@ -21,7 +20,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
-import java.nio.file.Path
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -53,11 +51,12 @@ class CoreFacadeEnqueueTest :
                     testScheduler.advanceUntilIdle()
 
                     // then
-                    world.observedStatuses(handle.taskId) shouldBe listOf(
-                        DownloadStatus.Queued,
-                        DownloadStatus.LoadingMeta,
-                        DownloadStatus.Downloading,
-                    )
+                    world.observedStatuses(handle.taskId) shouldBe
+                        listOf(
+                            DownloadStatus.Queued,
+                            DownloadStatus.LoadingMeta,
+                            DownloadStatus.Downloading,
+                        )
                     world.state(handle.taskId).status shouldBe DownloadStatus.Downloading
                     release.complete(Unit)
                     testScheduler.advanceUntilIdle()
@@ -69,10 +68,11 @@ class CoreFacadeEnqueueTest :
                 runTest {
                     // given
                     val mediaId = mediaIds.next()
-                    val world = facadeWorld(
-                        tempDir,
-                        FacadeSettings(initialConfig = AppConfig(maxParallelDownloads = 1)),
-                    )
+                    val world =
+                        facadeWorld(
+                            tempDir,
+                            FacadeSettings(initialConfig = AppConfig(maxParallelDownloads = 1)),
+                        )
                     world.adapters.single().onFind = { FindResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val release = CompletableDeferred<Unit>()
@@ -113,7 +113,11 @@ class CoreFacadeEnqueueTest :
                     val handle = world.enqueue(ref, target)
 
                     // then
-                    val passed = world.adapters.single().downloaded.single()
+                    val passed =
+                        world.adapters
+                            .single()
+                            .downloaded
+                            .single()
                     passed.id shouldBe mediaId
                     passed.targetPath shouldNotBe target
                     passed.targetPath.parent shouldBe target.parent
@@ -145,10 +149,11 @@ class CoreFacadeEnqueueTest :
                         val mediaId = mediaIds.next()
                         val generated = listOf(TaskId(1), TaskId(1), TaskId(2))
                         var index = 0
-                        val world = facadeWorld(
-                            tempDir,
-                            FacadeSettings(taskIdGenerator = TaskIdGenerator { generated[index++] }),
-                        )
+                        val world =
+                            facadeWorld(
+                                tempDir,
+                                FacadeSettings(taskIdGenerator = TaskIdGenerator { generated[index++] }),
+                            )
                         world.adapters.single().onFind = { FindResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
 
@@ -168,10 +173,11 @@ class CoreFacadeEnqueueTest :
                     runTest {
                         // given
                         val mediaId = mediaIds.next()
-                        val world = facadeWorld(
-                            tempDir,
-                            FacadeSettings(taskIdGenerator = TaskIdGenerator { TaskId(1) }),
-                        )
+                        val world =
+                            facadeWorld(
+                                tempDir,
+                                FacadeSettings(taskIdGenerator = TaskIdGenerator { TaskId(1) }),
+                            )
                         world.adapters.single().onFind = { FindResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         world.enqueue(ref)
@@ -193,9 +199,10 @@ class CoreFacadeEnqueueTest :
                         val startedAt = Instant.parse("2026-09-30T10:00:00Z")
                         val finishedAt = Instant.parse("2026-09-30T10:05:00Z")
                         val moments = ArrayDeque(listOf(startedAt, finishedAt))
-                        val clock = object : Clock {
-                            override fun now(): Instant = moments.removeFirst()
-                        }
+                        val clock =
+                            object : Clock {
+                                override fun now(): Instant = moments.removeFirst()
+                            }
                         val world = facadeWorld(tempDir, FacadeSettings(clock = clock))
                         world.adapters.single().onFind = { FindResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
@@ -241,10 +248,11 @@ class CoreFacadeEnqueueTest :
                 runTest {
                     // given
                     val mediaId = mediaIds.next()
-                    val world = facadeWorld(
-                        tempDir,
-                        FacadeSettings(taskIdGenerator = TaskIdGenerator { TaskId(1) }),
-                    )
+                    val world =
+                        facadeWorld(
+                            tempDir,
+                            FacadeSettings(taskIdGenerator = TaskIdGenerator { TaskId(1) }),
+                        )
                     world.adapters.single().onFind = { FindResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     world.queue.shutdown(5.seconds) shouldBe true

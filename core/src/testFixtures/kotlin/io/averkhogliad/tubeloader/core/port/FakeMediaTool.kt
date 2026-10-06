@@ -4,7 +4,11 @@ import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.port.MediaTool
 import java.nio.file.Path
 
-data class MuxCall(val videoTrack: Path, val audioTrack: Path, val output: Path)
+data class MuxCall(
+    val videoTrack: Path,
+    val audioTrack: Path,
+    val output: Path,
+)
 
 data class RemuxCall(val input: Path, val output: Path)
 

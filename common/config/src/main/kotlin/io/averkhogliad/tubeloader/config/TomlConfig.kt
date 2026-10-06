@@ -31,9 +31,10 @@ class TomlConfig private constructor(private val leaves: Map<String, Any>) : Con
 
     private fun nestedView(path: String): Map<String, Any> {
         val prefix = "$path."
-        val direct = leaves
-            .filterKeys { it.startsWith(prefix) }
-            .mapKeys { it.key.removePrefix(prefix) }
+        val direct =
+            leaves
+                .filterKeys { it.startsWith(prefix) }
+                .mapKeys { it.key.removePrefix(prefix) }
         val grouped = direct.entries.groupBy { it.key.substringBefore('.') }
         return grouped.mapValues { (_, entries) ->
             val single = entries.singleOrNull()?.key
@@ -51,27 +52,36 @@ class TomlConfig private constructor(private val leaves: Map<String, Any>) : Con
             return TomlConfig(leaves)
         }
 
-        fun fromStream(stream: InputStream): TomlConfig = stream.reader(StandardCharsets.UTF_8).use { reader ->
-            fromString(reader.readText())
-        }
+        fun fromStream(stream: InputStream): TomlConfig =
+            stream.reader(StandardCharsets.UTF_8).use { reader ->
+                fromString(reader.readText())
+            }
 
         fun fromFile(path: Path): TomlConfig = fromString(Files.readString(path))
 
         private fun walk(node: TomlNode, prefix: String, out: MutableMap<String, Any>) {
             for (child in node.children) {
                 when (child) {
-                    is TomlTable -> walk(child, "$prefix${child.name}.", out)
+                    is TomlTable -> {
+                        walk(child, "$prefix${child.name}.", out)
+                    }
 
-                    is TomlInlineTable -> walk(child, "$prefix${child.name}.", out)
+                    is TomlInlineTable -> {
+                        walk(child, "$prefix${child.name}.", out)
+                    }
 
-                    is TomlKeyValuePrimitive -> out[prefix + normalizeKey(child.key)] = child.value.content
+                    is TomlKeyValuePrimitive -> {
+                        out[prefix + normalizeKey(child.key)] = child.value.content
+                    }
 
                     is TomlKeyValueArray -> {
                         val array = child.value as TomlArray
                         out[prefix + normalizeKey(child.key)] = array.parse(TomlInputConfig())
                     }
 
-                    else -> Unit
+                    else -> {
+                        Unit
+                    }
                 }
             }
         }

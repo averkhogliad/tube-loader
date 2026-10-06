@@ -12,7 +12,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
@@ -278,11 +277,12 @@ class CoreFacadeCancelTest :
                 runTest {
                     // given
                     val mediaId = mediaIds.next()
-                    val world = facadeWorld(
-                        tempDir,
-                        FacadeSettings(initialConfig = AppConfig(maxParallelDownloads = 1)),
-                        dispatcher = StandardTestDispatcher(testScheduler),
-                    )
+                    val world =
+                        facadeWorld(
+                            tempDir,
+                            FacadeSettings(initialConfig = AppConfig(maxParallelDownloads = 1)),
+                            dispatcher = StandardTestDispatcher(testScheduler),
+                        )
                     world.adapters.single().onFind = { FindResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val gate = CompletableDeferred<Unit>()

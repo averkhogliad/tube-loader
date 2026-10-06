@@ -33,14 +33,16 @@ class CoreFacade(
     taskIdGenerator: TaskIdGenerator,
     private val clock: Clock = Clock.System,
 ) {
-    private val sources: List<Source> = adapters.mapIndexed { index, adapter ->
-        Source(SourceId(index), adapter.displayName)
-    }
+    private val sources: List<Source> =
+        adapters
+            .mapIndexed { index, adapter -> Source(SourceId(index), adapter.displayName) }
 
     val availableSources: List<Source> get() = sources
 
-    private val adaptersBySourceId: Map<SourceId, SourceAdapter> = sources.zip(adapters)
-        .associate { (source, adapter) -> source.id to adapter }
+    private val adaptersBySourceId: Map<SourceId, SourceAdapter> =
+        sources
+            .zip(adapters)
+            .associate { (source, adapter) -> source.id to adapter }
 
     private val registry = TaskRegistry(taskIdGenerator, clock)
 
@@ -82,12 +84,13 @@ class CoreFacade(
         }
         val startedAt = clock.now()
         val taskId = registry.allocate(startedAt)
-        val job = try {
-            queue.submit { runDownload(taskId, adapter, ref.mediaId, quality, targetPath) }
-        } catch (refused: IllegalStateException) {
-            registry.forget(taskId)
-            throw refused
-        }
+        val job =
+            try {
+                queue.submit { runDownload(taskId, adapter, ref.mediaId, quality, targetPath) }
+            } catch (refused: IllegalStateException) {
+                registry.forget(taskId)
+                throw refused
+            }
         job.invokeOnCompletion { cause ->
             if (cause is CancellationException) {
                 registry.transition(taskId, DownloadStatus.Cancelled)
@@ -116,9 +119,10 @@ class CoreFacade(
             yield()
             Files.createFile(part)
             registry.transition(taskId, DownloadStatus.Downloading)
-            val outcome = adapter.download(mediaId, quality, part) { source ->
-                registry.updateProgress(taskId, source.toProgress())
-            }
+            val outcome =
+                adapter.download(mediaId, quality, part) { source ->
+                    registry.updateProgress(taskId, source.toProgress())
+                }
             if (outcome is DownloadResult.Failed) {
                 deleteQuietly(part)
                 registry.transition(taskId, DownloadStatus.Failed(outcome.error))
@@ -146,7 +150,9 @@ class CoreFacade(
                     registry.transition(taskId, DownloadStatus.Failed(DownloadError.ExtractorBroken, failure))
                 }
 
-                else -> throw failure
+                else -> {
+                    throw failure
+                }
             }
         }
     }
@@ -164,16 +170,21 @@ class CoreFacade(
 
 private const val FRACTION_SCALE = 1000L
 
-private fun SourceProgress.toProgress(): Progress = when (this) {
-    SourceProgress.Indeterminate -> Progress.Indeterminate
-
-    is SourceProgress.Absolute ->
-        if (total > 0 && processed in 0..total) Progress.Determinate(processed, total) else Progress.Indeterminate
-
-    is SourceProgress.Fraction ->
-        if (ratio.isFinite() && ratio in 0.0..1.0) {
-            Progress.Determinate((ratio * FRACTION_SCALE).toLong(), FRACTION_SCALE)
-        } else {
+private fun SourceProgress.toProgress(): Progress =
+    when (this) {
+        SourceProgress.Indeterminate -> {
             Progress.Indeterminate
         }
-}
+
+        is SourceProgress.Absolute -> {
+            if (total > 0 && processed in 0..total) Progress.Determinate(processed, total) else Progress.Indeterminate
+        }
+
+        is SourceProgress.Fraction -> {
+            if (ratio.isFinite() && ratio in 0.0..1.0) {
+                Progress.Determinate((ratio * FRACTION_SCALE).toLong(), FRACTION_SCALE)
+            } else {
+                Progress.Indeterminate
+            }
+        }
+    }

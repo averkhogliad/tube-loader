@@ -16,7 +16,6 @@ import io.kotest.property.Arb
 import io.kotest.property.arbitrary.next
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.runTest
 import java.nio.file.Files
 

@@ -76,11 +76,12 @@ class CoreFacadeEnqueueFailureTest :
                     testScheduler.advanceUntilIdle()
 
                     // then
-                    world.observedStatuses(handle.taskId) shouldBe listOf(
-                        DownloadStatus.Queued,
-                        DownloadStatus.LoadingMeta,
-                        DownloadStatus.Downloading,
-                    )
+                    world.observedStatuses(handle.taskId) shouldBe
+                        listOf(
+                            DownloadStatus.Queued,
+                            DownloadStatus.LoadingMeta,
+                            DownloadStatus.Downloading,
+                        )
                     release.complete(Unit)
                     testScheduler.advanceUntilIdle()
                     val failed = world.state(handle.taskId).status as DownloadStatus.Failed
@@ -94,11 +95,12 @@ class CoreFacadeEnqueueFailureTest :
                 runTest {
                     // given
                     val mediaId = mediaIds.next()
-                    val world = facadeWorld(
-                        tempDir,
-                        FacadeSettings(taskIdGenerator = TaskIdGenerator { TaskId(1) }),
-                        dispatcher = StandardTestDispatcher(testScheduler),
-                    )
+                    val world =
+                        facadeWorld(
+                            tempDir,
+                            FacadeSettings(taskIdGenerator = TaskIdGenerator { TaskId(1) }),
+                            dispatcher = StandardTestDispatcher(testScheduler),
+                        )
                     world.adapters.single().onFind = { FindResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     // a directory where the partial file belongs makes Files.createFile fail

@@ -1,7 +1,6 @@
 package io.averkhogliad.tubeloader.core.download
 
 import io.averkhogliad.tubeloader.core.config.AppConfig
-import io.averkhogliad.tubeloader.core.download.DownloadQueue
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
@@ -13,7 +12,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -126,10 +124,11 @@ class DownloadQueueTest :
                     // given
                     val dispatcher = StandardTestDispatcher(testScheduler)
                     val thrown = CompletableDeferred<Throwable>()
-                    val scope = CoroutineScope(
-                        SupervisorJob() + dispatcher +
-                            CoroutineExceptionHandler { _, throwable -> thrown.complete(throwable) },
-                    )
+                    val scope =
+                        CoroutineScope(
+                            SupervisorJob() + dispatcher +
+                                CoroutineExceptionHandler { _, throwable -> thrown.complete(throwable) },
+                        )
                     val queue = DownloadQueue(scope, dispatcher, dispatcher, config(1))
                     val log = StartLog()
 
@@ -179,10 +178,11 @@ class DownloadQueueTest :
                     try {
                         val queue = downloadQueue(config(1), workers.asCoroutineDispatcher())
                         val inside = CountDownLatch(1)
-                        val windingDown = queue.submit {
-                            inside.countDown()
-                            blocked.await(30, TimeUnit.SECONDS)
-                        }
+                        val windingDown =
+                            queue.submit {
+                                inside.countDown()
+                                blocked.await(30, TimeUnit.SECONDS)
+                            }
                         testScheduler.advanceUntilIdle()
                         inside.await(2, TimeUnit.SECONDS) shouldBe true
 
@@ -371,10 +371,11 @@ private class StartLog {
     private var open = false
     val order = mutableListOf<Int>()
 
-    fun work(index: Int): suspend () -> Unit = {
-        order += index
-        if (!open) gate(index).await()
-    }
+    fun work(index: Int): suspend () -> Unit =
+        {
+            order += index
+            if (!open) gate(index).await()
+        }
 
     fun release(index: Int) {
         gate(index).complete(Unit)
@@ -400,9 +401,10 @@ private fun TestScope.downloadQueue(config: MutableStateFlow<AppConfig>): Downlo
 private fun TestScope.downloadQueue(
     config: MutableStateFlow<AppConfig>,
     workContext: CoroutineContext,
-): DownloadQueue = DownloadQueue(
-    CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler)),
-    StandardTestDispatcher(testScheduler),
-    workContext,
-    config,
-)
+): DownloadQueue =
+    DownloadQueue(
+        CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler)),
+        StandardTestDispatcher(testScheduler),
+        workContext,
+        config,
+    )

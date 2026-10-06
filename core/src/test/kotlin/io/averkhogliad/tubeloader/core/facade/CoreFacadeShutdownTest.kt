@@ -57,10 +57,11 @@ class CoreFacadeShutdownTest :
                 runTest {
                     // given
                     val mediaId = mediaIds.next()
-                    val world = facadeWorld(
-                        tempDir,
-                        FacadeSettings(initialConfig = AppConfig(maxParallelDownloads = 1)),
-                    )
+                    val world =
+                        facadeWorld(
+                            tempDir,
+                            FacadeSettings(initialConfig = AppConfig(maxParallelDownloads = 1)),
+                        )
                     world.adapters.single().onFind = { FindResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val gate = CompletableDeferred<Unit>()

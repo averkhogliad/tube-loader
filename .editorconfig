@@ -8,5 +8,8 @@ indent_style = space
 indent_size = 4
 
 [*.{kt,kts}]
-ktlint_code_style = intellij_idea
+ktlint_code_style = ktlint_official
 max_line_length = 120
+ktlint_class_signature_rule_force_multiline_when_parameter_count_greater_or_equal_than = 3
+ktlint_function_signature_rule_force_multiline_when_parameter_count_greater_or_equal_than = 5
+ktlint_standard_no-empty-first-line-in-class-body = disabled
