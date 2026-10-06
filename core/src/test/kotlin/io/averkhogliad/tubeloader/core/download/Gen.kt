@@ -20,15 +20,16 @@ fun Arb.Companion.qualities(
     labels: Gen<String> = Arb.string(1..12),
 ): Arb<Quality> = Arb.bind(ids, kinds, labels, ::Quality)
 
-fun Arb.Companion.mediaMetas(fieldGens: MediaMetaGens = MediaMetaGens()): Arb<MediaMeta> = Arb.bind(
-    fieldGens.ids,
-    fieldGens.titles,
-    fieldGens.authors,
-    fieldGens.durations,
-    fieldGens.thumbnails,
-    fieldGens.qualities,
-    ::MediaMeta,
-)
+fun Arb.Companion.mediaMetas(fieldGens: MediaMetaGens = MediaMetaGens()): Arb<MediaMeta> =
+    Arb.bind(
+        fieldGens.ids,
+        fieldGens.titles,
+        fieldGens.authors,
+        fieldGens.durations,
+        fieldGens.thumbnails,
+        fieldGens.qualities,
+        ::MediaMeta,
+    )
 
 fun Arb.Companion.absoluteProgresses(totals: Arb<Long> = Arb.long(1L..1_000_000L)): Arb<SourceProgress.Absolute> =
     totals.flatMap { total ->

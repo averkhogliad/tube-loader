@@ -18,27 +18,30 @@ class AppConfigTest :
                 val actual = AppConfig.fromConfig(config)
 
                 // then
-                actual shouldBe AppConfig(
-                    maxParallelDownloads = AppConfig.DEFAULT_MAX_PARALLEL_DOWNLOADS,
-                    defaultTargetDir = null,
-                )
+                actual shouldBe
+                    AppConfig(
+                        maxParallelDownloads = AppConfig.DEFAULT_MAX_PARALLEL_DOWNLOADS,
+                        defaultTargetDir = null,
+                    )
             }
 
             "overrides values from the config" {
                 // given
-                val config = mapConfig(
-                    "download.max-parallel-downloads" to "2",
-                    "download.default-target-dir" to "D:/vid",
-                )
+                val config =
+                    mapConfig(
+                        "download.max-parallel-downloads" to "2",
+                        "download.default-target-dir" to "D:/vid",
+                    )
 
                 // when
                 val actual = AppConfig.fromConfig(config)
 
                 // then
-                actual shouldBe AppConfig(
-                    maxParallelDownloads = 2,
-                    defaultTargetDir = Path.of("D:/vid"),
-                )
+                actual shouldBe
+                    AppConfig(
+                        maxParallelDownloads = 2,
+                        defaultTargetDir = Path.of("D:/vid"),
+                    )
             }
 
             "trims surrounding whitespace around max-parallel-downloads" {

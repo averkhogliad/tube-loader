@@ -107,13 +107,15 @@ internal fun facadeWorld(
     return FacadeWorld(tempDir, settings.adapters, config, scope, queue, facade)
 }
 
-internal fun leftoverFilesIn(dir: Path, expected: Path): List<Path> = Files.newDirectoryStream(dir).use { entries ->
-    entries.filter {
-        it !=
-            expected
+internal fun leftoverFilesIn(dir: Path, expected: Path): List<Path> =
+    Files.newDirectoryStream(dir).use { entries ->
+        entries.filter {
+            it !=
+                expected
+        }
     }
-}
 
-internal fun partialsIn(dir: Path): List<Path> = Files.newDirectoryStream(dir).use { entries ->
-    entries.filter { it.fileName.toString().contains(".part-") }
-}
+internal fun partialsIn(dir: Path): List<Path> =
+    Files.newDirectoryStream(dir).use { entries ->
+        entries.filter { it.fileName.toString().contains(".part-") }
+    }

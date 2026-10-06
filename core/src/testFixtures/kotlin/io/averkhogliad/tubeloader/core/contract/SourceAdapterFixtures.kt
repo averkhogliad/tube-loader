@@ -18,11 +18,12 @@ class RecordedResponses(
     private val bodies: Map<String, ByteArray> = emptyMap(),
     private val unreachable: Set<String> = emptySet(),
 ) {
-    fun bodyFor(url: String): ByteArray = when {
-        bodies.containsKey(url) -> bodies.getValue(url)
-        url in unreachable -> throw IOException("no response from $url")
-        else -> throw IllegalArgumentException("no recorded response for $url")
-    }
+    fun bodyFor(url: String): ByteArray =
+        when {
+            bodies.containsKey(url) -> bodies.getValue(url)
+            url in unreachable -> throw IOException("no response from $url")
+            else -> throw IllegalArgumentException("no recorded response for $url")
+        }
 
     companion object {
         val None = RecordedResponses()
@@ -35,7 +36,8 @@ class RecordedResponses(
             val manifest = readResource("$root/responses.txt").decodeToString()
             val bodies = mutableMapOf<String, ByteArray>()
             val unreachable = mutableSetOf<String>()
-            manifest.lineSequence()
+            manifest
+                .lineSequence()
                 .map { it.trim() }
                 .filter { it.isNotEmpty() && !it.startsWith("#") }
                 .forEach { line ->
@@ -50,10 +52,11 @@ class RecordedResponses(
             return RecordedResponses(bodies, unreachable)
         }
 
-        private fun readResource(path: String): ByteArray = RecordedResponses::class.java.classLoader
-            ?.getResourceAsStream(path)
-            ?.use { it.readBytes() }
-            ?: throw IllegalArgumentException("missing golden fixture: $path")
+        private fun readResource(path: String): ByteArray =
+            RecordedResponses::class.java.classLoader
+                ?.getResourceAsStream(path)
+                ?.use { it.readBytes() }
+                ?: throw IllegalArgumentException("missing golden fixture: $path")
 
         private const val UNREACHABLE = "!unreachable"
     }

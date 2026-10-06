@@ -35,11 +35,12 @@ class DefaultSourcesTest :
 
             "leaves every absent source optional" {
                 // given
-                val sources = defaultSources(
-                    classpathResourceName = "no-such-resource.toml",
-                    homeDir = Path.of("no-such-home"),
-                    workingDir = Path.of("no-such-work"),
-                )
+                val sources =
+                    defaultSources(
+                        classpathResourceName = "no-such-resource.toml",
+                        homeDir = Path.of("no-such-home"),
+                        workingDir = Path.of("no-such-work"),
+                    )
 
                 // when
                 val loaded = sources.map { it.load() }
@@ -53,12 +54,13 @@ class DefaultSourcesTest :
                 val explicit = Path.of("no-such-explicit-dir", "config.toml")
 
                 // when
-                val sources = defaultSources(
-                    classpathResourceName = "no-such-resource.toml",
-                    homeDir = Path.of("home"),
-                    workingDir = Path.of("work"),
-                    explicitFile = explicit,
-                )
+                val sources =
+                    defaultSources(
+                        classpathResourceName = "no-such-resource.toml",
+                        homeDir = Path.of("home"),
+                        workingDir = Path.of("work"),
+                        explicitFile = explicit,
+                    )
 
                 // then
                 sources shouldHaveSize 5

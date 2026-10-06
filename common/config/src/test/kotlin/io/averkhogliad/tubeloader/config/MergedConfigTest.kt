@@ -27,10 +27,11 @@ class MergedConfigTest :
 
             "later source does not erase keys it lacks" {
                 // given
-                val config = MergedConfig(
-                    mapConfig("a" to "1"),
-                    mapConfig("b" to "2"),
-                )
+                val config =
+                    MergedConfig(
+                        mapConfig("a" to "1"),
+                        mapConfig("b" to "2"),
+                    )
 
                 // when
                 val actual = config.getOrNull("a")
@@ -52,7 +53,12 @@ class MergedConfigTest :
 
             "reads back a generated pair from the overriding source" {
                 // given
-                val pair = Arb.flatTables().next().entries.single()
+                val pair =
+                    Arb
+                        .flatTables()
+                        .next()
+                        .entries
+                        .single()
                 val config = MergedConfig(mapConfig(pair.key to "old"), mapConfig(pair.key to pair.value.toString()))
 
                 // when
@@ -66,10 +72,11 @@ class MergedConfigTest :
         "getTableOrNull" - {
             "merges nested tables key by key" {
                 // given
-                val first = mapConfig(
-                    "download.max" to "2",
-                    "download.host" to "rutube",
-                )
+                val first =
+                    mapConfig(
+                        "download.max" to "2",
+                        "download.host" to "rutube",
+                    )
                 val second = mapConfig("download.max" to "5")
 
                 // when
@@ -77,10 +84,11 @@ class MergedConfigTest :
                 val table = config.getTableOrNull("download")
 
                 // then
-                table shouldBe mapOf(
-                    "max" to "5",
-                    "host" to "rutube",
-                )
+                table shouldBe
+                    mapOf(
+                        "max" to "5",
+                        "host" to "rutube",
+                    )
             }
 
             "table from a later source does not erase sibling keys of earlier source" {
@@ -122,47 +130,52 @@ class MergedConfigTest :
 
             "recursively merges nested tables from both sources" {
                 // given
-                val first = TomlConfig.fromString(
-                    """
-                [download]
-                host = "rutube"
-                [download.limits]
-                per-host = 1
-                    """.trimIndent(),
-                )
-                val second = TomlConfig.fromString(
-                    """
-                [download]
-                [download.limits]
-                total = 5
-                    """.trimIndent(),
-                )
+                val first =
+                    TomlConfig.fromString(
+                        """
+                        [download]
+                        host = "rutube"
+                        [download.limits]
+                        per-host = 1
+                        """.trimIndent(),
+                    )
+                val second =
+                    TomlConfig.fromString(
+                        """
+                        [download]
+                        [download.limits]
+                        total = 5
+                        """.trimIndent(),
+                    )
 
                 // when
                 val table = MergedConfig(first, second).getTableOrNull("download")
 
                 // then
-                table shouldBe mapOf(
-                    "host" to "rutube",
-                    "limits" to mapOf("per-host" to 1L, "total" to 5L),
-                )
+                table shouldBe
+                    mapOf(
+                        "host" to "rutube",
+                        "limits" to mapOf("per-host" to 1L, "total" to 5L),
+                    )
             }
 
             "lets a later scalar replace an earlier nested table" {
                 // given
-                val first = TomlConfig.fromString(
-                    """
-                [download]
-                [download.limits]
-                per-host = 1
-                    """.trimIndent(),
-                )
-                val second = TomlConfig.fromString(
-                    """
-                [download]
-                limits = 5
-                    """.trimIndent(),
-                )
+                val first =
+                    TomlConfig.fromString(
+                        """
+                        [download]
+                        [download.limits]
+                        per-host = 1
+                        """.trimIndent(),
+                    )
+                val second =
+                    TomlConfig.fromString(
+                        """
+                        [download]
+                        limits = 5
+                        """.trimIndent(),
+                    )
 
                 // when
                 val table = MergedConfig(first, second).getTableOrNull("download")
@@ -173,19 +186,21 @@ class MergedConfigTest :
 
             "lets a later nested table replace an earlier scalar" {
                 // given
-                val first = TomlConfig.fromString(
-                    """
-                [download]
-                limits = 5
-                    """.trimIndent(),
-                )
-                val second = TomlConfig.fromString(
-                    """
-                [download]
-                [download.limits]
-                per-host = 1
-                    """.trimIndent(),
-                )
+                val first =
+                    TomlConfig.fromString(
+                        """
+                        [download]
+                        limits = 5
+                        """.trimIndent(),
+                    )
+                val second =
+                    TomlConfig.fromString(
+                        """
+                        [download]
+                        [download.limits]
+                        per-host = 1
+                        """.trimIndent(),
+                    )
 
                 // when
                 val table = MergedConfig(first, second).getTableOrNull("download")
@@ -211,10 +226,11 @@ class MergedConfigTest :
         "keys" - {
             "unions keys of all sources" {
                 // given
-                val config = MergedConfig(
-                    mapConfig("a" to "1"),
-                    mapConfig("b" to "2"),
-                )
+                val config =
+                    MergedConfig(
+                        mapConfig("a" to "1"),
+                        mapConfig("b" to "2"),
+                    )
 
                 // when
                 val actual = config.keys

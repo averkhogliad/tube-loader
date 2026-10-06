@@ -20,21 +20,25 @@ data class AppConfig(
         const val DEFAULT_MAX_PARALLEL_DOWNLOADS = 3
         const val DEFAULT_KEY_PREFIX = "download"
 
-        fun fromConfig(config: Config, keyPrefix: String = DEFAULT_KEY_PREFIX): AppConfig = AppConfig(
-            maxParallelDownloads = maxParallelDownloads(config, keyPrefix),
-            defaultTargetDir = defaultTargetDir(config, keyPrefix),
-        )
+        fun fromConfig(config: Config, keyPrefix: String = DEFAULT_KEY_PREFIX): AppConfig =
+            AppConfig(
+                maxParallelDownloads = maxParallelDownloads(config, keyPrefix),
+                defaultTargetDir = defaultTargetDir(config, keyPrefix),
+            )
 
         private fun maxParallelDownloads(config: Config, keyPrefix: String): Int {
-            val parsed = config.getOrNull("$keyPrefix.max-parallel-downloads")
-                ?.trim()
-                ?.toIntOrNull()
+            val parsed =
+                config
+                    .getOrNull("$keyPrefix.max-parallel-downloads")
+                    ?.trim()
+                    ?.toIntOrNull()
             return parsed?.takeIf { it >= 1 }
                 ?: DEFAULT_MAX_PARALLEL_DOWNLOADS
         }
 
         private fun defaultTargetDir(config: Config, keyPrefix: String): Path? =
-            config.getOrNull("$keyPrefix.default-target-dir")
+            config
+                .getOrNull("$keyPrefix.default-target-dir")
                 ?.trim()
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { raw ->

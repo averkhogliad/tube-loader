@@ -27,10 +27,11 @@ class ConfigTest :
                 var transformRan = false
 
                 // when
-                val actual = config.getOrNull("missing") {
-                    transformRan = true
-                    it.toInt()
-                }
+                val actual =
+                    config.getOrNull("missing") {
+                        transformRan = true
+                        it.toInt()
+                    }
 
                 // then
                 actual.shouldBeNull()
@@ -69,10 +70,11 @@ class ConfigTest :
                 var transformRan = false
 
                 // when
-                val actual = config.getTableOrNull("missing") {
-                    transformRan = true
-                    it.keys
-                }
+                val actual =
+                    config.getTableOrNull("missing") {
+                        transformRan = true
+                        it.keys
+                    }
 
                 // then
                 actual.shouldBeNull()

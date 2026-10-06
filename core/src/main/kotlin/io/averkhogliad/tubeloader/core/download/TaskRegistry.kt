@@ -44,11 +44,12 @@ internal class TaskRegistry(
             val current = snapshot[taskId] ?: return@update snapshot
             if (current.status.isTerminal) return@update snapshot
             snapshot + (
-                taskId to current.copy(
-                    status = status,
-                    finishedAt = if (status.isTerminal) clock.now() else current.finishedAt,
-                )
-                )
+                taskId to
+                    current.copy(
+                        status = status,
+                        finishedAt = if (status.isTerminal) clock.now() else current.finishedAt,
+                    )
+            )
         }
     }
 

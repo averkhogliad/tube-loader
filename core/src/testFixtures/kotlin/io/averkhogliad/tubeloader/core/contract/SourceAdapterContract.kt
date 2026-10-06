@@ -38,146 +38,147 @@ fun sourceAdapterContract(
     adapterName: String,
     fixtures: SourceAdapterFixtures,
     create: () -> SourceAdapter,
-): TestFactory = freeSpec {
-    val tempDir = Files.createTempDirectory("contract-$adapterName")
+): TestFactory =
+    freeSpec {
+        val tempDir = Files.createTempDirectory("contract-$adapterName")
 
-    afterSpec {
-        @OptIn(ExperimentalPathApi::class)
-        tempDir.deleteRecursively()
-    }
+        afterSpec {
+            @OptIn(ExperimentalPathApi::class)
+            tempDir.deleteRecursively()
+        }
 
-    "find" - {
-        fixtures.find.forEach { case ->
-            case.name {
+        "find" - {
+            fixtures.find.forEach { case ->
+                case.name {
+                    // given
+                    val adapter = create()
+
+                    // when
+                    val actual = adapter.find(case.input)
+
+                    // then
+                    actual shouldBe case.expected
+                }
+            }
+
+            "covers both a matched and an unmatched outcome" {
                 // given
                 val adapter = create()
+                val matched = fixtures.find.first { it.expected is FindResult.Found }
+                val unmatched = fixtures.find.first { it.expected is FindResult.Unsupported }
 
                 // when
-                val actual = adapter.find(case.input)
+                val matchedActual = adapter.find(matched.input)
+                val unmatchedActual = adapter.find(unmatched.input)
 
                 // then
-                actual shouldBe case.expected
+                matchedActual shouldBe matched.expected
+                unmatchedActual shouldBe unmatched.expected
+            }
+
+            "decides offline, without reading the recorded source" {
+                // given: a url the recording knows nothing about — touching it would be a probe
+                val adapter = create()
+                val unrouted = "https://unrecorded.example/watch?v=nothing-recorded"
+
+                // when
+                val actual = adapter.find(unrouted)
+
+                // then
+                actual shouldBe FindResult.Unsupported
             }
         }
 
-        "covers both a matched and an unmatched outcome" {
-            // given
-            val adapter = create()
-            val matched = fixtures.find.first { it.expected is FindResult.Found }
-            val unmatched = fixtures.find.first { it.expected is FindResult.Unsupported }
+        "loadMeta" - {
+            fixtures.meta.forEach { case ->
+                case.name {
+                    // given
+                    val adapter = create()
 
-            // when
-            val matchedActual = adapter.find(matched.input)
-            val unmatchedActual = adapter.find(unmatched.input)
+                    // when
+                    val actual = adapter.loadMeta(case.id)
 
-            // then
-            matchedActual shouldBe matched.expected
-            unmatchedActual shouldBe unmatched.expected
-        }
+                    // then
+                    actual shouldBe case.expected
+                }
+            }
 
-        "decides offline, without reading the recorded source" {
-            // given: a url the recording knows nothing about — touching it would be a probe
-            val adapter = create()
-            val unrouted = "https://unrecorded.example/watch?v=nothing-recorded"
-
-            // when
-            val actual = adapter.find(unrouted)
-
-            // then
-            actual shouldBe FindResult.Unsupported
-        }
-    }
-
-    "loadMeta" - {
-        fixtures.meta.forEach { case ->
-            case.name {
+            "parses the recording into the reference meta and qualities" {
                 // given
                 val adapter = create()
+                val case = fixtures.meta.first { it.expected is LoadMetaResult.Found }
+                val reference = case.expected as LoadMetaResult.Found
 
                 // when
-                val actual = adapter.loadMeta(case.id)
+                val actual = adapter.loadMeta(case.id).shouldBeInstanceOf<LoadMetaResult.Found>()
 
                 // then
-                actual shouldBe case.expected
+                actual.meta.id shouldBe reference.meta.id
+                actual.meta.title shouldBe reference.meta.title
+                actual.meta.author shouldBe reference.meta.author
+                actual.meta.duration shouldBe reference.meta.duration
+                actual.meta.thumbnailUrl shouldBe reference.meta.thumbnailUrl
+                actual.meta.qualities shouldBe reference.meta.qualities
             }
         }
 
-        "parses the recording into the reference meta and qualities" {
-            // given
-            val adapter = create()
-            val case = fixtures.meta.first { it.expected is LoadMetaResult.Found }
-            val reference = case.expected as LoadMetaResult.Found
+        "download" - {
+            fixtures.download.forEach { case ->
+                case.name {
+                    // given
+                    val adapter = create()
+                    val target = downloadTargetOf(tempDir, adapterName, case).also { it.deleteIfExists() }
+                    val progress = mutableListOf<SourceProgress>()
 
-            // when
-            val actual = adapter.loadMeta(case.id).shouldBeInstanceOf<LoadMetaResult.Found>()
+                    // when
+                    val actual = adapter.download(case.id, case.quality, target) { progress += it }
 
-            // then
-            actual.meta.id shouldBe reference.meta.id
-            actual.meta.title shouldBe reference.meta.title
-            actual.meta.author shouldBe reference.meta.author
-            actual.meta.duration shouldBe reference.meta.duration
-            actual.meta.thumbnailUrl shouldBe reference.meta.thumbnailUrl
-            actual.meta.qualities shouldBe reference.meta.qualities
-        }
-    }
+                    // then
+                    withClue("outcome") { actual shouldBe case.expected }
+                    case.expectedContent?.let { reference ->
+                        withClue("bytes written") { target.readBytes() shouldBe reference }
+                    }
+                    if (case.expectNoFile) {
+                        withClue("file left behind") { Files.exists(target) shouldBe false }
+                    }
+                }
+            }
 
-    "download" - {
-        fixtures.download.forEach { case ->
-            case.name {
+            "reports progress that matches the size of the written file" {
                 // given
                 val adapter = create()
+                val case = fixtures.download.first { it.expected is DownloadResult.Success }
                 val target = downloadTargetOf(tempDir, adapterName, case).also { it.deleteIfExists() }
                 val progress = mutableListOf<SourceProgress>()
 
                 // when
-                val actual = adapter.download(case.id, case.quality, target) { progress += it }
+                adapter.download(case.id, case.quality, target) { progress += it }
 
                 // then
-                withClue("outcome") { actual shouldBe case.expected }
-                case.expectedContent?.let { reference ->
-                    withClue("bytes written") { target.readBytes() shouldBe reference }
+                progress.shouldNotBeEmpty()
+                val total = Files.size(target)
+                withClue("progress must stay within the file size") {
+                    progress.filterIsInstance<SourceProgress.Absolute>().forEach { update ->
+                        update.total shouldBe total
+                        (update.processed in 0..total) shouldBe true
+                    }
                 }
-                if (case.expectNoFile) {
-                    withClue("file left behind") { Files.exists(target) shouldBe false }
-                }
-            }
-        }
-
-        "reports progress that matches the size of the written file" {
-            // given
-            val adapter = create()
-            val case = fixtures.download.first { it.expected is DownloadResult.Success }
-            val target = downloadTargetOf(tempDir, adapterName, case).also { it.deleteIfExists() }
-            val progress = mutableListOf<SourceProgress>()
-
-            // when
-            adapter.download(case.id, case.quality, target) { progress += it }
-
-            // then
-            progress.shouldNotBeEmpty()
-            val total = Files.size(target)
-            withClue("progress must stay within the file size") {
-                progress.filterIsInstance<SourceProgress.Absolute>().forEach { update ->
-                    update.total shouldBe total
-                    (update.processed in 0..total) shouldBe true
+                withClue("progress must reach completion") {
+                    progress.last() shouldBe SourceProgress.Absolute(total, total)
                 }
             }
-            withClue("progress must reach completion") {
-                progress.last() shouldBe SourceProgress.Absolute(total, total)
+
+            "writes the whole recorded stream, not a prefix of it" {
+                // given
+                val adapter = create()
+                val case = fixtures.download.first { it.expected is DownloadResult.Success }
+                val target = downloadTargetOf(tempDir, adapterName, case).also { it.deleteIfExists() }
+
+                // when
+                adapter.download(case.id, case.quality, target) {}
+
+                // then
+                Files.size(target) shouldBe case.expectedContent!!.size.toLong()
             }
-        }
-
-        "writes the whole recorded stream, not a prefix of it" {
-            // given
-            val adapter = create()
-            val case = fixtures.download.first { it.expected is DownloadResult.Success }
-            val target = downloadTargetOf(tempDir, adapterName, case).also { it.deleteIfExists() }
-
-            // when
-            adapter.download(case.id, case.quality, target) {}
-
-            // then
-            Files.size(target) shouldBe case.expectedContent!!.size.toLong()
         }
     }
-}
