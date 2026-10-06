@@ -1,0 +1,10 @@
+{
+  "id": 469006435,
+  "video_id": "0123456789abcdef0123456789abcdef",
+  "title": "Another video",
+  "duration": 1000,
+  "video_balancer": {
+    "default": "https://bl.rutube.ru/route/placeholder.m3u8",
+    "m3u8": null
+  }
+}

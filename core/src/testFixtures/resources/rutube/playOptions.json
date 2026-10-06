@@ -1,0 +1,16 @@
+{
+  "id": 469006435,
+  "video_id": "b9852a3ffc38640bdf480f5c9d4d912f",
+  "title": "Почему хороший продукт больше не преимущество: конкуренция, копирование и экономика IT-бизнеса #93",
+  "thumbnail_url": "https://pic.rtbcdn.ru/video/2026-09-20/c8/dc/c8dc7f1b3bfb649f3a0f86c1e2da5460.jpg",
+  "duration": 5589952,
+  "author": {
+    "id": 35573563,
+    "url": "https://rutube.ru/video/person/35573563/",
+    "name": "Организованное программирование"
+  },
+  "video_balancer": {
+    "default": "https://bl.rutube.ru/route/b9852a3ffc38640bdf480f5c9d4d912f.m3u8?guids=89f01c70-7057-4acb-92ca-8adda1274dfa_1920x1080_2203757_D5589952_B2002957A192000_F30A48000_avc1.640029_mp4a.40.2,7f8d4700-6124-437f-9c01-e931937c6f6f_1280x720_974545_D5589952_B773740A192000_F30A48000_avc1.640029_mp4a.40.2\u0026sign=S4ZeQueici64eUx-CIjRkA\u0026expire=1791377978\u0026guarantee=6\u0026scheme=https",
+    "m3u8": "https://bl.rutube.ru/route/b9852a3ffc38640bdf480f5c9d4d912f.m3u8?guids=89f01c70-7057-4acb-92ca-8adda1274dfa_1920x1080_2203757_D5589952_B2002957A192000_F30A48000_avc1.640029_mp4a.40.2,7f8d4700-6124-437f-9c01-e931937c6f6f_1280x720_974545_D5589952_B773740A192000_F30A48000_avc1.640029_mp4a.40.2\u0026sign=S4ZeQueici64eUx-CIjRkA\u0026expire=1791377978\u0026guarantee=6\u0026scheme=https"
+  }
+}
