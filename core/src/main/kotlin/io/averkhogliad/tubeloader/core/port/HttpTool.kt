@@ -23,9 +23,9 @@ interface HttpTool : Closeable {
  * code so an adapter can tell a missing resource from a broken one without a client library.
  */
 data class HttpBody(
+    val status: Int,
     val body: InputStream,
     val contentLength: Long? = null,
-    val status: Int = 200,
 )
 
 fun HttpBody.bytes(): ByteArray = body.use(InputStream::readBytes)

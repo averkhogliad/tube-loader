@@ -34,13 +34,13 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform {
-        // the integration run drives a real ffmpeg and real recordings: it is opt-in, out of check
+        // the integration spec replays recordings through the seams: it stays opt-in
         excludeTags("integration")
     }
     // kotest 6 does not surface a spec tag to the JUnit platform filter, so the integration spec is
     // kept out of the main run by its name as well
     filter {
-        excludeTestsMatching("*IT")
+        excludeTestsMatching("*SourceAdapterIT")
     }
     // last-resort backstop: a test blocked on its own thread is not interrupted by kotest's own
     // timeout unless it opts into blockingTest, so this kills the task instead of hanging CI

@@ -30,9 +30,11 @@ internal object HlsPlaylist {
             .lineSequence()
             .map { it.trim() }
             .filter { it.isNotEmpty() && !it.startsWith("#") }
-            .map { if (it.startsWith("http")) it else base + it }
+            .map { if (it.isAbsoluteUrl()) it else base + it }
             .toList()
     }
+
+    private fun String.isAbsoluteUrl(): Boolean = startsWith("http://") || startsWith("https://")
 
     private fun resolutionOf(url: String): Int? =
         QUALITY_MARKER
