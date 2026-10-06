@@ -1,16 +1,17 @@
 package io.averkhogliad.tubeloader.adapters.rutube
 
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import java.io.IOException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 
 private const val MAX_ATTEMPTS = 5
+private const val UNREACHABLE = "the source stayed unreachable"
 private val NETWORK_BUDGET = 30.seconds
 private val RETRY_PAUSE = 250.milliseconds
 
@@ -36,7 +37,7 @@ internal suspend fun <T> withRetry(
         if (outcome.isSuccess) return outcome
         val spent = start.elapsedNow()
         if (attempt >= attempts || spent + pause > budget) {
-            val reason = IOException("the source stayed unreachable after $attempt attempts in $spent")
+            val reason = IOException("$UNREACHABLE after $attempt attempts in $spent")
             return Result.failure(reason.apply { addSuppressed(outcome.exceptionOrNull() ?: reason) })
         }
         delay(pause)
@@ -46,13 +47,10 @@ internal suspend fun <T> withRetry(
     }
 }
 
-private suspend fun <T> attemptOnce(
-    block: suspend () -> T,
-    isRetryable: (T) -> Boolean,
-): Result<T> =
+private suspend fun <T> attemptOnce(block: suspend () -> T, isRetryable: (T) -> Boolean): Result<T> =
     try {
         val value = block()
-        if (isRetryable(value)) Result.failure(IOException("the source answered a server error")) else Result.success(value)
+        if (isRetryable(value)) Result.failure(IOException(UNREACHABLE)) else Result.success(value)
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (failure: IOException) {

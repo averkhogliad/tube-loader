@@ -36,97 +36,98 @@ private fun streaming() =
 
 private fun workDir() = Files.createTempDirectory("rutube-segments")
 
-class RutubeSegmentTest : FreeSpec({
+class RutubeSegmentTest :
+    FreeSpec({
 
-    "download" - {
-        "reads every segment of the playlist, in order" {
-            // given
-            val http = streaming()
-            val adapter = RutubeSourceAdapter(http, FakeMediaTool().copyStreams())
+        "download" - {
+            "reads every segment of the playlist, in order" {
+                // given
+                val http = streaming()
+                val adapter = RutubeSourceAdapter(http, FakeMediaTool().copyStreams())
 
-            // when
-            adapter.download(MEDIA_ID, VIDEO_1080, workDir().resolve("clip.mp4")) {}
+                // when
+                adapter.download(MEDIA_ID, VIDEO_1080, workDir().resolve("clip.mp4")) {}
 
-            // then
-            http.opened.map { it.url }.filter { it.startsWith(SEGMENT_BASE) } shouldBe
-                listOf(
-                    "${SEGMENT_BASE}segment-1-v1-a1.ts",
-                    "${SEGMENT_BASE}segment-2-v1-a1.ts",
-                    "${SEGMENT_BASE}segment-3-v1-a1.ts",
-                )
+                // then
+                http.opened.map { it.url }.filter { it.startsWith(SEGMENT_BASE) } shouldBe
+                    listOf(
+                        "${SEGMENT_BASE}segment-1-v1-a1.ts",
+                        "${SEGMENT_BASE}segment-2-v1-a1.ts",
+                        "${SEGMENT_BASE}segment-3-v1-a1.ts",
+                    )
+            }
+
+            "reports a fraction of the downloaded segments after each of them" {
+                // given
+                val adapter = RutubeSourceAdapter(streaming(), FakeMediaTool().copyStreams())
+                val progress = mutableListOf<SourceProgress>()
+
+                // when
+                adapter.download(MEDIA_ID, VIDEO_1080, workDir().resolve("clip.mp4")) { progress += it }
+
+                // then
+                progress.take(5) shouldBe
+                    listOf(
+                        SourceProgress.Indeterminate,
+                        SourceProgress.Indeterminate,
+                        SourceProgress.Fraction(1.0 / 3),
+                        SourceProgress.Fraction(2.0 / 3),
+                        SourceProgress.Fraction(1.0),
+                    )
+            }
+
+            "leaves no tmp file when a segment fails" {
+                // given
+                val adapter =
+                    RutubeSourceAdapter(
+                        streaming().route("${SEGMENT_BASE}segment-2-v1-a1.ts", HttpStub.Fail(IOException("reset"))),
+                        FakeMediaTool(),
+                    )
+                val dir = workDir()
+
+                // when
+                val actual = adapter.download(MEDIA_ID, VIDEO_1080, dir.resolve("clip.mp4")) {}
+
+                // then
+                actual.shouldBeInstanceOf<DownloadResult.Failed>()
+                Files.exists(dir.resolve("clip.mp4.tmp")) shouldBe false
+            }
+
+            "returns NetworkTransient when a segment answers with a server error" {
+                // given
+                val adapter =
+                    RutubeSourceAdapter(
+                        streaming()
+                            .route(
+                                "${SEGMENT_BASE}segment-2-v1-a1.ts",
+                                HttpStub.Respond(httpBody("boom".toByteArray(), status = 503)),
+                            ),
+                        FakeMediaTool(),
+                    )
+
+                // when
+                val actual = adapter.download(MEDIA_ID, VIDEO_1080, workDir().resolve("clip.mp4")) {}
+
+                // then
+                actual shouldBe DownloadResult.Failed(DownloadError.NetworkTransient)
+            }
+
+            "leaves no tmp file behind when the transfer is cancelled" {
+                // given
+                val adapter = RutubeSourceAdapter(streaming(), FakeMediaTool().copyStreams())
+                val dir = workDir()
+
+                // when
+                val thrown =
+                    runCatching {
+                        adapter.download(MEDIA_ID, VIDEO_1080, dir.resolve("clip.mp4")) {
+                            throw CancellationException("cancelled by the test")
+                        }
+                    }.exceptionOrNull()
+
+                // then
+                thrown.shouldBeInstanceOf<CancellationException>()
+                Files.exists(dir.resolve("clip.mp4.tmp")) shouldBe false
+            }
         }
-
-        "reports a fraction of the downloaded segments after each of them" {
-            // given
-            val adapter = RutubeSourceAdapter(streaming(), FakeMediaTool().copyStreams())
-            val progress = mutableListOf<SourceProgress>()
-
-            // when
-            adapter.download(MEDIA_ID, VIDEO_1080, workDir().resolve("clip.mp4")) { progress += it }
-
-            // then
-            progress.take(5) shouldBe
-                listOf(
-                    SourceProgress.Indeterminate,
-                    SourceProgress.Indeterminate,
-                    SourceProgress.Fraction(1.0 / 3),
-                    SourceProgress.Fraction(2.0 / 3),
-                    SourceProgress.Fraction(1.0),
-                )
-        }
-
-        "leaves no tmp file when a segment fails" {
-            // given
-            val adapter =
-                RutubeSourceAdapter(
-                    streaming().route("${SEGMENT_BASE}segment-2-v1-a1.ts", HttpStub.Fail(IOException("reset"))),
-                    FakeMediaTool(),
-                )
-            val dir = workDir()
-
-            // when
-            val actual = adapter.download(MEDIA_ID, VIDEO_1080, dir.resolve("clip.mp4")) {}
-
-            // then
-            actual.shouldBeInstanceOf<DownloadResult.Failed>()
-            Files.exists(dir.resolve("clip.mp4.tmp")) shouldBe false
-        }
-
-        "returns NetworkTransient when a segment answers with a server error" {
-            // given
-            val adapter =
-                RutubeSourceAdapter(
-                    streaming()
-                        .route(
-                            "${SEGMENT_BASE}segment-2-v1-a1.ts",
-                            HttpStub.Respond(httpBody("boom".toByteArray(), status = 503)),
-                        ),
-                    FakeMediaTool(),
-                )
-
-            // when
-            val actual = adapter.download(MEDIA_ID, VIDEO_1080, workDir().resolve("clip.mp4")) {}
-
-            // then
-            actual shouldBe DownloadResult.Failed(DownloadError.NetworkTransient)
-        }
-
-        "leaves no tmp file behind when the transfer is cancelled" {
-            // given
-            val adapter = RutubeSourceAdapter(streaming(), FakeMediaTool().copyStreams())
-            val dir = workDir()
-
-            // when
-            val thrown =
-                runCatching {
-                    adapter.download(MEDIA_ID, VIDEO_1080, dir.resolve("clip.mp4")) {
-                        throw CancellationException("cancelled by the test")
-                    }
-                }.exceptionOrNull()
-
-            // then
-            thrown.shouldBeInstanceOf<CancellationException>()
-            Files.exists(dir.resolve("clip.mp4.tmp")) shouldBe false
-        }
-    }
-})
+    })

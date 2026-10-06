@@ -24,10 +24,16 @@ internal object HlsPlaylist {
      * The media segments of a leaf playlist: every line that is neither a tag nor blank.
      */
     fun segments(leaf: String): List<String> =
-        leaf.lineSequence()
+        leaf
+            .lineSequence()
             .map { it.trim() }
             .filter { it.isNotEmpty() && !it.startsWith("#") }
             .toList()
 
-    private fun resolutionOf(url: String): Int? = QUALITY_MARKER.find(url)?.groupValues?.get(2)?.toIntOrNull()
+    private fun resolutionOf(url: String): Int? =
+        QUALITY_MARKER
+            .find(url)
+            ?.groupValues
+            ?.get(2)
+            ?.toIntOrNull()
 }

@@ -38,78 +38,80 @@ private fun streaming() =
 
 private fun workDir() = Files.createTempDirectory("rutube-finalize")
 
-class RutubeFinalizeTest : FreeSpec({
+class RutubeFinalizeTest :
+    FreeSpec({
 
-    "download" - {
-        "hands the joined file over to remux and the result to the target path" {
-            // given
-            val media = FakeMediaTool().copyStreams()
-            val adapter = RutubeSourceAdapter(streaming(), media)
-            val dir = workDir()
-            val target = dir.resolve("clip.mp4")
+        "download" - {
+            "hands the joined file over to remux and the result to the target path" {
+                // given
+                val media = FakeMediaTool().copyStreams()
+                val adapter = RutubeSourceAdapter(streaming(), media)
+                val dir = workDir()
+                val target = dir.resolve("clip.mp4")
 
-            // when
-            val actual = adapter.download(MEDIA_ID, VIDEO_1080, target) {}
+                // when
+                val actual = adapter.download(MEDIA_ID, VIDEO_1080, target) {}
 
-            // then
-            actual shouldBe DownloadResult.Success
-            val call = media.remuxCalls.single()
-            call.input shouldBe dir.resolve("clip.mp4.tmp")
-            call.output shouldBe target
+                // then
+                actual shouldBe DownloadResult.Success
+                val call = media.remuxCalls.single()
+                call.input shouldBe dir.resolve("clip.mp4.tmp")
+                call.output shouldBe target
+            }
+
+            "leaves the remuxed file at the target and no tmp behind" {
+                // given
+                val adapter = RutubeSourceAdapter(streaming(), FakeMediaTool().copyStreams())
+                val dir = workDir()
+                val target = dir.resolve("clip.mp4")
+
+                // when
+                adapter.download(MEDIA_ID, VIDEO_1080, target) {}
+
+                // then
+                target.readBytes() shouldBe JOINED_SEGMENTS
+                Files.exists(dir.resolve("clip.mp4.tmp")) shouldBe false
+            }
+
+            "closes the progress with the size of the file it produced" {
+                // given
+                val adapter = RutubeSourceAdapter(streaming(), FakeMediaTool().copyStreams())
+                val target = workDir().resolve("clip.mp4")
+                val progress = mutableListOf<SourceProgress>()
+
+                // when
+                adapter.download(MEDIA_ID, VIDEO_1080, target) { progress += it }
+
+                // then
+                val written = target.readBytes().size.toLong()
+                progress.last() shouldBe SourceProgress.Absolute(written, written)
+            }
+
+            "reports an indeterminate stage while the container is rewritten" {
+                // given
+                val adapter = RutubeSourceAdapter(streaming(), FakeMediaTool().copyStreams())
+                val progress = mutableListOf<SourceProgress>()
+
+                // when
+                adapter.download(MEDIA_ID, VIDEO_1080, workDir().resolve("clip.mp4")) { progress += it }
+
+                // then
+                progress.takeLast(2).first() shouldBe SourceProgress.Indeterminate
+            }
+
+            "returns ExtractorBroken when the container rewrite fails" {
+                // given
+                val media = FakeMediaTool()
+                media.onRemux = { _, _ -> Result.failure(IllegalStateException("ffmpeg is gone")) }
+                val adapter = RutubeSourceAdapter(streaming(), media)
+                val dir = workDir()
+
+                // when
+                val actual = adapter.download(MEDIA_ID, VIDEO_1080, dir.resolve("clip.mp4")) {}
+
+                // then
+                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken)
+                Files.exists(dir.resolve("clip.mp4.tmp")) shouldBe false
+            }
         }
-
-        "leaves the remuxed file at the target and no tmp behind" {
-            // given
-            val adapter = RutubeSourceAdapter(streaming(), FakeMediaTool().copyStreams())
-            val dir = workDir()
-            val target = dir.resolve("clip.mp4")
-
-            // when
-            adapter.download(MEDIA_ID, VIDEO_1080, target) {}
-
-            // then
-            target.readBytes() shouldBe JOINED_SEGMENTS
-            Files.exists(dir.resolve("clip.mp4.tmp")) shouldBe false
-        }
-
-        "closes the progress with the size of the file it produced" {
-            // given
-            val adapter = RutubeSourceAdapter(streaming(), FakeMediaTool().copyStreams())
-            val target = workDir().resolve("clip.mp4")
-            val progress = mutableListOf<SourceProgress>()
-
-            // when
-            adapter.download(MEDIA_ID, VIDEO_1080, target) { progress += it }
-
-            // then
-            progress.last() shouldBe SourceProgress.Absolute(target.readBytes().size.toLong(), target.readBytes().size.toLong())
-        }
-
-        "reports an indeterminate stage while the container is rewritten" {
-            // given
-            val adapter = RutubeSourceAdapter(streaming(), FakeMediaTool().copyStreams())
-            val progress = mutableListOf<SourceProgress>()
-
-            // when
-            adapter.download(MEDIA_ID, VIDEO_1080, workDir().resolve("clip.mp4")) { progress += it }
-
-            // then
-            progress.takeLast(2).first() shouldBe SourceProgress.Indeterminate
-        }
-
-        "returns ExtractorBroken when the container rewrite fails" {
-            // given
-            val media = FakeMediaTool()
-            media.onRemux = { _, _ -> Result.failure(IllegalStateException("ffmpeg is gone")) }
-            val adapter = RutubeSourceAdapter(streaming(), media)
-            val dir = workDir()
-
-            // when
-            val actual = adapter.download(MEDIA_ID, VIDEO_1080, dir.resolve("clip.mp4")) {}
-
-            // then
-            actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken)
-            Files.exists(dir.resolve("clip.mp4.tmp")) shouldBe false
-        }
-    }
-})
+    })

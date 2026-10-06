@@ -5,4 +5,8 @@ package io.averkhogliad.tubeloader.adapters.rutube
  * quality id; a source with a real ladder will carry the height in the quality itself.
  */
 internal fun heightOf(qualityId: String): Int? =
-    Regex("""^(\d+)p$""").find(qualityId)?.groupValues?.get(1)?.toIntOrNull()
+    Regex("""^(\d+)p$""")
+        .find(qualityId)
+        ?.groupValues
+        ?.get(1)
+        ?.toIntOrNull()
