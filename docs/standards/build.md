@@ -26,7 +26,7 @@
 Счётчики тестов берутся из `build/test-results/test/TEST-*.xml` — сумма `tests`, `failures`,
 `errors`, `skipped` по всем `testsuite`. Панель прогона может показать `PASSED` для кейса,
 который прогон не исполнял так, как ожидается. Базовые счётчики репозитория: `:core` — 162,
-`:common:config` — 44.
+`:common:retry` — 20, `:common:config` — 44.
 
 ## Gotcha: битый `build/test-results/test/binary/*.bin`
 
@@ -52,4 +52,4 @@ Remove-Item -Recurse -Force core/build/test-results
 даёт на `:core:test --rerun-tasks` ровно `> java.io.EOFException` (в `--stacktrace` —
 `Caused by: java.io.UncheckedIOException: java.io.EOFException`, кадр
 `org.gradle.api.tasks.testing.Test.getPreviousFailedTestClasses(Test.java:752)`); удаление
-каталога и повторный прогон — `BUILD SUCCESSFUL`, 94 теста, 0 failures.
+каталога и повторный прогон — `BUILD SUCCESSFUL`, 226 тестов, 0 failures.

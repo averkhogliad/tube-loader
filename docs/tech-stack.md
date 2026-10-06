@@ -9,6 +9,7 @@
 | --- | --- |
 | `common` | Java platform (`java-platform`): ограничений и потребителей пока нет |
 | `common:config` | Интерфейсы конфигурации, разбор TOML, merge и каскад источников; переиспользуется ядром |
+| `common:retry` | Движок повторов: политика решает, повторять ли упавшую попытку и сколько ждать. Источник-нейтрален, ядро и адаптеры переиспользуют |
 | `core` | Headless-ядро: роутинг URL, оркестрация загрузок, нормализация прогресса и ошибок, staging |
 | Фронтенды (план) | Compose Desktop GUI (M1), mosaic TUI (M2) — тонкие клиенты: команды вниз, события вверх |
 
@@ -54,7 +55,7 @@
 | kotest | Runner (JUnit6), property-тесты: `Arb`/`Exhaustive`, сэмпл — `gen.next()` | `docs/standards/testing.md` |
 | mockk | Моки: подключён к `:core`, в тестах пока не применён; query-методы заглушаются, command-методы верифицируются с `capture` | `docs/standards/testing.md` |
 | JUnit Platform launcher | Тестовая платформа Gradle | — |
-| Kover | Покрытие в `:core` и `:common:config`; гейт 80% строк / 75% ветвей, `testFixtures` исключены | — |
+| Kover | Покрытие в `:core`, `:common:config` и `:common:retry`; гейт 80% строк / 75% ветвей, `testFixtures` исключены | — |
 
 ## Линт
 
