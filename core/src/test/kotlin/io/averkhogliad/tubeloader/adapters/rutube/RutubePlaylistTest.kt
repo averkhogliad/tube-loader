@@ -134,7 +134,7 @@ class RutubePlaylistTest : FreeSpec({
 
         "returns ExtractorBroken when the metadata request itself fails" {
             // given
-            val http = FakeHttpTool().always(HttpStub.Respond(httpBody("nope".toByteArray(), status = 500)))
+            val http = FakeHttpTool().always(HttpStub.Respond(httpBody("nope".toByteArray(), status = 404)))
             val adapter = RutubeSourceAdapter(http, FakeMediaTool())
 
             // when

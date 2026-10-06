@@ -11,6 +11,7 @@ import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import io.averkhogliad.tubeloader.core.domain.TrackKind
+import io.averkhogliad.tubeloader.core.port.HttpBody
 import io.averkhogliad.tubeloader.core.port.HttpTool
 import io.averkhogliad.tubeloader.core.port.MediaTool
 import io.averkhogliad.tubeloader.core.port.bytes
@@ -36,6 +37,8 @@ private val REFERER_HEADERS = mapOf("Referer" to REFERER)
  */
 private const val NOT_FOUND_STATUS = 244
 private const val NOT_FOUND_REASON = "default_does_not_exists_video"
+
+private val SERVER_ERROR = 500..599
 
 internal const val QUALITY_1080 = "1080p"
 
@@ -64,11 +67,15 @@ class RutubeSourceAdapter(
     }
 
     override suspend fun loadMeta(id: String): LoadMetaResult {
-        val body = http.open(optionsUrl(id), REFERER_HEADERS)
+        val body =
+            try {
+                open(optionsUrl(id))
+            } catch (_: IOException) {
+                return LoadMetaResult.Failed(DownloadError.NetworkTransient)
+            }
         val text = body.bytes().decodeToString()
         if (body.status == NOT_FOUND_STATUS && notFoundReason(text)) return LoadMetaResult.NotFound
         return when {
-            body.status in 500..599 -> LoadMetaResult.Failed(DownloadError.NetworkTransient)
             body.status !in 200..299 -> LoadMetaResult.Failed(DownloadError.ExtractorBroken)
             else -> parseMeta(id, text)
         }
@@ -80,10 +87,11 @@ class RutubeSourceAdapter(
         targetPath: Path,
         onProgress: (SourceProgress) -> Unit,
     ): DownloadResult {
-        val playlistUrl = playlistUrlOf(mediaId) ?: return broken()
-        val height = heightOf(quality.id) ?: return broken()
         val tmpPath = targetPath.resolveSibling("${targetPath.fileName}.tmp")
         return try {
+            val height = heightOf(quality.id) ?: return broken()
+            val playlistUrl = playlistUrlOf(mediaId) ?: return broken()
+
             onProgress(SourceProgress.Indeterminate)
             val variant = HlsPlaylist.selectVariant(openText(playlistUrl), height) ?: return broken()
 
@@ -133,8 +141,7 @@ class RutubeSourceAdapter(
         var sink: OutputStream? = null
         try {
             for (segment in segments) {
-                val body = http.open(segment, REFERER_HEADERS)
-                if (body.status in 500..599) return DownloadResult.Failed(DownloadError.NetworkTransient)
+                val body = open(segment)
                 // a missing segment is a broken source, not a transient one
                 if (body.status !in 200..299) return broken()
                 if (sink == null) {
@@ -149,6 +156,16 @@ class RutubeSourceAdapter(
         }
         return DownloadResult.Success
     }
+
+    /**
+     * Opens [url], repeating a transport failure or a server error up to the retry budget. A client
+     * error is the verdict of the source, not a hiccup, so it comes back as a response for the caller
+     * to classify.
+     */
+    private suspend fun open(url: String): HttpBody = openWithRetry(url).getOrThrow()
+
+    private suspend fun openWithRetry(url: String): Result<HttpBody> =
+        withRetry(isRetryable = { body -> body.status in SERVER_ERROR }) { http.open(url, REFERER_HEADERS) }
 
     private fun parseMeta(id: String, text: String): LoadMetaResult {
         val options =
@@ -181,19 +198,13 @@ class RutubeSourceAdapter(
         runCatching { json.decodeFromString<ErrorDetail>(text).detail?.name }.getOrNull() == NOT_FOUND_REASON
 
     private suspend fun playlistUrlOf(id: String): String? {
-        val body = http.open(optionsUrl(id), REFERER_HEADERS)
-        val text = body.bytes().decodeToString()
+        val body = open(optionsUrl(id))
         if (body.status !in 200..299) return null
-        val options =
-            try {
-                json.decodeFromString<PlayOptions>(text)
-            } catch (_: Exception) {
-                return null
-            }
-        return options.videoBalancer?.let { it.m3u8 ?: it.fallback }?.takeIf { it.isNotBlank() }
+        val options = runCatching { json.decodeFromString<PlayOptions>(body.bytes().decodeToString()) }.getOrNull()
+        return options?.videoBalancer?.let { it.m3u8 ?: it.fallback }?.takeIf { it.isNotBlank() }
     }
 
-    private suspend fun openText(url: String): String = http.open(url, REFERER_HEADERS).bytes().decodeToString()
+    private suspend fun openText(url: String): String = open(url).bytes().decodeToString()
 
     private fun broken() = DownloadResult.Failed(DownloadError.ExtractorBroken)
 
