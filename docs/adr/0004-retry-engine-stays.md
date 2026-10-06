@@ -23,7 +23,7 @@ kmp-resilient — стандарт де-факто в отрасли», а по�
 
 | Кандидат | Coroutines | `kotlin.Result` | `cumulativeDelay`-бюджет | Чистая политика | `retryOnResult` | Отдельный артефакт | Лидер ниши |
 |---|---|---|---|---|---|---|---|
-| `:common:retry` (текущий) | ✅ | ✅ | ✅ | ✅ `fun interface` | ❌ план | n/a (наш) | n/a |
+| `:common:retry` (текущий) | ✅ | ✅ | ✅ | ✅ `RetryPolicy` + `Stage` | ❌ план | n/a (наш) | n/a |
 | `kotlin-retry 2.0.2` (michaelbull, 378★, ISC) | ✅ | ❌ свой `Ok/Err` | ✅ встроен | ✅ | ✅ через `RetryOn.returned` | ✅ `kotlin-retry` | 378★ Kotlin coroutines retry |
 | `kmp-resilient 2.0.1` (santimattius, 149★, Apache-2.0) | ✅ | ❌ throws last error | ❌ нет | ❌ `BackoffStrategy` sealed | ⚠️ `shouldRetryResult` (только Ktor-плагин) | ❌ тянет весь `resilient-jvm` | KMP-only resilience |
 | Arrow Resilience 2.2.3 (Apache-2.0) | ✅ | ❌ throws / `Either` | ❌ нет | ❌ `Schedule` stateful | ❌ через `retryOrElseEither` | ✅ `arrow-resilience-core` | часть Arrow-экосистемы |
@@ -63,9 +63,12 @@ Sandbox-пробы (артефакты в `.tasks/probe-arrow-resilience/`):
    Источники: Kresil `retry.onRetry`, Failsafe `FailsafeListener`, resilience4j `RetryRegistry`,
    kmp-resilient `policy.events`. Закрывает долг по наблюдаемости без новых зависимостей.
 
-DSL — **Compose-форма** (issue #63, форма выбрана и опробована, не влита): `RetryPolicy` без
-generic по типу ошибки, `+`-оператор как `then`, приватный `Combined`, `Stage` как receiver
-фабрик. Убирает 23 явных `<Throwable>` из цепочки.
+DSL — **Compose-форма** (issue #63, форма выбрана и опробована): `RetryPolicy` — обычный
+`interface` (не `fun interface`) без generic по типу ошибки, `+`-оператор как `then`, приватный
+`Combined`, `Stage` как receiver фабрик. Убирает 23 явных `<Throwable>` из цепочки. Форма `fun
+interface` с `companion object` не компилируется: `companion object` требует конструктора у
+интерфейса, а `fun interface` его не даёт; ковариантный generic-вариант с companion компилируется,
+но падает в рантайме `ClassCastException`.
 
 TOML — **плоский** под-блок `[download.http-tool]`: `connect-timeout-ms`, `read-timeout-ms`,
 `max-attempts`, `base-delay-ms`, `randomization-factor`, `retriable-statuses`. Никакого вложенного
@@ -99,8 +102,11 @@ DSL-блок `retryConfig { … }` (Kresil/kmp-resilient) — **отвергну
    `onRetry` в том же `RetryContext`. Правки
    `core/.../adapters/rutube/RutubeSourceAdapter.kt` (убрать `HttpStatusException`-маркер).
    ~60 LoC.
-3. #69 — Compose-DSL из issue #63: влитие выбранной формы (`fun interface RetryPolicy + companion
-   : RetryPolicy` + `then`/`Combined`/`Stage`). ~40 LoC, 23 аннотации `<Throwable>` уходят.
+3. #69 — Compose-DSL из issue #63: влитие выбранной формы (`interface RetryPolicy` +
+   `companion object : RetryPolicy` + `then`/`Combined`/`Stage`). ~40 LoC, 23 аннотации `<Throwable>`
+   уходят. Форма `fun interface` была отвергнута пробой: `companion object` требует конструктора
+   у интерфейса, а `fun interface` его не даёт («Interface 'interface RetryPolicy : Any' does not
+   have constructors»).
 4. #67 — `[download.http-tool]` плоский блок + `HttpToolConfig` в `AppConfig` + интеграция
    в адаптер. ~50 LoC + 30 LoC тестов. Заблокирован тикетом #66.
 5. #68 — `perAttemptTimeout` через `withTimeout` в `HttpTool.open` (долг из памяти
