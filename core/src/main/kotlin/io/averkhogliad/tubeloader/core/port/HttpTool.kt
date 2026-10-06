@@ -19,8 +19,13 @@ interface HttpTool : Closeable {
 }
 
 /**
- * A response opened by [HttpTool]: its metadata and the body stream.
+ * A response opened by [HttpTool]: its metadata and the body stream. [status] carries the HTTP status
+ * code so an adapter can tell a missing resource from a broken one without a client library.
  */
-data class HttpBody(val body: InputStream, val contentLength: Long? = null)
+data class HttpBody(
+    val body: InputStream,
+    val contentLength: Long? = null,
+    val status: Int = 200,
+)
 
 fun HttpBody.bytes(): ByteArray = body.use(InputStream::readBytes)

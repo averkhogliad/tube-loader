@@ -1,0 +1,21 @@
+{
+  "id": 469006435,
+  "video_id": "b9852a3ffc38640bdf480f5c9d4d912f",
+  "title": "Почему хороший продукт больше не преимущество: конкуренция, копирование и экономика IT-бизнеса #93",
+  "thumbnail_url": "https://pic.rtbcdn.ru/video/2026-09-20/c8/dc/c8dc7f1b3bfb649f3a0f86c1e2da5460.jpg",
+  "duration": 5589952,
+  "author": {
+    "id": 35573563,
+    "url": "https://rutube.ru/video/person/35573563/",
+    "avatar_url": "https://pic.rtbcdn.ru/user/32/1c/321c743b46ad9b6e3475d3f9b4ff2cd7.jpg",
+    "logo": null,
+    "update_ts": "2026-03-07T21:46:42.487459",
+    "name": "Организованное программирование"
+  },
+  "video_balancer": {
+    "default": "https://bl.rutube.ru/route/b9852a3ffc38640bdf480f5c9d4d912f.m3u8?guids=89f01c70-7057-4acb-92ca-8adda1274dfa_1920x1080_2203757_D5589952_B2002957A192000_F30A48000_avc1.640029_mp4a.40.2,7f8d4700-6124-437f-9c01-e931937c6f6f_1280x720_974545_D5589952_B773740A192000_F30A48000_avc1.640029_mp4a.40.2,76346164-703d-4ddb-bbe4-43da254131fd_848x476_634852_D5589952_B499135A128000_F30A48000_avc1.4d401f_mp4a.40.2,056409eb-629a-4795-ba2d-c474e563efc7_640x360_492792_D5589952_B421074A64000_F30A48000_avc1.4d401f_mp4a.40.2,e10033a8-fa0f-4b78-80ed-ce28d38d4216_426x240_259651_D5589952_B188732A64000_F30A48000_avc1.42c01f_mp4a.40.2,8e0aeab8-596b-4f84-872d-f5eb3a8000ae_256x144_158675_D5589952_B87756A64000_F30A48000_avc1.42c014_mp4a.40.2&sign=S4ZeQueici64eUx-CIjRkA&expire=1791377978&guarantee=6&scheme=https",
+    "m3u8": "https://bl.rutube.ru/route/b9852a3ffc38640bdf480f5c9d4d912f.m3u8?guids=89f01c70-7057-4acb-92ca-8adda1274dfa_1920x1080_2203757_D5589952_B2002957A192000_F30A48000_avc1.640029_mp4a.40.2,7f8d4700-6124-437f-9c01-e931937c6f6f_1280x720_974545_D5589952_B773740A192000_F30A48000_avc1.640029_mp4a.40.2,76346164-703d-4ddb-bbe4-43da254131fd_848x476_634852_D5589952_B499135A128000_F30A48000_avc1.4d401f_mp4a.40.2,056409eb-629a-4795-ba2d-c474e563efc7_640x360_492792_D5589952_B421074A64000_F30A48000_avc1.4d401f_mp4a.40.2,e10033a8-fa0f-4b78-80ed-ce28d38d4216_426x240_259651_D5589952_B188732A64000_F30A48000_avc1.42c01f_mp4a.40.2,8e0aeab8-596b-4f84-872d-f5eb3a8000ae_256x144_158675_D5589952_B87756A64000_F30A48000_avc1.42c014_mp4a.40.2&sign=S4ZeQueici64eUx-CIjRkA&expire=1791377978&guarantee=6&scheme=https"
+  },
+  "is_hidden": false,
+  "video_url": "https://rutube.ru/video/b9852a3ffc38640bdf480f5c9d4d912f/"
+}

@@ -1,0 +1,9 @@
+{
+  "id": 469006435,
+  "title": "Video without the identity field",
+  "duration": 1000,
+  "video_balancer": {
+    "default": "https://bl.rutube.ru/route/placeholder.m3u8",
+    "m3u8": null
+  }
+}

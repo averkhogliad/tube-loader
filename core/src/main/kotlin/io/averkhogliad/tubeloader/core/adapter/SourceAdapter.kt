@@ -1,5 +1,6 @@
 package io.averkhogliad.tubeloader.core.adapter
 
+import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.SourceProgress
@@ -25,6 +26,8 @@ sealed interface LoadMetaResult {
     data class Found(val meta: MediaMeta) : LoadMetaResult
 
     data object NotFound : LoadMetaResult
+
+    data class Failed(val error: DownloadError) : LoadMetaResult
 }
 
 interface SourceAdapter {

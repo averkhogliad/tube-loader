@@ -1,0 +1,10 @@
+{
+  "id": 469006435,
+  "video_id": "b9852a3ffc38640bdf480f5c9d4d912f",
+  "title": "Video whose balancer carries only the default playlist",
+  "duration": 1000,
+  "video_balancer": {
+    "default": "https://bl.rutube.ru/route/0xmaster.m3u8?sign=s",
+    "m3u8": null
+  }
+}

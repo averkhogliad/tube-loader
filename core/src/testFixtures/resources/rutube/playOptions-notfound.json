@@ -1,0 +1,20 @@
+{
+  "detail": {
+    "id": 11,
+    "name": "default_does_not_exists_video",
+    "type": "action_reason",
+    "url": "",
+    "languages": [
+      {
+        "lang": "rus",
+        "title": "Неправильная ссылка на видео",
+        "description": "Проверьте, что ссылка скопирована целиком и в ней нет опечаток"
+      },
+      {
+        "lang": "eng",
+        "title": "Incorrect link",
+        "description": "Check this link for typos and make sure the entire link was copied"
+      }
+    ]
+  }
+}
