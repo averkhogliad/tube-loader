@@ -10,7 +10,7 @@
 Адаптеры источников ретраят сетевые сбои (обрыв, таймаут, 5xx, 429) через собственный движок
 `:common:retry` — пять исходников в `:common:retry/src/main/kotlin/io/averkhogliad/tubeloader/retry/`,
 портирующих контракты `kotlin-retry 2.0.2` на наш шов (`kotlin.Result`, без generic по типу
-ошибки, `+`-композиция `Stop`/`maxOf`, `withinBudget(cumulativeDelay)`, дефолт `Duration.INFINITE`,
+ошибки, `+`-композиция `Stop`/`maxOf`, `withinBudget(cumulativeDelay)` без дефолта бюджета,
 `MAX_BACKOFF_STEP = 30` от переполнения shift). Адаптеры собирают политику из фабрик
 (`stopAtAttempts + continueIf + exponentialBackoff`) и сейчас ретраят по маркеру
 `HttpStatusException : IOException` (память
