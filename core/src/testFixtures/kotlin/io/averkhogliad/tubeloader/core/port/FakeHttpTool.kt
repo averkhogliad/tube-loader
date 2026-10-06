@@ -1,7 +1,6 @@
 package io.averkhogliad.tubeloader.core.port
 
 import java.io.ByteArrayInputStream
-import java.io.InputStream
 
 data class OpenCall(val url: String, val headers: Map<String, String>)
 
@@ -18,7 +17,7 @@ sealed interface HttpStub {
 }
 
 fun httpBody(content: ByteArray, contentLength: Long? = content.size.toLong(), status: Int = HTTP_OK): HttpBody =
-    HttpBody(ByteArrayInputStream(content), contentLength, status)
+    HttpBody(status, ByteArrayInputStream(content), contentLength)
 
 fun textBody(content: String, status: Int = HTTP_OK): HttpBody = httpBody(content.toByteArray(), status = status)
 
@@ -28,8 +27,6 @@ fun textBody(content: String, status: Int = HTTP_OK): HttpBody = httpBody(conten
  * repeating — so "two failures then a success" is expressed as three stubs.
  */
 class FakeHttpTool : HttpTool {
-
-    var onOpen: suspend (String, Map<String, String>) -> HttpBody = { _, _ -> httpBody(ByteArray(0)) }
 
     val opened = mutableListOf<OpenCall>()
 
@@ -135,5 +132,3 @@ class FakeHttpTool : HttpTool {
                 ?: throw IllegalArgumentException("missing fixture on the classpath: $resource")
     }
 }
-
-fun InputStream.readAll(): ByteArray = use(InputStream::readBytes)
