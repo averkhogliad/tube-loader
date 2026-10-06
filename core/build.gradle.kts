@@ -18,6 +18,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
     implementation(project(":common:config"))
+    implementation(project(":common:retry"))
 
     testFixturesApi(libs.kotest.runner.junit6)
     testFixturesApi(libs.kotest.assertions.core)

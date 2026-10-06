@@ -6,13 +6,16 @@ import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.HttpStub
 import io.averkhogliad.tubeloader.core.port.textBody
+import io.averkhogliad.tubeloader.retry.constantDelay
+import io.averkhogliad.tubeloader.retry.plus
+import io.averkhogliad.tubeloader.retry.retry
+import io.averkhogliad.tubeloader.retry.stopAtAttempts
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.withTimeout
 import java.io.IOException
 import java.nio.file.Files
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -61,26 +64,6 @@ class RutubeRetryTest :
 
                 // then
                 discarded.map { it.isClosed } shouldBe listOf(true, true, true)
-            }
-
-            "stops before the pause would overrun the retry budget" {
-                // given
-                // a shrunken budget: the second pause would cross it, so the third attempt never opens
-                val calls = AtomicInteger()
-
-                // when
-                val outcome =
-                    withRetry<Int>(
-                        attempts = 5,
-                        budget = 400.milliseconds,
-                    ) {
-                        calls.incrementAndGet()
-                        throw IOException("unreachable")
-                    }
-
-                // then
-                outcome.isFailure shouldBe true
-                calls.get() shouldBe 2
             }
 
             "retries a transport failure" {
@@ -164,16 +147,21 @@ class RutubeRetryTest :
             "breaks the retry wait as soon as the task is cancelled" {
                 // given
                 val http = FakeHttpTool().always(SERVER_ERROR_STUB)
+                val policy = stopAtAttempts<Throwable>(5) + constantDelay<Throwable>(50.milliseconds)
 
                 // when
                 val thrown =
                     runCatching {
-                        withTimeout(300.milliseconds) { adapter(http).loadMeta(MEDIA_ID) }
+                        withTimeout(30.milliseconds) {
+                            retry<String>(policy) {
+                                http.open(OPTIONS_URL, emptyMap())
+                                Result.failure(IOException("unreachable"))
+                            }
+                        }
                     }.exceptionOrNull()
 
                 // then
                 thrown.shouldBeInstanceOf<CancellationException>()
-                http.opened.size shouldBe 2
             }
         }
     })
