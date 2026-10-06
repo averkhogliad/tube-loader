@@ -126,7 +126,8 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
         onProgress(SourceProgress.Indeterminate)
         val variant = variantOf(mediaId, quality) ?: return null
         onProgress(SourceProgress.Indeterminate)
-        return HlsPlaylist.segments(openText(variant)).takeIf { it.isNotEmpty() }
+        // a leaf playlist names its segments relative to its own location
+        return HlsPlaylist.segments(openText(variant), variant).takeIf { it.isNotEmpty() }
     }
 
     private suspend fun variantOf(mediaId: String, quality: Quality): String? {

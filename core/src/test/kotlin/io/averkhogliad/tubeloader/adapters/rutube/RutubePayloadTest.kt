@@ -31,55 +31,56 @@ private fun adapter(body: String) =
         FakeMediaTool().copyStreams(),
     )
 
-class RutubePayloadTest : FreeSpec({
+class RutubePayloadTest :
+    FreeSpec({
 
-    "loadMeta" - {
-        "reads the fields it needs out of a payload that carries a dozen others" {
-            // given
-            val body =
-                """
-                {
-                  "id": 469006435,
-                  "video_id": "$MEDIA_ID",
-                  "title": "A video of the source",
-                  "thumbnail_url": "https://pic.rtbcdn.ru/video/thumb.jpg",
-                  "duration": 4200,
-                  "author": { "id": 35573563, "name": "Reference author", "logo": null },
-                  "video_balancer": {
-                    "default": "https://bl.rutube.ru/route/default.m3u8",
-                    "m3u8": "https://bl.rutube.ru/route/master.m3u8"
-                  },
-                  "is_livestream": false,
-                  "live_stream": null,
-                  "tracks": [ { "kind": "audio" } ],
-                  "origin": { "nested": { "deep": true } },
-                  "duration_ms": 4200
-                }
-                """.trimIndent()
+        "loadMeta" - {
+            "reads the fields it needs out of a payload that carries a dozen others" {
+                // given
+                val body =
+                    """
+                    {
+                      "id": 469006435,
+                      "video_id": "$MEDIA_ID",
+                      "title": "A video of the source",
+                      "thumbnail_url": "https://pic.rtbcdn.ru/video/thumb.jpg",
+                      "duration": 4200,
+                      "author": { "id": 35573563, "name": "Reference author", "logo": null },
+                      "video_balancer": {
+                        "default": "https://bl.rutube.ru/route/default.m3u8",
+                        "m3u8": "https://bl.rutube.ru/route/master.m3u8"
+                      },
+                      "is_livestream": false,
+                      "live_stream": null,
+                      "tracks": [ { "kind": "audio" } ],
+                      "origin": { "nested": { "deep": true } },
+                      "duration_ms": 4200
+                    }
+                    """.trimIndent()
 
-            // when
-            val actual = adapter(body).loadMeta(MEDIA_ID)
+                // when
+                val actual = adapter(body).loadMeta(MEDIA_ID)
 
-            // then
-            actual shouldBe LoadMetaResult.Found(expectedMeta)
+                // then
+                actual shouldBe LoadMetaResult.Found(expectedMeta)
+            }
+
+            "reports a broken extractor when the balancer carries neither playlist key" {
+                // given
+                val body =
+                    """
+                    {
+                      "video_id": "$MEDIA_ID",
+                      "title": "A video of the source",
+                      "video_balancer": { "default": null, "m3u8": null }
+                    }
+                    """.trimIndent()
+
+                // when
+                val actual = adapter(body).loadMeta(MEDIA_ID)
+
+                // then
+                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+            }
         }
-
-        "reports a broken extractor when the balancer carries neither playlist key" {
-            // given
-            val body =
-                """
-                {
-                  "video_id": "$MEDIA_ID",
-                  "title": "A video of the source",
-                  "video_balancer": { "default": null, "m3u8": null }
-                }
-                """.trimIndent()
-
-            // when
-            val actual = adapter(body).loadMeta(MEDIA_ID)
-
-            // then
-            actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
-        }
-    }
-})
+    })

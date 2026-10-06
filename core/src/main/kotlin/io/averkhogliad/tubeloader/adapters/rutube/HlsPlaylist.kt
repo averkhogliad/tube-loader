@@ -21,14 +21,18 @@ internal object HlsPlaylist {
             ?.first
 
     /**
-     * The media segments of a leaf playlist: every line that is neither a tag nor blank.
+     * The media segments of a leaf playlist: every line that is neither a tag nor blank. The source
+     * names them relative to [playlistUrl], so a relative line is made absolute against it.
      */
-    fun segments(leaf: String): List<String> =
-        leaf
+    fun segments(leaf: String, playlistUrl: String): List<String> {
+        val base = playlistUrl.substringBeforeLast('/') + '/'
+        return leaf
             .lineSequence()
             .map { it.trim() }
             .filter { it.isNotEmpty() && !it.startsWith("#") }
+            .map { if (it.startsWith("http")) it else base + it }
             .toList()
+    }
 
     private fun resolutionOf(url: String): Int? =
         QUALITY_MARKER
