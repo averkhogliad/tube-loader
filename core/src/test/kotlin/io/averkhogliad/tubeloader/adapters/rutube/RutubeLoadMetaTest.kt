@@ -7,14 +7,11 @@ import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
-import io.averkhogliad.tubeloader.core.port.HttpBody
+import io.averkhogliad.tubeloader.core.port.httpBody
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
-import java.io.ByteArrayInputStream
 import kotlin.time.Duration.Companion.milliseconds
-
-private const val MEDIA_ID = "b9852a3ffc38640bdf480f5c9d4d912f"
 
 private val EXPECTED_META =
     MediaMeta(
@@ -145,7 +142,7 @@ class RutubeLoadMetaTest :
 
             "returns Failed(NetworkTransient) for a server error" {
                 // given
-                val http = FakeHttpTool().respondingWith(HttpBody(ByteArrayInputStream(ByteArray(0)), status = 503))
+                val http = FakeHttpTool().respondingWith(httpBody(ByteArray(0), status = 503))
                 val adapter = RutubeSourceAdapter(http, FakeMediaTool())
 
                 // when

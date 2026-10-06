@@ -10,24 +10,18 @@ import io.averkhogliad.tubeloader.core.contract.RecordedResponses
 import io.averkhogliad.tubeloader.core.contract.SourceAdapterFixtures
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
-import io.averkhogliad.tubeloader.core.domain.Quality
-import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.HttpStub
 import kotlin.time.Duration.Companion.milliseconds
 
-const val RECORDED_MEDIA_ID = "b9852a3ffc38640bdf480f5c9d4d912f"
+const val RECORDED_MEDIA_ID = MEDIA_ID
 
 private const val MARKERLESS_MEDIA_ID = "11111111111111111111111111111111"
-private const val RECORDED_MASTER = "https://bl.rutube.ru/route/0xmaster.m3u8?sign=s"
+private const val RECORDED_MASTER = MASTER_URL
 private const val MARKERLESS_MASTER = "https://bl.rutube.ru/route/no-quality.m3u8?sign=s"
-private const val RECORDED_VARIANT = "https://river-1.rutube.ru/hls-vod/1080/0x1080.mp4.m3u8?i=1920x1080_2203"
-private const val SEGMENT_DIR = "https://segments.rutube.ru/0x1080.mp4"
+private const val RECORDED_VARIANT = VARIANT_1080
 
-val RECORDED_VIDEO_1080 = Quality("1080p", TrackKind.Video, "1080p")
-
-private fun optionsUrl(id: String) =
-    "https://rutube.ru/api/play/options/$id/?no_404=true&referer=https%253A%252F%252Frutube.ru&pver=v2"
+val RECORDED_VIDEO_1080 = VIDEO_1080
 
 /**
  * The golden recording of the source, wired into the seam the contract suite drives. Every URL the
@@ -37,14 +31,14 @@ private fun optionsUrl(id: String) =
 fun rutubeRecordedHttp(): FakeHttpTool =
     FakeHttpTool()
         .always(HttpStub.Fail(IllegalArgumentException("the recording knows no such url")))
-        .routeRecording(optionsUrl(RECORDED_MEDIA_ID), "rutube/playOptions-download.json")
-        .routeRecording(optionsUrl(MARKERLESS_MEDIA_ID), "rutube/playOptions-no-quality.json")
+        .routeRecording(expectedOptionsUrl(RECORDED_MEDIA_ID), RECORDING_OPTIONS)
+        .routeRecording(expectedOptionsUrl(MARKERLESS_MEDIA_ID), "rutube/playOptions-no-quality.json")
         .routeRecording(RECORDED_MASTER, "rutube/m3u8-master.m3u8")
         .routeRecording(MARKERLESS_MASTER, "rutube/m3u8-master-no-quality.m3u8")
         .routeRecording(RECORDED_VARIANT, "rutube/m3u8-leaf.m3u8")
-        .routeRecording("$SEGMENT_DIR/segment-1-v1-a1.ts", "rutube/segment-1.ts")
-        .routeRecording("$SEGMENT_DIR/segment-2-v1-a1.ts", "rutube/segment-2.ts")
-        .routeRecording("$SEGMENT_DIR/segment-3-v1-a1.ts", "rutube/segment-3.ts")
+        .routeRecording(SEGMENT_1, "rutube/segment-1.ts")
+        .routeRecording(SEGMENT_2, "rutube/segment-2.ts")
+        .routeRecording(SEGMENT_3, "rutube/segment-3.ts")
 
 fun rutubeAdapterFixtures(): SourceAdapterFixtures =
     SourceAdapterFixtures(

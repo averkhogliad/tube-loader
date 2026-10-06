@@ -11,10 +11,6 @@ import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import kotlin.time.Duration.Companion.milliseconds
 
-private const val MEDIA_ID = "b9852a3ffc38640bdf480f5c9d4d912f"
-private const val OPTIONS_URL =
-    "https://rutube.ru/api/play/options/$MEDIA_ID/?no_404=true&referer=https%253A%252F%252Frutube.ru&pver=v2"
-
 private val expectedMeta =
     MediaMeta(
         id = MEDIA_ID,
@@ -65,16 +61,9 @@ class RutubePayloadTest :
                 actual shouldBe LoadMetaResult.Found(expectedMeta)
             }
 
-            "reports a broken extractor when the balancer carries neither playlist key" {
+            "reports Failed(ExtractorBroken) when the body cannot be parsed at all" {
                 // given
-                val body =
-                    """
-                    {
-                      "video_id": "$MEDIA_ID",
-                      "title": "A video of the source",
-                      "video_balancer": { "default": null, "m3u8": null }
-                    }
-                    """.trimIndent()
+                val body = "not json at all"
 
                 // when
                 val actual = adapter(body).loadMeta(MEDIA_ID)

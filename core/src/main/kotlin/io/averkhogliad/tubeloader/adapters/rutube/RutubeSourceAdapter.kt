@@ -15,6 +15,12 @@ import io.averkhogliad.tubeloader.core.port.HttpBody
 import io.averkhogliad.tubeloader.core.port.HttpTool
 import io.averkhogliad.tubeloader.core.port.MediaTool
 import io.averkhogliad.tubeloader.core.port.bytes
+import io.averkhogliad.tubeloader.retry.RetryPolicy
+import io.averkhogliad.tubeloader.retry.continueIf
+import io.averkhogliad.tubeloader.retry.exponentialBackoff
+import io.averkhogliad.tubeloader.retry.plus
+import io.averkhogliad.tubeloader.retry.retry
+import io.averkhogliad.tubeloader.retry.stopAtAttempts
 import kotlinx.serialization.json.JsonObject
 import java.io.IOException
 import java.io.OutputStream
@@ -35,8 +41,27 @@ private const val HTTP_OK = 200
 private const val HTTP_LAST_SUCCESS = 299
 private const val HTTP_MISSING_VIDEO = 244
 private const val HTTP_NOT_FOUND = 404
+private const val HTTP_TOO_MANY_REQUESTS = 429
 private const val HTTP_SERVER_ERROR = 500
 private const val HTTP_LAST_SERVER_ERROR = 599
+
+/**
+ * Carries the status of a response the retry loop refuses. The status has to survive into the
+ * policy, which sees only a failure.
+ */
+private class HttpStatusException(val status: Int) : IOException("the source answered $status")
+
+private const val MAX_ATTEMPTS = 5
+private val RETRY_BASE_PAUSE = 250.milliseconds
+
+/**
+ * Repeats a hiccup of the source rather than its verdict: a server error and a rate limit both ask
+ * the caller to come back, so they are retried with a growing pause until the attempts run out.
+ */
+private val RETRY_POLICY: RetryPolicy<Throwable> =
+    stopAtAttempts<Throwable>(MAX_ATTEMPTS) +
+        continueIf { failure -> failure is IOException } +
+        exponentialBackoff(RETRY_BASE_PAUSE)
 
 /**
  * Rutube answers 244 instead of 404 for a missing video when the request carries `no_404=true`,
@@ -45,6 +70,12 @@ private const val HTTP_LAST_SERVER_ERROR = 599
 private val MISSING_VIDEO_STATUSES = setOf(HTTP_MISSING_VIDEO, HTTP_NOT_FOUND)
 private val SUCCESS_STATUS = HTTP_OK..HTTP_LAST_SUCCESS
 private val SERVER_ERROR = HTTP_SERVER_ERROR..HTTP_LAST_SERVER_ERROR
+
+/**
+ * What the retry policy is allowed to repeat: a hiccup of the source rather than its verdict. A rate
+ * limit belongs here because the source asks the caller to come back later, not to give up.
+ */
+private val RETRYABLE_STATUS = setOf(HTTP_TOO_MANY_REQUESTS)
 
 private const val MISSING_VIDEO_REASON = "default_does_not_exists_video"
 
@@ -153,7 +184,10 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
             for (segment in segments) {
                 val body = openWithRetry(http, segment)
                 // a missing segment is a broken source, not a transient one
-                if (body.status !in SUCCESS_STATUS) return DownloadResult.Failed(DownloadError.ExtractorBroken)
+                if (body.status !in SUCCESS_STATUS) {
+                    body.body.close()
+                    return DownloadResult.Failed(DownloadError.ExtractorBroken)
+                }
                 if (sink == null) {
                     sink =
                         Files.newOutputStream(
@@ -192,13 +226,27 @@ class RutubeSourceAdapter(private val http: HttpTool, private val mediaTool: Med
 }
 
 /**
- * Opens [url], repeating a transport failure or a server error up to the retry budget. A client error
- * is the verdict of the source, not a hiccup, so it comes back as a response for the caller to
- * classify.
+ * Opens [url], repeating a transport failure or a server error while [RETRY_POLICY] allows it. A
+ * client error is the verdict of the source, not a hiccup, so it comes back as a response for the
+ * caller to classify.
+ *
+ * A response the loop refuses is closed before the failure leaves the block: nothing else holds it
+ * once the attempt is over.
  */
 private suspend fun openWithRetry(http: HttpTool, url: String): HttpBody =
-    withRetry(isRetryable = { body -> body.status in SERVER_ERROR }) { http.open(url, REFERER_HEADERS) }
-        .getOrThrow()
+    retry(RETRY_POLICY) {
+        try {
+            val body = http.open(url, REFERER_HEADERS)
+            if (body.status in SERVER_ERROR || body.status in RETRYABLE_STATUS) {
+                body.body.close()
+                Result.failure(HttpStatusException(body.status))
+            } else {
+                Result.success(body)
+            }
+        } catch (failure: IOException) {
+            Result.failure(failure)
+        }
+    }.getOrThrow()
 
 private fun classifyMeta(id: String, body: HttpBody): LoadMetaResult {
     val text = body.bytes().decodeToString()

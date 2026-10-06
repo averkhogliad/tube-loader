@@ -93,11 +93,10 @@ Gradle-модуль `:adapters:rutube`, который появится вмес
 
 - `capability = DownloadCapability.Native` — адаптер скачивает сам, без Delegate.
 - `displayName` — `"Rutube"`.
-- `find(input)` — без сети: regex по URL, исходы `Found(mediaId)` / `Unsupported` /
-  `NotFound` (последний — только когда id по виду валидный, но ядро по контракту
-  различает `Unsupported` и `NotFound`; M1 не делает сетевой `find`, id всегда
-  синтаксический, `NotFound` оставлен как зарезервированный исход для совместимости с
-  контрактом и срабатывает, когда id содержит запрещённые символы или пуст).
+- `find(input)` — без сети: regex по URL, исходы `Found(mediaId)` / `Unsupported`.
+  `FindResult.NotFound` — зарезервированный контрактом исход для будущего сетевого
+  `find`; M1 его не возвращает (id всегда синтаксический, а несуществующее видео
+  обнаруживается только на `loadMeta`, там же приходит `DownloadError.NotFound`).
 - `loadMeta(id)` — один HTTP-запрос `playOptions` через `HttpTool.open(...)`. Исходы
   `Found(MediaMeta)` / `NotFound` / `Failed(DownloadError)`. Последний несёт
   `ExtractorBroken` на структурный сбой ответа. `Unsupported` невозможен (поддержка уже
@@ -172,6 +171,9 @@ API. Адаптер читает его (через `HttpTool.open`), фильт
 - `SourceProgress.Fraction(0.0..1.0)` — на скачивании сегментов: доля скачанных
   сегментов к общему числу. Ядро нормализует в `Progress.Determinate` или
   `Indeterminate` (см. спеку ядра, `Progress`).
+- `SourceProgress.Absolute(size, size)` — финальное событие после успешного
+  `remux`: ядро читает завершение загрузки как абсолютное обновление размера, а не
+  как долю.
 
 После завершения скачивания сегментов (файл `.tmp` готов) и до завершения `remux`
 адаптер шлёт `Indeterminate`; ядро нормализует в `Progress.Indeterminate`.
@@ -183,44 +185,52 @@ API. Адаптер читает его (через `HttpTool.open`), фильт
 `DownloadResult.Success`. Ядро само делает `Files.move(part → target)`.
 
 Если `remux` вернул `Result.failure`, адаптер возвращает
-`DownloadResult.Failed(ExtractorBroken)` (ffmpeg сам по себе сегодня — единственная
-реализация `MediaTool`, его сбой почти всегда означает несовместимый вход или
-сломанную установку, что для адаптера неотличимо от поломки источника).
+`DownloadResult.Failed(ExtractorBroken)`: сбой контейнерной перезаписи (несовместимый
+вход, сломанная установка) для адаптера неотличим от поломки источника.
 
-**Retry.** Границы, согласованные в гриле:
+**Retry.** Границы:
 
-- 5 попыток, общий бюджет 30 секунд на сетевом этапе (HTTP-запросы + retry-sleep).
-- Ретраим `IOException`, таймауты, HTTP 5xx, `UnknownHostException`. Не ретраим
-  HTTP 4xx (кроме 429, который приходит как `NetworkTransient` — не реализуем в M1,
-  см. Out of Scope), парсинг-ошибки, отсутствующие обязательные поля.
+- 5 попыток на каждый вызов сетевого этапа, пауза между ними растёт вдвое: 250, 500,
+  1000, 2000 мс.
+- Ретраим `IOException`, таймауты, HTTP 5xx, HTTP 429 и `UnknownHostException`. Не
+  ретраим прочие HTTP 4xx, парсинг-ошибки, отсутствующие обязательные поля.
 - Между попытками — `kotlinx.coroutines.delay(...)` с `ensureActive()` после
   delay, чтобы отмена задачи прерывала ожидание.
-- Счётчик попыток и бюджет обнуляются при переходе к новой сетевой стадии
-  (запрос `playOptions` → запрос m3u8 → скачивание сегментов). Иначе отказ на
-  ранней стадии съест бюджет, нужный поздней.
+- Счётчик попыток живёт внутри одного вызова `retry`, поэтому обнуляется на каждой
+  стадии: и на запросе `playOptions` → m3u8, и на каждом сегменте. Иначе отказ на
+  ранней стадии исчерпает попытки, нужные поздней, а один медленный сегмент —
+  попытки остальных.
+- Ограничение по общему времени движок умеет (`withinBudget`), но адаптер его не
+  передаёт: таймаут отдельной попытки — забота реализации `HttpTool`, а не адаптера.
+- Отклонение от `docs/standards/errors.md`: движок принимает блок как `Result<T>`, то есть
+  сбой едет исключением, хотя по стандарту бизнес-исход едет значением. Причина в самой
+  форме `kotlin.Result` — она несёт только `Throwable`. Наружу отклонение не выходит:
+  шов `SourceAdapter` по-прежнему отдаёт `DownloadResult.Failed(error)`, а статус HTTP
+  пересекает границу блока как `HttpStatusException`.
 
 **Таксономия ошибок.** M1 минимум, без выдуманных сценариев:
 
 | Сценарий | Класс | Условие |
 |---|---|---|
 | URL не распознан | `FindResult.Unsupported` | regex не матчит или id не `[0-9a-f]{32}` |
-| id синтаксически верный, но не найден | `FindResult.NotFound` | зарезервировано контрактом; в M1 не срабатывает без сети, остаётся для совместимости |
+| id синтаксически верный, но не найден | `FindResult.NotFound` | зарезервировано контрактом; в M1 не возвращается |
 | Видео не существует | `DownloadError.NotFound` | `playOptions` вернул HTTP 244 с `detail.name = default_does_not_exists_video`; голый запрос без `no_404=true` отдаёт 404 |
 | JSON без обязательных полей / не парсится / `video_id` не совпал | `DownloadError.ExtractorBroken` | структурный сбой ответа |
-| HTTP 5xx, таймаут, `IOException`, `UnknownHostException` | `DownloadError.NetworkTransient` | сетевой сбой; ретраим до бюджета |
+| HTTP 5xx, HTTP 429, таймаут, `IOException`, `UnknownHostException` | `DownloadError.NetworkTransient` | сетевой сбой; ретраим до исчерпания попыток |
 | m3u8 пустой, сегменты 404, вариант качества не найден | `DownloadError.ExtractorBroken` | структурный сбой источника |
 | HTTP 403 / ссылка протухла / cookies | `DownloadError.UrlExpired` | **не выдумываем в M1**: URL балансера несёт `sign=` и `expire=` (~36 ч), но сценария, в котором адаптер их переживает, нет — запрос `playOptions` и скачивание идут подряд; класс остаётся в наборе контракта для будущих источников, адаптер его не возвращает |
 | `CancellationException` из `ensureActive()` или родителя | задача → `Cancelling` → `Cancelled` | отмена, не ошибка |
 
 **Чистота промежуточных файлов.** Адаптер создаёт ровно один побочный файл —
 `.tmp` рядом с `targetPath`. Удаляется в `finally`-блоке операции скачивания.
-Структурная конкурентность задачи гасит висящие `HttpBody` при отмене корутины
-(каждый `HttpTool.open` возвращает `Closeable` `HttpBody`).
+Каждый `HttpTool.open` возвращает `HttpBody`, которым владеет вызывающий: адаптер
+читает его через `HttpBody.bytes()` (закрытие внутри) либо закрывает явно, если
+ответ пришёл с неуспешным статусом и читать его не нужно.
 
 **Сериализация.** Парсинг JSON — `kotlinx.serialization`. Модели данных адаптера
-(`VideoData`, `VideoBalancer`, …) — `private` для пакета. На уровне контракта
-наружу уходят только sealed-исходы `SourceAdapter`, `MediaMeta`, `Quality`,
-`SourceProgress`, `DownloadResult`, `DownloadError`.
+приватны для пакета. На уровне контракта наружу уходят только sealed-исходы
+`SourceAdapter`, `MediaMeta`, `Quality`, `SourceProgress`, `DownloadResult`,
+`DownloadError`.
 
 ## Testing Decisions
 
@@ -238,22 +248,24 @@ API. Адаптер читает его (через `HttpTool.open`), фильт
 2. **Тесты ретраев — отдельный suite** внутри пакета адаптера. На вход —
    `FakeHttpTool`, программирующий сценарии: сначала 2 раза 503, на 3-й раз 200
    с валидным ответом → ожидается успех; сначала всегда 503 → ожидается
-   `NetworkTransient` после исчерпания бюджета; `UnknownHostException` →
+   `NetworkTransient` после исчерпания попыток; `UnknownHostException` →
    `NetworkTransient` с ретраем. Проверка `ensureActive()` через `Job` с
    отменой во время `delay` — отдельный кейс.
 3. **Тесты таксономии ошибок — тот же suite.** Каждый класс `DownloadError` —
    минимум один кейс с эталонным ответом `FakeHttpTool`.
 4. **Интеграционный прогон — отдельный `*IT.kt`, помеченный tag'ом
-   `integration` (JUnit `@Tag`).** Настоящий `ffmpeg` через настоящую
-   реализацию `MediaTool` и реальные фикстуры, скачанные с API один раз. В
-   основном прогоне тестов не запускается (`--tests "*Test"` отфильтровывает
-   `*IT`).
+   `integration` (JUnit `@Tag`).** Настоящей реализации `MediaTool` в репозитории
+   нет (см. Out of Scope), поэтому прогон воспроизводит записанные ответы
+   источника через `FakeHttpTool` и собирает адаптер с `FakeMediaTool`; проверяется
+   форма реального leaf-плейлиста — относительные имена сегментов. В основном
+   прогоне не запускается: тег исключается настройкой `useJUnitPlatform`, а имя —
+   фильтром `excludeTestsMatching("*SourceAdapterIT")` в `core/build.gradle.kts`.
 
 Стандарт тестов — `docs/standards/testing.md`. Именование: `RutubeSourceAdapterTest`,
 `RutubeRetryTest`, `RutubeErrorTaxonomyTest`, `RutubeSourceAdapterIT`. Фейки
 (`FakeHttpTool`) — из `core/testFixtures` ядра.
 
-Сборка — `./gradlew :core:test --rerun-tasks --tests "*Rutube*"` —
+Сборка — `./gradlew check --rerun-tasks` —
 зелёный, без падений на отсутствие сети.
 
 ## Out of Scope
@@ -270,8 +282,8 @@ API. Адаптер читает его (через `HttpTool.open`), фильт
   с портом, реальный `MediaTool` поставляется инфрой.
 - Динамическое определение доступных качеств из самого `m3u8` без запроса
   `playOptions` — допустимо в перспективе, не реализуется в M1.
-- Rate-limited (HTTP 429) как отдельный класс ошибки: пока приходит как
-  `NetworkTransient`, отдельный класс — не M1.
+- Rate-limited (HTTP 429) как отдельный класс ошибки: приходит как
+  `NetworkTransient` и ретраится, отдельный класс — не M1.
 - Гео-блок, региональные CDN: недоступность URL от `video_balancer`
   обрабатывается как `NetworkTransient`.
 - Конкретные Gradle-модули `:adapters:rutube` и `:adapters:ytdlp` — решение
