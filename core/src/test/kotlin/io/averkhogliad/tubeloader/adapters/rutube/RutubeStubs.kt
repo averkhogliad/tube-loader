@@ -95,6 +95,7 @@ private class StreamResponse(
     override val status: Int,
     private val body: InputStream,
     override val contentLength: Long? = null,
+    override val headers: Map<String, String> = emptyMap(),
 ) : HttpResponse {
 
     override fun content(): InputStream = body

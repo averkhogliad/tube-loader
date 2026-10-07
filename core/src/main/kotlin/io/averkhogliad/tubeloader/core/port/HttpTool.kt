@@ -35,6 +35,12 @@ interface HttpResponse : Closeable {
     val contentLength: Long?
 
     /**
+     * The headers of the response, one value per name, names as the server spelled them; a name the
+     * server repeated keeps its first value.
+     */
+    val headers: Map<String, String>
+
+    /**
      * The raw stream, closed by the caller. Meant for the rare read that needs the descriptor itself.
      */
     fun content(): InputStream

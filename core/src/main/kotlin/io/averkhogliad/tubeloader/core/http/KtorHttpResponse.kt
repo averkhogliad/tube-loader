@@ -8,6 +8,7 @@ import java.io.InputStream
 internal class KtorHttpResponse(
     override val status: Int,
     override val contentLength: Long?,
+    override val headers: Map<String, String>,
     private val body: ByteReadChannel,
 ) : HttpResponse {
 

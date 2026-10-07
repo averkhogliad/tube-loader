@@ -25,6 +25,7 @@ class KtorHttpTool(private val client: HttpClient, private val config: () -> Htt
                 KtorHttpResponse(
                     status = response.status.value,
                     contentLength = response.contentLength(),
+                    headers = response.headers.entries().associate { it.key to it.value.first() },
                     body = response.bodyAsChannel(),
                 ),
             )

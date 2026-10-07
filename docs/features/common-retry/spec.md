@@ -199,8 +199,9 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
   `kmp-resilient_as_retry_replacement_1.5.0_-_2.0.1-48700a979f05.md`,
   `Retry_libraries_survey_-_kotlin-retry_closest-877ba70d281e.md`). Подробности —
   `docs/archive/retry/not-covered.md`.
-- **`Retry-After` от сервера.** Порт `HttpTool.open` его не отдаёт. Правка порта — отдельный
-  тикет/ADR. В этом — экспонента как дешёвая замена.
+- **`Retry-After` от сервера.** Порт `HttpTool` отдаёт заголовки ответа с #75 (`HttpResponse.headers`),
+  но потребителя у них нет: движок судит по `judging(status)`, а не по header. В этом — экспонента как
+  дешёвая замена; ждать паузу из `Retry-After` — отдельный тикет.
 - **`perAttemptTimeout` через `withTimeout` (задача #68).** Таймаут одной попытки — отдельный шов
   `HttpTool`, не retry-движка. Реализация **отложена** вместе с первой production-реализацией
   `HttpTool`/`MediaTool`: в репозитории есть только порт и тестовый фейк, ограничивать по времени
