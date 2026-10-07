@@ -5,11 +5,13 @@ import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
+import io.averkhogliad.tubeloader.core.port.Headers
 import io.averkhogliad.tubeloader.core.port.HttpResponse
 import io.averkhogliad.tubeloader.core.port.HttpStub
 import io.averkhogliad.tubeloader.core.port.textBody
 import java.io.ByteArrayInputStream
 import java.io.IOException
+import java.io.InputStream
 import java.net.UnknownHostException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -83,7 +85,32 @@ internal fun trackedBody(content: String, status: Int): TrackedBody {
                 super.close()
             }
         }
-    return TrackedBody(HttpStub.Respond(HttpResponse(status, stream)), closed)
+    return TrackedBody(HttpStub.Respond(StreamResponse(status, stream)), closed)
+}
+
+/**
+ * A response over the stream it was built from: the block form closes that stream, the raw form
+ * hands it to the caller.
+ */
+private class StreamResponse(
+    override val status: Int,
+    private val body: InputStream,
+    override val contentLength: Long? = null,
+    headers: Map<String, String> = emptyMap(),
+) : HttpResponse {
+
+    override val headers: Headers = Headers(headers)
+
+    override fun content(): InputStream = body
+
+    override suspend fun <R> content(block: (InputStream) -> R): R =
+        try {
+            block(body)
+        } finally {
+            close()
+        }
+
+    override fun close() = body.close()
 }
 
 internal val SERVER_ERROR_STUB: HttpStub = HttpStub.Respond(textBody("unavailable", status = 503))
@@ -93,3 +120,28 @@ internal val CLIENT_ERROR_STUB: HttpStub = HttpStub.Respond(textBody("gone", sta
 internal val TRANSPORT_FAILURE_STUB: HttpStub = HttpStub.Fail(UnknownHostException("rutube.ru"))
 
 internal val CONNECTION_RESET_STUB: HttpStub = HttpStub.Fail(IOException("reset"))
+
+/**
+ * A response that answers 200 and then breaks while its body is read: the throw happens inside the
+ * caller's read, not at [FakeHttpTool.open].
+ */
+internal val BROKEN_BODY_STUB: HttpStub =
+    HttpStub.Respond(
+        StreamResponse(
+            status = 200,
+            body =
+                object : InputStream() {
+                    private var served = 0
+
+                    override fun read(): Int = throw IOException("connection reset mid-body")
+
+                    override fun read(bytes: ByteArray, offset: Int, length: Int): Int {
+                        if (served >= 8) throw IOException("connection reset mid-body")
+                        val chunk = minOf(length, 8 - served)
+                        "half a pay".toByteArray().copyInto(bytes, offset, served, served + chunk)
+                        served += chunk
+                        return chunk
+                    }
+                },
+        ),
+    )

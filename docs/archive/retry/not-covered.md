@@ -16,7 +16,7 @@
 |---|---|---|---|
 | `perAttemptTimeout` (таймаут одной попытки) | `kmp-resilient 2.0+` через `RetryPolicyConfig.perAttemptTimeout`; Failsafe/Polly через отдельный `Timeout` | Нет. Обходится `withTimeout` вокруг блока или в `HttpTool.open` | Не шов движка — отдельный шов `HttpTool` (#68) |
 | Decorrelated jitter (AWS-формула) | kmp-resilient `DecorrelatedJitterBackoff`, Polly `MedianFirstJitterBackoff`, tenacity `wait_random_jitter` | Нет. Только ±N% `randomizationFactor` (идея 2 ADR-0004) | Сегменты качаются последовательно (память `Retry_libraries_survey_-_kotlin-retry_closest-877ba70d281e.md`), декорелированный jitter избыточен |
-| `Retry-After` от сервера | resilience4j через `RetryAfter` response handler, Failsafe/Polly в `Handle`/`WaitAndRetry` | Нет. Экспонента как дешёвая замена | Порт `HttpTool.open` не отдаёт header; правка порта — отдельный тикет |
+| `Retry-After` от сервера | resilience4j через `RetryAfter` response handler, Failsafe/Polly в `Handle`/`WaitAndRetry` | Нет. Экспонента как дешёвая замена | Заголовки отдаются портом с #75 (`HttpResponse.headers`), но движок судит по `status`; ждать паузу из header — отдельный тикет |
 | Бюджет по паузам (`cumulativeDelay`) | `kotlin-retry` | Нет. Бюджет считается по прошедшему времени (`withinBudget`), как у Failsafe/Polly/tenacity | Сумма пауз не ограничивает реальное время: зависший запрос не двигает `cumulativeDelay` |
 | Обёртка исходного значения (`RetryableResultException`, `MaxRetriesExceededException`) | kmp-resilient, resilience4j | Частично: дефолт — `RetryExhausted`, но исход задаёт `onExhausted` | Отрасль по умолчанию отдаёт последнее значение; у нас это доступно лямбдой, а дефолт сохраняет прежнее поведение |
 | `RetryRegistry`/`Retry.ofDefaults`/`Retry()` без аргументов | resilience4j, Kresil, kmp-resilient | Нет — адаптер сам собирает политику | Не нужно скрывать явную сборку |
@@ -130,7 +130,7 @@
 - **Если** retry появятся в параллели (одна загрузка, несколько сегментов, не последовательных)
   — decorrelated jitter (AWS) вместо `±N%`. Решение — отдельный тикет.
 - **Если** появится `Retry-After` в порте `HttpTool` — правка порта + адаптер использует
-  header, а не экспоненту.
+  header, а не экспоненту. Порт заголовки уже отдаёт (#75); ждёт только потребителя.
 - **Если** понадобится ограничить не только прошедшее время retry, но и длительность одной
   попытки — `perAttemptTimeout` (тикет #68). Wall-clock-бюджет к этому моменту уже есть.
 - **Если** дойдёт до «+1 адаптер с другим стеком» — замерить вклад своего движка в CI-бюджет

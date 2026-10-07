@@ -15,7 +15,6 @@ import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.HttpResponse
 import io.averkhogliad.tubeloader.core.port.HttpTool
 import io.averkhogliad.tubeloader.core.port.MediaTool
-import io.averkhogliad.tubeloader.core.port.bytes
 import io.averkhogliad.tubeloader.retry.RetryContext
 import io.averkhogliad.tubeloader.retry.RetryExhausted
 import io.averkhogliad.tubeloader.retry.RetryPolicy
@@ -88,7 +87,13 @@ class RutubeSourceAdapter(
 
     override suspend fun loadMeta(id: String): LoadMetaResult {
         val body = openWithRetry(http, optionsUrl(id), config()).getOrNull()
-        return if (body == null) LoadMetaResult.Failed(DownloadError.NetworkTransient) else classifyMeta(id, body)
+        if (body == null) return LoadMetaResult.Failed(DownloadError.NetworkTransient)
+        return try {
+            classifyMeta(id, body)
+        } catch (_: IOException) {
+            // the port hands out a stream, so a body that breaks mid-read arrives as a throw, not a value
+            LoadMetaResult.Failed(DownloadError.NetworkTransient)
+        }
     }
 
     override suspend fun download(
@@ -172,7 +177,7 @@ class RutubeSourceAdapter(
         }
 
     private suspend fun openText(url: String): Result<String> =
-        openWithRetry(http, url, config()).map { body -> body.bytes().decodeToString() }
+        openWithRetry(http, url, config()).map { body -> body.content { it.readBytes() }.decodeToString() }
 
     /**
      * Copies the segments one by one into [tmpPath]. The file appears with the first segment, so a run
@@ -199,7 +204,7 @@ class RutubeSourceAdapter(
                             StandardOpenOption.TRUNCATE_EXISTING,
                         )
                 }
-                sink.write(accepted.bytes())
+                sink.write(accepted.content { it.readBytes() })
                 done += 1
                 onProgress(SourceProgress.Fraction(done.toDouble() / segments.size))
             }
@@ -253,11 +258,7 @@ private suspend fun openWithRetry(http: HttpTool, url: String, settings: HttpToo
             },
         ),
     ) {
-        try {
-            Result.success(http.open(url, REFERER_HEADERS))
-        } catch (failure: IOException) {
-            Result.failure(failure)
-        }
+        http.open(url, REFERER_HEADERS)
     }
 
 /**
@@ -295,8 +296,8 @@ private fun policyOf(settings: HttpToolConfig): RetryPolicy =
         .continueIf { failure is IOException || failure is RetryExhausted }
         .exponentialBackoff(settings.retryBaseDelay, randomizationFactor = settings.retryRandomizationFactor)
 
-private fun classifyMeta(id: String, body: HttpResponse): LoadMetaResult {
-    val text = body.bytes().decodeToString()
+private suspend fun classifyMeta(id: String, body: HttpResponse): LoadMetaResult {
+    val text = body.content { it.readBytes() }.decodeToString()
     return when {
         body.status in MISSING_VIDEO_STATUSES && missingVideoReason(text) -> LoadMetaResult.NotFound
         body.status !in SUCCESS_STATUS -> LoadMetaResult.Failed(DownloadError.ExtractorBroken)
