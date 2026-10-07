@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.core.port
 
 import java.io.ByteArrayInputStream
+import java.io.InputStream
 
 data class OpenCall(val url: String, val headers: Map<String, String>)
 
@@ -17,9 +18,33 @@ sealed interface HttpStub {
 }
 
 fun httpBody(content: ByteArray, contentLength: Long? = content.size.toLong(), status: Int = HTTP_OK): HttpResponse =
-    HttpResponse(status, ByteArrayInputStream(content), contentLength)
+    BytesResponse(status, content, contentLength)
 
 fun textBody(content: String, status: Int = HTTP_OK): HttpResponse = httpBody(content.toByteArray(), status = status)
+
+/**
+ * A response over the bytes it was built from: every read hands out a stream of its own, so a stub
+ * that repeats can be read more than once.
+ */
+private class BytesResponse(
+    override val status: Int,
+    private val body: ByteArray,
+    override val contentLength: Long?,
+) : HttpResponse {
+
+    override fun content(): InputStream = ByteArrayInputStream(body)
+
+    override suspend fun <R> content(block: (InputStream) -> R): R {
+        val stream = ByteArrayInputStream(body)
+        return try {
+            block(stream)
+        } finally {
+            stream.close()
+        }
+    }
+
+    override fun close() = Unit
+}
 
 /**
  * Stub of [HttpTool] for adapter tests: every call is recorded in [opened], and answers come from a
@@ -32,11 +57,11 @@ class FakeHttpTool : HttpTool {
 
     private val routes = mutableListOf<Route>()
 
-    private var fallback: suspend (String) -> HttpResponse = { httpBody(ByteArray(0)) }
+    private var fallback: suspend (String) -> Result<HttpResponse> = { Result.success(httpBody(ByteArray(0))) }
 
     override fun close() = Unit
 
-    override suspend fun open(url: String, headers: Map<String, String>): HttpResponse {
+    override suspend fun open(url: String, headers: Map<String, String>): Result<HttpResponse> {
         opened += OpenCall(url, headers)
         val route = routes.firstOrNull { url.startsWith(it.prefix) } ?: return fallback(url)
         return route.next(url)
@@ -101,14 +126,14 @@ class FakeHttpTool : HttpTool {
 
         private var index = 0
 
-        suspend fun next(url: String): HttpResponse {
+        suspend fun next(url: String): Result<HttpResponse> {
             val stub = stubs[minOf(index, stubs.lastIndex)]
             index += 1
             return serve(url, stub)
         }
     }
 
-    private fun stubReader(stubs: Array<out HttpStub>): suspend (String) -> HttpResponse {
+    private fun stubReader(stubs: Array<out HttpStub>): suspend (String) -> Result<HttpResponse> {
         var index = 0
         return { url ->
             val stub = stubs[minOf(index, stubs.lastIndex)]
@@ -118,10 +143,10 @@ class FakeHttpTool : HttpTool {
     }
 
     companion object {
-        private suspend fun serve(url: String, stub: HttpStub): HttpResponse =
+        private suspend fun serve(url: String, stub: HttpStub): Result<HttpResponse> =
             when (stub) {
-                is HttpStub.Respond -> stub.body
-                is HttpStub.Fail -> throw stub.error
+                is HttpStub.Respond -> Result.success(stub.body)
+                is HttpStub.Fail -> Result.failure(stub.error)
             }
 
         fun resourceText(resource: String): String =

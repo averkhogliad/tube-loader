@@ -10,6 +10,7 @@ import io.averkhogliad.tubeloader.core.port.HttpStub
 import io.averkhogliad.tubeloader.core.port.textBody
 import java.io.ByteArrayInputStream
 import java.io.IOException
+import java.io.InputStream
 import java.net.UnknownHostException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -83,7 +84,29 @@ internal fun trackedBody(content: String, status: Int): TrackedBody {
                 super.close()
             }
         }
-    return TrackedBody(HttpStub.Respond(HttpResponse(status, stream)), closed)
+    return TrackedBody(HttpStub.Respond(StreamResponse(status, stream)), closed)
+}
+
+/**
+ * A response over the stream it was built from: the block form closes that stream, the raw form
+ * hands it to the caller.
+ */
+private class StreamResponse(
+    override val status: Int,
+    private val body: InputStream,
+    override val contentLength: Long? = null,
+) : HttpResponse {
+
+    override fun content(): InputStream = body
+
+    override suspend fun <R> content(block: (InputStream) -> R): R =
+        try {
+            block(body)
+        } finally {
+            close()
+        }
+
+    override fun close() = body.close()
 }
 
 internal val SERVER_ERROR_STUB: HttpStub = HttpStub.Respond(textBody("unavailable", status = 503))
