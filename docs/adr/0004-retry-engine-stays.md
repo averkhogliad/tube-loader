@@ -111,6 +111,11 @@ DSL-блок `retryConfig { … }` (Kresil/kmp-resilient) — **отвергну
   (`per-attempt-timeout` — только у kmp-resilient среди исследованных движков; у Failsafe/Polly
   это отдельный `Timeout`). Был отложен 07.10.2026 как «нечего ограничивать» — обоснование снято:
   production-реализация `HttpTool` влита (PR #76), ключ в дефолт-конфиге уже стоит.
+  **Реализован** (тикет #68, `ADR-0007`): `openWithRetry` оборачивает попытку в
+  `withTimeout(settings.perAttemptTimeout)`, драйвер `retry` ловит `TimeoutCancellationException`
+  вокруг `block()` и отдаёт политике маркер `AttemptTimedOut`, а `policyOf` принимает его рядом с
+  `IOException` и `RetryExhausted`; на исчерпании попыток истёкшие таймауты дают `NetworkTransient`,
+  отмена вызывающего остаётся отменой.
 
 ## Consequences
 
@@ -141,10 +146,10 @@ DSL-блок `retryConfig { … }` (Kresil/kmp-resilient) — **отвергну
 Тикет #67 их удалил — значения приходят из `[download.http-tool]`, дефолты живут в `HttpToolConfig`.
 Согласование дефолтов между источниками — отдельная задача.
 
-**Что остаётся не покрыто `:common:retry`.** См. `docs/archive/retry/not-covered.md`: per-attempt
-timeout (отдельный шов `HttpTool`), decorrelated jitter (избыточно для текущего профиля),
-`Retry-After` от сервера (порт `HttpTool` не отдаёт). Бюджет по паузам (Failsafe/Polly — wall-clock)
-движок не берёт: бюджет считается по прошедшему времени. Полный список и обоснование — в архивном
+**Что остаётся не покрыто `:common:retry`.** См. `docs/archive/retry/not-covered.md`: decorrelated
+jitter (избыточно для текущего профиля), `Retry-After` от сервера (порт `HttpTool` не отдаёт).
+Бюджет по паузам (Failsafe/Polly — wall-clock) движок не берёт: бюджет считается по прошедшему
+времени. Полный список и обоснование — в архивном
 файле.
 
 **Несовместимо с этим под-деревом решений.**

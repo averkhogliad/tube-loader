@@ -4,6 +4,7 @@ import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.test.runTest
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
@@ -151,6 +152,54 @@ class RetryTest :
                 thrown.shouldBeInstanceOf<CancellationException>()
                 recording.seen shouldBe emptyList()
                 judged shouldBe 0
+            }
+
+            "repeats an attempt that outlived the budget it was given" {
+                runTest {
+                    // given a block that times itself out twice before it answers
+                    val attempts = TimedOutAttempts(timeouts = 2)
+                    val policy = RetryPolicy.stopAtAttempts(5).continueIf { failure is AttemptTimedOut }
+
+                    // when
+                    val actual = retry(policy) { attempts.answer("payload") }
+
+                    // then
+                    actual shouldBe Result.success("payload")
+                    attempts.calls shouldBe 3
+                }
+            }
+
+            "answers the per-attempt timeout as the marker once the policy stops" {
+                runTest {
+                    // given a block that never answers within its budget
+                    val attempts = TimedOutAttempts(timeouts = 5)
+                    val policy = RetryPolicy.stopAtAttempts(2).continueIf { failure is AttemptTimedOut }
+
+                    // when
+                    val actual = retry(policy) { attempts.answer("payload") }
+
+                    // then
+                    val marker = actual.exceptionOrNull().shouldBeInstanceOf<AttemptTimedOut>()
+                    marker.cause.shouldBeInstanceOf<TimeoutCancellationException>()
+                    attempts.calls shouldBe 2
+                }
+            }
+
+            "asks the policy about the timeout instead of rethrowing it" {
+                runTest {
+                    // given a policy that records why it was asked for another attempt
+                    val attempts = TimedOutAttempts(timeouts = 1)
+                    val recording = RecordingPolicy { ContinueRetrying }
+                    val policy = RetryPolicy.stopAtAttempts(2).then(recording)
+
+                    // when
+                    retry(policy) { attempts.answer("payload") }
+
+                    // then the first attempt reached the policy as the marker, not as a cancellation the
+                    // driver would have rethrown
+                    val reason = recording.seen.single().failure
+                    reason.shouldBeInstanceOf<AttemptTimedOut>()
+                }
             }
         }
 

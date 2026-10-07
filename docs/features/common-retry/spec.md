@@ -137,6 +137,11 @@ number, previousDelay, cumulativeDelay, elapsed)` предикат `continueIf` 
   (`{ Result.success(it) }`). Источники: kmp-resilient (`RetryableResultException` наружу не
   выходит — отдаётся последнее значение), resilience4j (`failAfterMaxAttempts = false` по
   умолчанию), Failsafe (last result as is). На исчерпании по исключению не зовётся.
+- `AttemptTimedOut(cause)` — маркер таймаута попытки (`ADR-0007`, тикет #68). Ловит его сам драйвер:
+  вокруг `block()` он перехватывает `TimeoutCancellationException` и отдаёт политике обычную
+  неудачу попытки, а `CancellationException` перебрасывает как прежде — так внешний
+  `withTimeout` адаптера не превращает временный сбой в терминальный отказ. Маркер — не
+  `CancellationException` именно поэтому.
 
 **TOML — плоский под-блок.** `[download.http-tool]`: `connect-timeout-ms`, `request-timeout-ms`,
 `per-attempt-timeout-ms`, `max-attempts`, `base-delay-ms`, `randomization-factor`, `retriable-statuses`. Конфиг резолвится
@@ -205,9 +210,11 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
   но потребителя у них нет: движок судит по `judging(status)`, а не по header. В этом — экспонента как
   дешёвая замена; ждать паузу из `Retry-After` — отдельный тикет.
 - **`perAttemptTimeout` через `withTimeout` (задача #68).** Таймаут одной попытки — отдельный шов
-  `HttpTool`, не retry-движка. Решён 07.10.2026: обёртка живёт в **адаптере** (`withTimeout` вокруг
-  `HttpTool.open` в retry-обёртке), значение — из обязательного `per-attempt-timeout-ms`;
-  `connectTimeout`/`requestTimeout` — у HTTP-клиента. Блокировка снята: порт реализован (PR #76).
+  `HttpTool`, не retry-движка. Решён 07.10.2026 и реализован: обёртка живёт в **адаптере**
+  (`withTimeout` вокруг `HttpTool.open` в retry-обёртке), значение — из обязательного
+  `per-attempt-timeout-ms`; `connectTimeout`/`requestTimeout` — у HTTP-клиента. Истёкший таймаут
+  в движке становится маркером `AttemptTimedOut` и доходит до политики обычной неудачей попытки;
+  отмену драйвер по-прежнему перебрасывает. Решение — `ADR-0007`.
 - **Decorrelated jitter (AWS).** `randomizationFactor` ±N% достаточно для текущего профиля
   (сегменты последовательные).
 - **DSL-блок `retryConfig { … }`.** Ломает Compose-форму #63. Отдельный гриль при появлении

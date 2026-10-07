@@ -1,5 +1,6 @@
 package io.averkhogliad.tubeloader.retry
 
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -15,7 +16,9 @@ import kotlin.time.TimeSource
  * [RetryExhausted] carrying that value. The driver stops as soon as the policy says so and answers the
  * last outcome: a failure as it came in, and a refused value through [RetryContext.onExhausted], which
  * turns it into [RetryExhausted] unless the caller asks for something else. Cancellation is rethrown
- * rather than retried: a cancelled caller is not waiting for another attempt.
+ * rather than retried: a cancelled caller is not waiting for another attempt. A per-attempt timeout
+ * is not cancellation: the driver catches it around [block] and the attempt travels to the policy as
+ * [AttemptTimedOut], so a caller that bounds one attempt does not have to repeat the driver's catch.
  *
  * [timeSource] is what [FailedAttempt.elapsed] is measured against; a test hands in its own so that a
  * budget can be checked without waiting for real time to pass.
@@ -31,7 +34,14 @@ suspend fun <T> retry(
     var previousDelay = Duration.ZERO
     var cumulativeDelay = Duration.ZERO
     while (true) {
-        val outcome = block()
+        val outcome =
+            try {
+                block()
+            } catch (timeout: TimeoutCancellationException) {
+                // the attempt outlived the budget its caller gave it; the cancellation below is another
+                // matter entirely
+                Result.failure(AttemptTimedOut(timeout))
+            }
         val failure = outcome.exceptionOrNull()
         val reason: Throwable
         // the answer is built where the value is still typed, so a refused null stays a value
