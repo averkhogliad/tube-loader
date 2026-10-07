@@ -1,5 +1,6 @@
 package io.averkhogliad.tubeloader.core.http
 
+import io.averkhogliad.tubeloader.core.port.Headers
 import io.averkhogliad.tubeloader.core.port.HttpResponse
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.jvm.javaio.toInputStream
@@ -8,7 +9,7 @@ import java.io.InputStream
 internal class KtorHttpResponse(
     override val status: Int,
     override val contentLength: Long?,
-    override val headers: Map<String, String>,
+    override val headers: Headers,
     private val body: ByteReadChannel,
 ) : HttpResponse {
 

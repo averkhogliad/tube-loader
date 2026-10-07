@@ -35,7 +35,6 @@ implementation(libs.ktor.client.encoding)
 содержат плагина `ContentEncoding` (проверено пробой: с ними gzip-тело приходит адаптеру сырыми
 байтами). Плагин устанавливается в тот `HttpClient`, который создаёт вызывающий:
 `install(ContentEncoding) { gzip() }`.
-```
 
 `ktor-client-okhttp` отвергнут: под ним тянется OkHttp, и тогда Ktor — лишний слой над тем, что
 можно взять по честному. Альтернативы — JDK `java.net.http.HttpClient` (0 зависимостей, но
@@ -86,15 +85,13 @@ Headers `User-Agent: Tubeloader/0`, `Accept: */*`, `Accept-Encoding: identity` �
 // core/http/KtorHttpTool.kt
 class KtorHttpTool(
     private val client: HttpClient,
-    private val config: () -> HttpToolConfig,
 ) : HttpTool {
     override suspend fun open(url: String, headers: Map<String, String>): Result<HttpResponse>
-    override fun close() = client.close()
+    override fun close() = Unit   // клиент принадлежит вызывающему, закрывать нечего
 }
 
 object HttpTools {
-    fun create(client: HttpClient, config: () -> HttpToolConfig): HttpTool =
-        KtorHttpTool(client, config)
+    fun create(client: HttpClient): HttpTool = KtorHttpTool(client)
 }
 ```
 
@@ -106,16 +103,17 @@ object HttpTools {
 сетевую операцию») выполняется без обвязки. `HttpTimeout.requestTimeoutMillis` отменяется
 отдельным `TimeoutCancellationException`; внешняя отмена приоритетна.
 
-**Тесты.** Один класс `KtorHttpToolTest` в `core/src/test`, ~5 кейсов на
+**Тесты.** Один класс `KtorHttpToolTest` в `core/src/test`, 7 кейсов на
 `HttpClient(MockEngine { ... })` (`ktor-client-mock` в testImplementation):
 
 1. Happy: 200 + body → `Result.success(HttpResponse(status=200, body=stream, ...))`.
 2. 4xx/5xx: `expectSuccess = false` → `Result.success` со `status != 200`.
 3. Transport fail: `MockEngine` бросает `IOException` → `Result.failure(IOException)`.
-4. `consume { block }`: блок выполнен, поток закрыт (verify по `MockEngine` request).
+4. `content { block }`: блок выполнен, поток закрыт (наблюдается по каналу, который отдаёт движок).
 5. **Декодирование (Q12)**: `Accept-Encoding: identity` + сервер не сжимает → отдаём как есть;
    адаптер шлёт `Accept-Encoding: gzip` + сервер отвечает `Content-Encoding: gzip` с gzip-байтами
-   → `consume { readBytes() }` возвращает распакованные байты.
+   → `content { readBytes() }` возвращает распакованные байты.
+6. Заголовок `Retry-After` достижим из `HttpResponse.headers` (#75).
 
 Контрактные тесты адаптеров остаются на `FakeHttpTool` — `ktor-client-mock` не подменяет шов.
 
@@ -165,4 +163,4 @@ implementation(project(":common:retry"))
 
 - Версионирование `User-Agent` (формат `Tubeloader/<version>`) — отдельный тикет.
 - Авторизация / cookies / прокси — за рамками текущего релиза.
-- Range/streaming-запросы — отдельный тикет, текущий `consume { ... }` покрывает обычные сценарии.
+- Range/streaming-запросы — отдельный тикет, текущий `content { ... }` покрывает обычные сценарии.

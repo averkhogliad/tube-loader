@@ -35,8 +35,10 @@ private class BytesResponse(
     override val status: Int,
     private val body: ByteArray,
     override val contentLength: Long?,
-    override val headers: Map<String, String>,
+    headers: Map<String, String>,
 ) : HttpResponse {
+
+    override val headers: Headers = Headers(headers)
 
     override fun content(): InputStream = ByteArrayInputStream(body)
 

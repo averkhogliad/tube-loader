@@ -87,7 +87,13 @@ class RutubeSourceAdapter(
 
     override suspend fun loadMeta(id: String): LoadMetaResult {
         val body = openWithRetry(http, optionsUrl(id), config()).getOrNull()
-        return if (body == null) LoadMetaResult.Failed(DownloadError.NetworkTransient) else classifyMeta(id, body)
+        if (body == null) return LoadMetaResult.Failed(DownloadError.NetworkTransient)
+        return try {
+            classifyMeta(id, body)
+        } catch (_: IOException) {
+            // the port hands out a stream, so a body that breaks mid-read arrives as a throw, not a value
+            LoadMetaResult.Failed(DownloadError.NetworkTransient)
+        }
     }
 
     override suspend fun download(

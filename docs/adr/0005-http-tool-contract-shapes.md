@@ -57,9 +57,9 @@ identity`. `Accept-Language` не выставляется — язык отве
 `Closeable` с порта — отвергнута: OkHttp/Java HttpClient сами держат пул, но контракт на
 shutdown всё равно полезен для тестов (`FakeHttpTool.close()` сбрасывает состояние).
 
-**Headers ответа, `Content-Type`, редиректы, `Retry-After`, подтипы `HttpResponse` —
-вне контракта.** См. раздел «Out of contract by design» в `docs/features/http-tool/spec.md`.
-Каждый из этих пунктов — отдельный тикет, когда появится адаптер, которому это нужно.
+**`Content-Type`, редиректы, подтипы `HttpResponse` — вне контракта.** Заголовки ответа и
+`Retry-After` в контракт вошли (#75): `HttpResponse.headers`, поиск по имени без учёта регистра.
+См. раздел «Out of contract by design» в `docs/features/http-tool/spec.md`.
 
 ## Consequences
 
@@ -88,5 +88,5 @@ shutdown всё равно полезен для тестов (`FakeHttpTool.clo
 
 - Выбор конкретного HTTP-клиента (OkHttp / Ktor Client / `java.net.http.HttpClient`) —
   задача тикета #74; грил на этапе выбора движка проведён, решение — `ADR-0006`.
-- Маппинг `HttpToolConfig.connectTimeout/readTimeout` на настройки клиента — там же.
+- Маппинг `HttpToolConfig.connectTimeout/requestTimeout` на настройки клиента — там же.
 - Детализация `User-Agent` (версионирование приложения) — отдельный тикет.

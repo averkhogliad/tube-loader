@@ -46,7 +46,7 @@ generic по типу ошибки, `+`-оператор как `then`, прив
 Это убирает 29 явных `<Throwable>` из цепочки без потери типовой безопасности на вызове.
 
 Параметры повтора — через плоский под-блок `[download.http-tool]` в TOML: `connect-timeout-ms`,
-`read-timeout-ms`, `max-attempts`, `base-delay-ms`, `randomization-factor`, `retriable-statuses`.
+`request-timeout-ms`, `max-attempts`, `base-delay-ms`, `randomization-factor`, `retriable-statuses`.
 Без вложенного `[download.http-tool.retry]`: одна вложенность (`download` → `http-tool`)
 сохраняется.
 
@@ -136,7 +136,7 @@ number, previousDelay, cumulativeDelay, elapsed)` предикат `continueIf` 
   выходит — отдаётся последнее значение), resilience4j (`failAfterMaxAttempts = false` по
   умолчанию), Failsafe (last result as is). На исчерпании по исключению не зовётся.
 
-**TOML — плоский под-блок.** `[download.http-tool]`: `connect-timeout-ms`, `read-timeout-ms`,
+**TOML — плоский под-блок.** `[download.http-tool]`: `connect-timeout-ms`, `request-timeout-ms`,
 `max-attempts`, `base-delay-ms`, `randomization-factor`, `retriable-statuses`. Конфиг резолвится
 в `HttpToolConfig` (`AppConfig.httpTool`) его собственным `fromConfig` через `Config.getTableOrNull("download.http-tool")`.
 Никакого вложенного `[download.http-tool.retry]` — одна вложенность (`download` → `http-tool`).
@@ -205,7 +205,7 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
 - **`perAttemptTimeout` через `withTimeout` (задача #68).** Таймаут одной попытки — отдельный шов
   `HttpTool`, не retry-движка. Реализация **отложена** вместе с первой production-реализацией
   `HttpTool`/`MediaTool`: в репозитории есть только порт и тестовый фейк, ограничивать по времени
-  нечего. Параметры `connect-timeout-ms`/`read-timeout-ms` при этом читаются в `HttpToolConfig`
+  нечего. Параметры `connect-timeout-ms`/`request-timeout-ms` при этом читаются в `HttpToolConfig`
   (задача #67) — их ждёт первый реальный клиент.
 - **Decorrelated jitter (AWS).** `randomizationFactor` ±N% достаточно для текущего профиля
   (сегменты последовательные).

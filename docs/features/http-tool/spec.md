@@ -52,11 +52,16 @@ HTTP-клиента. Спека фиксирует **что** должны со�
 его создал. Закрытие идемпотентно.
 
 **Сигнатура `open`.** `suspend fun open(url: String, headers: Map<String, String> = emptyMap()):
-Result<HttpResponse>`. `Result.failure` — для транспортных сбоев: DNS, TCP, TLS, таймаут (когда
-реализация появится), обрыв тела, `EOFException`. `Result.success` — для всего, что сервер
-ответил, включая 4xx и 5xx; адаптер смотрит в `status` и решает сам, что значит «успех для
-адаптера». Эта граница — единственный шов между «порт не справился» и «порт справился, сервер
-сказал своё слово», и retry-движок опирается на неё в `judging`.
+Result<HttpResponse>`. `Result.failure` — для транспортных сбоев: DNS, TCP, TLS, таймаут.
+`Result.success` — для всего, что сервер ответил, включая 4xx и 5xx; адаптер смотрит в `status` и
+решает сам, что значит «успех для адаптера». Эта граница — единственный шов между «порт не
+справился» и «порт справился, сервер сказал своё слово», и retry-движок опирается на неё в
+`judging`.
+
+Оборванное **тело** в этот набор не входит: `content(block)` отдаёт адаптеру `InputStream`, поэтому
+обрыв посреди чтения бросает исключение наружу из блока, а не приходит значением. Обёртка вокруг
+чтения — дело вызывающего: адаптер ловит `IOException` и переводит его в свой исход
+(`RutubeSourceAdapter.loadMeta`).
 
 **`HttpResponse`.** Интерфейс с четырьмя членами:
 
@@ -64,13 +69,17 @@ Result<HttpResponse>`. `Result.failure` — для транспортных сб
   на который реализация порта уже перешла (см. «Out of contract by design»).
 - `val contentLength: Long?` — длина тела, если сервер её передал; `null` для chunked-ответа
   или `Transfer-Encoding` без `Content-Length`.
-- `val headers: Map<String, String>` — заголовки ответа, по одному значению на имя; имя — как
-  его написал сервер. `Retry-After` достижим отсюда как обычный заголовок ответа.
+- `val headers: Headers` — заголовки ответа, по одному значению на имя; имя хранится как его
+  написал сервер. Поиск по имени **без учёта регистра**: на HTTP/2 сервер отдаёт имена в нижнем
+  регистре, поэтому `headers["Retry-After"]` обязан находиться. `Retry-After` достижим отсюда
+  как обычный заголовок ответа.
 - `fun content(): InputStream` — отдаёт распакованный поток. Вызывающий закрывает его; для
   большинства сценариев рекомендуется форма с блоком.
 - `suspend fun <R> content(block: (InputStream) -> R): R` — читает тело в блоке; порт закрывает
   поток в `finally` независимо от исхода блока. Это основной путь для адаптеров: парсеров JSON,
-  скачивания в файл через `transferTo`, подсчёта байт.
+  скачивания в файл через `transferTo`, подсчёта байт. Реализация Ktor буферизует тело ответа
+  целиком (`client.request(url) {}`), поэтому блок отдаёт уже прочитанные байты: `open` для
+  тела в 1.5 s возвращается через ~1540 ms.
 
 Обе формы отдают **один и тот же распакованный** поток: реализация порта снимает `Content-Encoding`
 до возврата. `content()` и `content(block)` — два вида read одной и той же сущности, не «сжатый
@@ -96,14 +105,13 @@ Result<HttpResponse>`. `Result.failure` — для транспортных сб
 `connectTimeout`, **`requestTimeout`** (вместо бывшего `readTimeout` — см. ADR-0006 про
 отсутствие split readTimeout в Ktor), `retryMaxAttempts`, `retryBaseDelay`,
 `retryRandomizationFactor`, `retryRetriableStatuses`. Дефолты живут в `HttpToolConfig` и
-нигде больше. Применяются реализацией порта (`HttpClient { install(HttpTimeout) { ... } }`),
-а не кодом ядра. Тесты обвязки порта — в `core/src/test/.../http/KtorHttpToolTest.kt`
-(5 кейсов, см. ADR-0006).
+нигде больше. Применяются вызывающим, который собирает `HttpClient`
+(`HttpClient { install(HttpTimeout) { ... } }`), а не кодом ядра. Тесты обвязки порта — в
+`core/src/test/.../http/KtorHttpToolTest.kt` (7 кейсов, см. ADR-0006).
 
-**`FakeHttpTool`.** Остаётся в `core/src/testFixtures/.../port/FakeHttpTool.kt` — это контракт для
-тестов адаптеров. Переписывается под `interface HttpResponse` и две формы `content()` отдельным
-тикетом (см. «Tickets»); до переписки текущая форма `data class HttpResponse(status, body:
-InputStream, contentLength)` сохраняется, и спекой это фиксируется как переходное состояние.
+**`FakeHttpTool`.** Живёт в `core/src/testFixtures/.../port/FakeHttpTool.kt` — это контракт для
+тестов адаптеров. Переписан под `interface HttpResponse` и две формы `content()` вместе с #73:
+стабы отдают готовый `HttpResponse`, заголовки ответа задаются через `Headers`.
 
 ## Out of contract by design
 
@@ -131,9 +139,8 @@ unit-тестах ядра запрещена (`docs/features/core/spec.md`).
 (`docs/features/rutube-adapter/spec.md` — 264-я строка и далее); минимально один кейс с эталонным
 ответом `FakeHttpTool` per test class.
 
-**Переходный кейс (новый тикет).** Переписать `FakeHttpTool` под `interface HttpResponse` и две
-формы `content()`. До переписки data class-форма остаётся, и адаптерные тесты компилируются
-через extension `bytes()` поверх `body`. После переписки расширение уходит.
+**Переходный кейс.** `FakeHttpTool` переписан под `interface HttpResponse` и две формы
+`content()` вместе с #73; extension `bytes()` убран, тесты адаптеров работают через форму с блоком.
 
 ## Tickets
 
@@ -146,19 +153,20 @@ unit-тестах ядра запрещена (`docs/features/core/spec.md`).
   бы не под зафиксированную форму. Вместе с ним: адаптер переходит на `Result` и форму с блоком,
   extension `bytes()` уходит.
 - **#75 — заголовок ответа `Retry-After` через расширение `HttpResponse.headers`.** Расширение
-  порта: `HttpResponse.headers: Map<String, String>`, `KtorHttpResponse` пробрасывает заголовки
-  ответа, `FakeHttpTool` умеет задать их у стаба. Потребителя в тикете нет: движок повторов судит
-  по `status`, а не по header. Заблокирован по #73 (форма `HttpResponse`) и по #74 (headers
-  пробрасывает реализация порта).
+  порта: `HttpResponse.headers: Headers` с поиском по имени без учёта регистра,
+  `KtorHttpResponse` пробрасывает заголовки ответа, `FakeHttpTool` умеет задать их у стаба.
+  Потребителя в тикете нет: движок повторов судит по `status`, а не по header. Заблокирован по
+  #73 (форма `HttpResponse`) и по #74 (headers пробрасывает реализация порта).
 - **#74 — production-реализация `HttpTool` поверх Ktor Client 3.x + CIO** (ADR-0006). Зависимости
 
   `ktor-client-core`, `ktor-client-cio` в `:core/main`; `ktor-client-mock` в `:core/test`.
-  `KtorHttpTool(client, config)` + `HttpTools.create(...)`; `HttpResponse` = `interface` с двумя
+  `KtorHttpTool(client)` + `HttpTools.create(client)`; `HttpResponse` = `interface` с двумя
   `content()`; default headers и `expectSuccess = false` / `followRedirects = false`.
   Переименование `HttpToolConfig.readTimeout` → `HttpToolConfig.requestTimeout: Duration`
   (правка `HttpToolConfig.kt`, `HttpToolConfigTest.kt` и `AppConfig.kt` — плоский TOML-блок
-  `[download.http-tool]` уже существует после #67). Тест: `KtorHttpToolTest`, 5 кейсов на
-  `MockEngine` (happy / non-2xx / transport fail / consume closes stream / оба gzip-сценария).
+  `[download.http-tool]` уже существует после #67). Тест: `KtorHttpToolTest`, 7 кейсов на
+  `MockEngine` (happy / non-2xx / transport fail / content closes stream / оба gzip-сценария /
+  `Retry-After` из headers).
   ~200 LoC + ~80 LoC тестов. Заблокирован по #73 (форма `HttpResponse`).
 - **#68 — `perAttemptTimeout` одной попытки** (долг из ADR-0004). Отложен: тикет остаётся
   открытым до первой production-реализации (#74). За ним — развилка, не закрытая ни спекой, ни
@@ -166,3 +174,7 @@ unit-тестах ядра запрещена (`docs/features/core/spec.md`).
   адаптера», ADR-0005 — «`perAttemptTimeout` остаётся ответственностью реализации порта», а
   ADR-0006 уже даёт Ktor `requestTimeoutMillis`, ограничивающий попытку внутри клиента. Форма
   решается отдельным шагом перед реализацией.
+- **#77 — production-сборка `HttpClient`** (timeouts из `HttpToolConfig` + `install(ContentEncoding)`).
+  Реализация порта клиент не строит: `KtorHttpTool` берёт его параметром и lifecycle не владеет.
+  Сейчас `HttpClient` не создаёт никто, кроме тестового хелпера `KtorHttpToolTest`, поэтому
+  `Content-Encoding` в проде не снимается.
