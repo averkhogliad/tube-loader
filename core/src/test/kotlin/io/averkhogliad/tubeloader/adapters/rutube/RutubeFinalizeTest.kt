@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.adapters.rutube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
+import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
@@ -27,7 +28,9 @@ class RutubeFinalizeTest :
                 val target = dir.resolve("clip.mp4")
 
                 // when
-                val actual = RutubeSourceAdapter(streaming(), media).download(MEDIA_ID, VIDEO_1080, target) {}
+                val actual =
+                    RutubeSourceAdapter(streaming(), media, { HttpToolConfig() })
+                        .download(MEDIA_ID, VIDEO_1080, target) {}
 
                 // then
                 actual shouldBe DownloadResult.Success
@@ -81,7 +84,11 @@ class RutubeFinalizeTest :
 
                 // when
                 val actual =
-                    RutubeSourceAdapter(streaming(), media).download(MEDIA_ID, VIDEO_1080, dir.resolve("clip.mp4")) {}
+                    RutubeSourceAdapter(streaming(), media, { HttpToolConfig() }).download(
+                        MEDIA_ID,
+                        VIDEO_1080,
+                        dir.resolve("clip.mp4"),
+                    ) {}
 
                 // then
                 actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken)

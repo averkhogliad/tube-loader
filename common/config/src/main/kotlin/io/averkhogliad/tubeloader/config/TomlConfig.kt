@@ -9,6 +9,7 @@ import com.akuleshov7.ktoml.tree.nodes.TomlKeyValuePrimitive
 import com.akuleshov7.ktoml.tree.nodes.TomlNode
 import com.akuleshov7.ktoml.tree.nodes.TomlTable
 import com.akuleshov7.ktoml.tree.nodes.pairs.values.TomlArray
+import com.akuleshov7.ktoml.tree.nodes.pairs.values.TomlValue
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -76,7 +77,9 @@ class TomlConfig private constructor(private val leaves: Map<String, Any>) : Con
 
                     is TomlKeyValueArray -> {
                         val array = child.value as TomlArray
-                        out[prefix + normalizeKey(child.key)] = array.parse(TomlInputConfig())
+                        // the array hands out AST nodes; a reader of the config expects the values
+                        out[prefix + normalizeKey(child.key)] =
+                            array.parse(TomlInputConfig()).map(::unwrap)
                     }
 
                     else -> {
@@ -85,6 +88,17 @@ class TomlConfig private constructor(private val leaves: Map<String, Any>) : Con
                 }
             }
         }
+
+        /**
+         * A parsed element is an AST node all the way down: a nested array hands out its own nodes
+         * rather than the values inside them, so the unwrapping has to follow the nesting.
+         */
+        private fun unwrap(element: Any?): Any? =
+            when (element) {
+                is TomlValue -> unwrap(element.content)
+                is List<*> -> element.map(::unwrap)
+                else -> element
+            }
 
         private fun normalizeKey(key: com.akuleshov7.ktoml.tree.nodes.pairs.keys.TomlKey): String =
             key.toString().trim().let { raw ->

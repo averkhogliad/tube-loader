@@ -164,7 +164,19 @@ class TomlConfigTest :
 
                 // then
                 config.keys shouldBe setOf("tags")
+                config.getOrNull("tags") shouldBe "[1, 2, 3]"
                 config.getTableOrNull("tags") shouldBe emptyMap()
+            }
+
+            "unwraps the values of a nested array, not the nodes of the parser" {
+                // given
+                val toml = "matrix = [[1, 2], [3]]"
+
+                // when
+                val config = TomlConfig.fromString(toml)
+
+                // then
+                config.getOrNull("matrix") shouldBe "[[1, 2], [3]]"
             }
 
             "keeps a single character key as written" {

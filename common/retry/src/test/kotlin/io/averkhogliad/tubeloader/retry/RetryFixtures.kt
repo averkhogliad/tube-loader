@@ -25,15 +25,15 @@ internal class Attempts(private val failures: Int) {
 }
 
 /**
- * A policy that keeps what it was told and leaves the decision to [decide].
+ * A stage that keeps what it was told and leaves the decision to [decide].
  */
-internal class RecordingPolicy<E>(private val decide: (FailedAttempt<E>) -> RetryInstruction) : RetryPolicy<E> {
+internal class RecordingPolicy(private val answer: (FailedAttempt) -> RetryInstruction) : Stage {
 
-    val seen = mutableListOf<FailedAttempt<E>>()
+    val seen = mutableListOf<FailedAttempt>()
 
-    override fun invoke(attempt: FailedAttempt<E>): RetryInstruction {
+    override fun decide(attempt: FailedAttempt): RetryInstruction {
         seen += attempt
-        return decide(attempt)
+        return answer(attempt)
     }
 }
 
@@ -41,5 +41,6 @@ internal fun failedAttempt(
     number: Int,
     previousDelay: Duration = Duration.ZERO,
     cumulativeDelay: Duration = Duration.ZERO,
+    elapsed: Duration = Duration.ZERO,
     failure: Throwable = IOException(UNREACHABLE),
-): FailedAttempt<Throwable> = FailedAttempt(failure, number, previousDelay, cumulativeDelay)
+): FailedAttempt = FailedAttempt(failure, number, previousDelay, cumulativeDelay, elapsed)

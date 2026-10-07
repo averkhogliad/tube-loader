@@ -2,12 +2,14 @@ package io.averkhogliad.tubeloader.adapters.rutube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
+import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.averkhogliad.tubeloader.core.port.HttpStub
 import io.averkhogliad.tubeloader.core.port.textBody
+import io.averkhogliad.tubeloader.retry.RetryPolicy
 import io.averkhogliad.tubeloader.retry.constantDelay
-import io.averkhogliad.tubeloader.retry.plus
 import io.averkhogliad.tubeloader.retry.retry
 import io.averkhogliad.tubeloader.retry.stopAtAttempts
 import io.kotest.core.spec.style.FreeSpec
@@ -78,6 +80,23 @@ class RutubeRetryTest :
                 http.opened.size shouldBe 2
             }
 
+            "repeats a rate limit answer and answers from the next response" {
+                // given
+                val http =
+                    FakeHttpTool().route(
+                        OPTIONS_URL,
+                        HttpStub.Respond(textBody("slow down", status = 429)),
+                        recordedStub(RECORDING_OPTIONS),
+                    )
+
+                // when
+                val actual = adapter(http).loadMeta(MEDIA_ID)
+
+                // then
+                actual.shouldBeInstanceOf<LoadMetaResult.Found>()
+                http.opened.size shouldBe 2
+            }
+
             "does not retry a client error" {
                 // given
                 val http = FakeHttpTool().route(OPTIONS_URL, CLIENT_ERROR_STUB, recordedStub(RECORDING_OPTIONS))
@@ -90,6 +109,38 @@ class RutubeRetryTest :
                 http.opened.size shouldBe 1
             }
 
+            "does not retry a server error outside the transient set" {
+                // given
+                // 500 is the verdict of the source, not a hiccup: the default set names only 502/503/504
+                val refused = trackedBody("boom", 500)
+                val http = FakeHttpTool().route(OPTIONS_URL, refused.response)
+
+                // when
+                val actual = adapter(http).loadMeta(MEDIA_ID)
+
+                // then
+                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                http.opened.size shouldBe 1
+                refused.isClosed shouldBe true
+            }
+
+            "repeats a request timeout answer and answers from the next response" {
+                // given
+                val http =
+                    FakeHttpTool().route(
+                        OPTIONS_URL,
+                        HttpStub.Respond(textBody("timeout", status = 408)),
+                        recordedStub(RECORDING_OPTIONS),
+                    )
+
+                // when
+                val actual = adapter(http).loadMeta(MEDIA_ID)
+
+                // then
+                actual.shouldBeInstanceOf<LoadMetaResult.Found>()
+                http.opened.size shouldBe 2
+            }
+
             "sends the referer the source requires on every attempt" {
                 // given
                 val http = FakeHttpTool().route(OPTIONS_URL, CLIENT_ERROR_STUB)
@@ -99,6 +150,48 @@ class RutubeRetryTest :
 
                 // then
                 http.opened.map { it.headers["Referer"] }.distinct() shouldBe listOf("https://rutube.ru")
+            }
+
+            "takes the number of attempts from the configuration" {
+                // given
+                val http = FakeHttpTool().always(SERVER_ERROR_STUB)
+                val settings = HttpToolConfig(retryMaxAttempts = 2)
+
+                // when
+                val actual = adapter(http, settings).loadMeta(MEDIA_ID)
+
+                // then
+                actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
+                http.opened.size shouldBe 2
+            }
+
+            "does not repeat a status the configuration leaves out" {
+                // given
+                val http = FakeHttpTool().route(OPTIONS_URL, HttpStub.Respond(textBody("slow down", status = 429)))
+                val settings = HttpToolConfig(retryRetriableStatuses = setOf(503))
+
+                // when
+                val actual = adapter(http, settings).loadMeta(MEDIA_ID)
+
+                // then
+                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                http.opened.size shouldBe 1
+            }
+
+            "reads the configuration on every call rather than once" {
+                // given
+                var attempts = 1
+                val http = FakeHttpTool().always(SERVER_ERROR_STUB)
+                val source = RutubeSourceAdapter(http, FakeMediaTool(), { HttpToolConfig(retryMaxAttempts = attempts) })
+
+                // when
+                source.loadMeta(MEDIA_ID)
+                attempts = 2
+                http.opened.clear()
+                source.loadMeta(MEDIA_ID)
+
+                // then
+                http.opened.size shouldBe 2
             }
         }
 
@@ -147,7 +240,7 @@ class RutubeRetryTest :
             "breaks the retry wait as soon as the task is cancelled" {
                 // given
                 val http = FakeHttpTool().always(SERVER_ERROR_STUB)
-                val policy = stopAtAttempts<Throwable>(5) + constantDelay<Throwable>(50.milliseconds)
+                val policy = RetryPolicy.stopAtAttempts(5).constantDelay(50.milliseconds)
 
                 // when
                 val thrown =

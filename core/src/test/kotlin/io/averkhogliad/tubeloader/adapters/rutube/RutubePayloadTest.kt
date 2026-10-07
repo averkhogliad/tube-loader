@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.adapters.rutube
 
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.Quality
@@ -25,6 +26,7 @@ private fun adapter(body: String) =
     RutubeSourceAdapter(
         FakeHttpTool().route(OPTIONS_URL, recordedStubWith(body, 200)),
         FakeMediaTool().copyStreams(),
+        { HttpToolConfig() },
     )
 
 class RutubePayloadTest :
