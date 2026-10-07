@@ -76,7 +76,7 @@ interface` с `companion object` не компилируется: `companion obj
 интерфейса, а `fun interface` его не даёт; ковариантный generic-вариант с companion компилируется,
 но падает в рантайме `ClassCastException`.
 
-TOML — **плоский** под-блок `[download.http-tool]`: `connect-timeout-ms`, `read-timeout-ms`,
+TOML — **плоский** под-блок `[download.http-tool]`: `connect-timeout-ms`, `request-timeout-ms`,
 `max-attempts`, `base-delay-ms`, `randomization-factor`, `retriable-statuses`. Никакого вложенного
 `[download.http-tool.retry]` — одна вложенность.
 
@@ -102,7 +102,7 @@ DSL-блок `retryConfig { … }` (Kresil/kmp-resilient) — **отвергну
   бюджет проверяется без ожидания реального времени.
 - **`perAttemptTimeout` (#68) отложен.** Ограничивать по времени пока нечего: production-реализации
   `HttpTool`/`MediaTool` в репозитории нет, есть только порты ядра и тестовые фейки. Шов получает
-  таймаут вместе с первым реальным клиентом; параметры `connect-timeout-ms`/`read-timeout-ms`
+  таймаут вместе с первым реальным клиентом; параметры `connect-timeout-ms`/`request-timeout-ms`
   читаются в `HttpToolConfig` уже сейчас (#67).
 
 ## Consequences
@@ -125,7 +125,7 @@ DSL-блок `retryConfig { … }` (Kresil/kmp-resilient) — **отвергну
    в адаптер. ~50 LoC + 30 LoC тестов. Заблокирован тикетом #66.
 5. #68 — `perAttemptTimeout` через `withTimeout` в `HttpTool.open` (долг из памяти
    `Retry_engine_in_common_retry-37360798096e.md`). Заблокирован тикетом #67 (нужны
-   `connectTimeout`/`readTimeout`). **Отложен 07.10.2026:** production-реализации `HttpTool` в
+   `connectTimeout`/`requestTimeout`). **Отложен 07.10.2026:** production-реализации `HttpTool` в
    репозитории нет, ограничивать по времени нечего — задача ждёт первого реального клиента.
 
 **Локальный долг.** Константы `MAX_ATTEMPTS = 5` и `RETRY_BASE_PAUSE = 250ms` были дефолтами из

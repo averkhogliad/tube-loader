@@ -45,6 +45,17 @@ class RutubeErrorTaxonomyTest :
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
             }
+
+            "reports NetworkTransient when the body breaks in the middle of the read" {
+                // given
+                val http = FakeHttpTool().always(BROKEN_BODY_STUB)
+
+                // when
+                val actual = adapter(http).loadMeta(MEDIA_ID)
+
+                // then
+                actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
+            }
         }
 
         "download" - {

@@ -1,6 +1,8 @@
 package io.averkhogliad.tubeloader.core.http
 
 import io.averkhogliad.tubeloader.core.config.HttpToolConfig
+import io.averkhogliad.tubeloader.core.port.Headers
+import io.averkhogliad.tubeloader.core.port.HttpResponse
 import io.averkhogliad.tubeloader.core.port.HttpTool
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
@@ -32,7 +34,17 @@ private fun client(engine: MockEngine, config: HttpToolConfig = HttpToolConfig()
         followRedirects = false
     }
 
-private fun tool(engine: MockEngine): HttpTool = HttpTools.create(client(engine)) { HttpToolConfig() }
+private fun tool(engine: MockEngine): HttpTool = HttpTools.create(client(engine))
+
+private class CloseReportingChannel(content: String) : ByteReadChannel by ByteReadChannel(content) {
+
+    var isClosed = false
+        private set
+
+    override fun cancel(cause: Throwable?) {
+        isClosed = true
+    }
+}
 
 private fun gzip(bytes: ByteArray): ByteArray {
     val out = ByteArrayOutputStream()
@@ -93,15 +105,19 @@ class KtorHttpToolTest :
             "closes the stream after the block returns" {
                 runTest {
                     // given
-                    val body = ByteReadChannel("payload")
-                    val engine = MockEngine { respond(body, HttpStatusCode.OK) }
+                    // the engine buffers the body it answers with, so the channel the response was
+                    // built over is the only owner of the stream a test can observe
+                    val body = CloseReportingChannel("payload")
+                    val response: HttpResponse = KtorHttpResponse(200, 7L, Headers(emptyMap()), body)
+                    val closedBefore = body.isClosed
 
                     // when
-                    val firstByte = tool(engine).open(URL).getOrThrow().content { it.read() }
+                    val firstByte = response.content { it.read() }
 
                     // then
+                    closedBefore shouldBe false
                     firstByte shouldBe 'p'.code
-                    body.isClosedForRead shouldBe true
+                    body.isClosed shouldBe true
                 }
             }
 
