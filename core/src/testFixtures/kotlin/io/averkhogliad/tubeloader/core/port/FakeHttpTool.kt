@@ -11,15 +11,15 @@ private const val HTTP_OK = 200
  */
 sealed interface HttpStub {
 
-    data class Respond(val body: HttpBody) : HttpStub
+    data class Respond(val body: HttpResponse) : HttpStub
 
     data class Fail(val error: Throwable) : HttpStub
 }
 
-fun httpBody(content: ByteArray, contentLength: Long? = content.size.toLong(), status: Int = HTTP_OK): HttpBody =
-    HttpBody(status, ByteArrayInputStream(content), contentLength)
+fun httpBody(content: ByteArray, contentLength: Long? = content.size.toLong(), status: Int = HTTP_OK): HttpResponse =
+    HttpResponse(status, ByteArrayInputStream(content), contentLength)
 
-fun textBody(content: String, status: Int = HTTP_OK): HttpBody = httpBody(content.toByteArray(), status = status)
+fun textBody(content: String, status: Int = HTTP_OK): HttpResponse = httpBody(content.toByteArray(), status = status)
 
 /**
  * Stub of [HttpTool] for adapter tests: every call is recorded in [opened], and answers come from a
@@ -32,11 +32,11 @@ class FakeHttpTool : HttpTool {
 
     private val routes = mutableListOf<Route>()
 
-    private var fallback: suspend (String) -> HttpBody = { httpBody(ByteArray(0)) }
+    private var fallback: suspend (String) -> HttpResponse = { httpBody(ByteArray(0)) }
 
     override fun close() = Unit
 
-    override suspend fun open(url: String, headers: Map<String, String>): HttpBody {
+    override suspend fun open(url: String, headers: Map<String, String>): HttpResponse {
         opened += OpenCall(url, headers)
         val route = routes.firstOrNull { url.startsWith(it.prefix) } ?: return fallback(url)
         return route.next(url)
@@ -60,7 +60,7 @@ class FakeHttpTool : HttpTool {
     /**
      * Answers every request with [body].
      */
-    fun respondingWith(body: HttpBody): FakeHttpTool = always(HttpStub.Respond(body))
+    fun respondingWith(body: HttpResponse): FakeHttpTool = always(HttpStub.Respond(body))
 
     /**
      * Fails every request with [error].
@@ -101,14 +101,14 @@ class FakeHttpTool : HttpTool {
 
         private var index = 0
 
-        suspend fun next(url: String): HttpBody {
+        suspend fun next(url: String): HttpResponse {
             val stub = stubs[minOf(index, stubs.lastIndex)]
             index += 1
             return serve(url, stub)
         }
     }
 
-    private fun stubReader(stubs: Array<out HttpStub>): suspend (String) -> HttpBody {
+    private fun stubReader(stubs: Array<out HttpStub>): suspend (String) -> HttpResponse {
         var index = 0
         return { url ->
             val stub = stubs[minOf(index, stubs.lastIndex)]
@@ -118,7 +118,7 @@ class FakeHttpTool : HttpTool {
     }
 
     companion object {
-        private suspend fun serve(url: String, stub: HttpStub): HttpBody =
+        private suspend fun serve(url: String, stub: HttpStub): HttpResponse =
             when (stub) {
                 is HttpStub.Respond -> stub.body
                 is HttpStub.Fail -> throw stub.error
