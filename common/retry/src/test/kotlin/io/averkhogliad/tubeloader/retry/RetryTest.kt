@@ -84,7 +84,7 @@ class RetryTest :
 
                     // when
                     val actual =
-                        retry(RetryPolicy.withinBudget(budget), timeSource = timeSource) {
+                        retry<String>(RetryPolicy.withinBudget(budget), timeSource = timeSource) {
                             calls.incrementAndGet()
                             timeSource += 12.seconds
                             Result.failure(IOException(UNREACHABLE))

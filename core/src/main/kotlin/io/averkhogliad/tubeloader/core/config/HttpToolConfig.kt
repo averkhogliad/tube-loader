@@ -53,7 +53,14 @@ data class HttpToolConfig(
                 connectTimeout = millisecondsAt(table, tablePath, "connect-timeout-ms", DEFAULT_CONNECT_TIMEOUT),
                 readTimeout = millisecondsAt(table, tablePath, "read-timeout-ms", DEFAULT_READ_TIMEOUT),
                 retryMaxAttempts = attemptsAt(table, tablePath),
-                retryBaseDelay = millisecondsAt(table, tablePath, "base-delay-ms", DEFAULT_RETRY_BASE_DELAY),
+                retryBaseDelay =
+                    millisecondsAt(
+                        table,
+                        tablePath,
+                        "base-delay-ms",
+                        DEFAULT_RETRY_BASE_DELAY,
+                        allowZero = true,
+                    ),
                 retryRandomizationFactor = factorAt(table, tablePath),
                 retryRetriableStatuses = statusesAt(table, tablePath) ?: DEFAULT_RETRIABLE_STATUSES,
             )
@@ -64,11 +71,12 @@ data class HttpToolConfig(
             tablePath: String,
             key: String,
             default: Duration,
+            allowZero: Boolean = false,
         ): Duration {
             val raw = table[key] ?: return default
             val at = name(tablePath, key)
             val value = requireNonNegative(raw, at)
-            require(value > 0) { "$at must be positive, got $raw" }
+            require(allowZero || value > 0) { "$at must be positive, got $raw" }
             return value.milliseconds
         }
 

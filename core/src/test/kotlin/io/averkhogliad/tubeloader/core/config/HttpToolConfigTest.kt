@@ -5,6 +5,7 @@ import io.averkhogliad.tubeloader.config.mapConfig
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -118,6 +119,17 @@ class HttpToolConfigTest :
                 // then
                 thrown.message shouldBe
                     "download.http-tool.read-timeout-ms must be positive, got 0"
+            }
+
+            "accepts a zero retry base delay, which repeats without waiting" {
+                // given
+                val config = toml("[download.http-tool]\nbase-delay-ms = 0")
+
+                // when
+                val actual = HttpToolConfig.fromConfig(config)
+
+                // then
+                actual.retryBaseDelay shouldBe Duration.ZERO
             }
 
             "rejects a randomization factor outside the unit interval" {

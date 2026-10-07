@@ -95,7 +95,7 @@ class TomlConfig private constructor(private val leaves: Map<String, Any>) : Con
          */
         private fun unwrap(element: Any?): Any? =
             when (element) {
-                is TomlValue -> element.content
+                is TomlValue -> unwrap(element.content)
                 is List<*> -> element.map(::unwrap)
                 else -> element
             }
