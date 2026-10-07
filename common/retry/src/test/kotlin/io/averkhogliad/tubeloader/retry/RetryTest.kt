@@ -189,13 +189,74 @@ class RetryTest :
             "answers the transport failure itself when the attempts run out on it" {
                 // given
                 val attempts = Attempts(failures = 5)
-                val context = RetryContext<String>(judging = { false })
+                val exhausted = mutableListOf<String>()
+                val context =
+                    RetryContext<String>(
+                        judging = { false },
+                        onExhausted = {
+                            exhausted += it
+                            Result.success(it)
+                        },
+                    )
 
                 // when
                 val actual = retry(RetryPolicy.stopAtAttempts(2), context) { attempts.answer("payload") }
 
                 // then
                 actual.exceptionOrNull().shouldBeInstanceOf<IOException>()
+                exhausted shouldBe emptyList()
+            }
+
+            "hands the refused value to the caller when the context asks for the value" {
+                // given
+                val attempts = Attempts(failures = 0)
+                val rejected = mutableListOf<String>()
+                val context =
+                    RetryContext<String>(
+                        judging = { it == "payload" },
+                        onExhausted = { value ->
+                            rejected += value
+                            Result.success(value)
+                        },
+                    )
+
+                // when
+                val actual = retry(RetryPolicy.stopAtAttempts(3), context) { attempts.answer("broken") }
+
+                // then
+                actual shouldBe Result.success("broken")
+                rejected shouldBe listOf("broken")
+                attempts.calls shouldBe 3
+            }
+
+            "wraps a refused null just as it wraps any other value" {
+                // given
+                val context = RetryContext<String?>(judging = { false })
+
+                // when
+                val actual = retry(RetryPolicy.stopAtAttempts(3), context) { Result.success(null) }
+
+                // then
+                actual.exceptionOrNull().shouldBeInstanceOf<RetryExhausted>().lastValue shouldBe null
+            }
+
+            "answers a refused null through the context instead of losing it" {
+                // given
+                val answers = mutableListOf<Result<String?>>()
+                val context =
+                    RetryContext<String?>(
+                        judging = { false },
+                        onExhausted = { value ->
+                            Result.success(value).also { answers += it }
+                        },
+                    )
+
+                // when
+                val actual = retry(RetryPolicy.stopAtAttempts(2), context) { Result.success(null) }
+
+                // then a null that was answered is not mistaken for an absent answer
+                actual shouldBe Result.success(null)
+                answers shouldBe listOf(Result.success(null))
             }
 
             "keeps the previous behaviour when no context is given" {
