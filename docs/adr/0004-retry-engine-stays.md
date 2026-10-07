@@ -10,7 +10,7 @@
 Адаптеры источников ретраят сетевые сбои (обрыв, таймаут, 5xx, 429) через собственный движок
 `:common:retry` — пять исходников в `:common:retry/src/main/kotlin/io/averkhogliad/tubeloader/retry/`,
 портирующих контракты `kotlin-retry 2.0.2` на наш шов (`kotlin.Result`, без generic по типу
-ошибки, `+`-композиция `Stop`/`maxOf`, `withinBudget(cumulativeDelay)` без дефолта бюджета,
+ошибки, `+`-композиция `Stop`/`maxOf`, `withinBudget(elapsed)` без дефолта бюджета,
 `MAX_BACKOFF_STEP = 30` от переполнения shift). Адаптеры собирают политику из фабрик
 (`stopAtAttempts + continueIf + exponentialBackoff`) и сейчас ретраят по маркеру
 `HttpStatusException : IOException` (память
@@ -21,11 +21,11 @@ kmp-resilient — стандарт де-факто в отрасли», а по�
 функциональное сравнение; либо обоснованно пишем своё, либо отказываемся в пользу библиотеки».
 Гриль прошёл 4 раунда по 3 вопроса, исследовано четыре публичных альтернативы:
 
-| Кандидат | Coroutines | `kotlin.Result` | `cumulativeDelay`-бюджет | Чистая политика | `retryOnResult` | Отдельный артефакт | Лидер ниши |
+| Кандидат | Coroutines | `kotlin.Result` | Бюджет по времени | Чистая политика | `retryOnResult` | Отдельный артефакт | Лидер ниши |
 |---|---|---|---|---|---|---|---|
 | `:common:retry` (текущий) | ✅ | ✅ | ✅ | ✅ `RetryPolicy` + `Stage` | ❌ план | n/a (наш) | n/a |
-| `kotlin-retry 2.0.2` (michaelbull, 378★, ISC) | ✅ | ❌ свой `Ok/Err` | ✅ встроен | ✅ | ✅ через `RetryOn.returned` | ✅ `kotlin-retry` | 378★ Kotlin coroutines retry |
-| `kmp-resilient 2.0.1` (santimattius, 149★, Apache-2.0) | ✅ | ❌ throws last error | ❌ нет | ❌ `BackoffStrategy` sealed | ⚠️ `shouldRetryResult` (только Ktor-плагин) | ❌ тянет весь `resilient-jvm` | KMP-only resilience |
+| `kotlin-retry 2.0.2` (michaelbull, 378★, ISC) | ✅ | ❌ свой `Ok/Err` | ⚠️ по паузам (`cumulativeDelay`) | ✅ | ✅ через `RetryOn.returned` | ✅ `kotlin-retry` | 378★ Kotlin coroutines retry |
+| `kmp-resilient 2.0.1` (santimattius, 149★, Apache-2.0) | ✅ | ❌ throws last error | ✅ `ResilientDeadline` (вне политики) | ❌ `BackoffStrategy` sealed | ⚠️ `shouldRetryResult` (только Ktor-плагин) | ❌ тянет весь `resilient-jvm` | KMP-only resilience |
 | Arrow Resilience 2.2.3 (Apache-2.0) | ✅ | ❌ throws / `Either` | ❌ нет | ❌ `Schedule` stateful | ❌ через `retryOrElseEither` | ✅ `arrow-resilience-core` | часть Arrow-экосистемы |
 | Kresil (`kresil/kresil`, Apache-2.0) | ✅ | ❌ throws | ❌ нет | ❌ stateful | ✅ `retryOnResult` | ❌ **артефакт не опубликован на Maven Central** | 9★, 0 форков |
 
@@ -41,7 +41,7 @@ Sandbox-пробы (артефакты в `.tasks/probe-arrow-resilience/`):
   `arrow-atomic`/`arrow-exception-utils` — это вход в Arrow-экосистему, не «+1 библиотека».
 - kmp-resilient 2.0.1 — `BackoffStrategy` остаётся `sealed`, retry не отдельный артефакт, throws
   last error, бюджета по `cumulativeDelay` нет (проверено в `DefaultRetryPolicy.kt`-исходниках
-  2.0.1, не в обзоре).
+  2.0.1, не в обзоре); deadline у него есть, но живёт в `CoroutineContext`, а не в политике.
 
 ## Decision
 
@@ -120,8 +120,9 @@ DSL-блок `retryConfig { … }` (Kresil/kmp-resilient) — **отвергну
 
 **Что остаётся не покрыто `:common:retry`.** См. `docs/archive/retry/not-covered.md`: per-attempt
 timeout (отдельный шов `HttpTool`), decorrelated jitter (избыточно для текущего профиля),
-`Retry-After` от сервера (порт `HttpTool` не отдаёт), wall-clock-бюджет (Failsafe/Polly — у нас
-budget по паузам, другое требование). Полный список и обоснование — в архивном файле.
+`Retry-After` от сервера (порт `HttpTool` не отдаёт). Бюджет по паузам (Failsafe/Polly — wall-clock)
+движок не берёт: бюджет считается по прошедшему времени. Полный список и обоснование — в архивном
+файле.
 
 **Несовместимо с этим под-деревом решений.**
 - Введение зависимости на `kotlin-retry 2.0.2` (требует ADR на смену контракта `SourceAdapter`

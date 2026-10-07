@@ -219,23 +219,34 @@ class PoliciesTest :
         }
 
         "withinBudget" - {
-            "continues while the pauses spent stay below the budget" {
+            "continues while the time spent stays below the budget" {
                 // given
                 val policy = RetryPolicy.withinBudget(1.seconds)
 
                 // when
-                val actual = policy.decide(failedAttempt(number = 1, cumulativeDelay = 900.milliseconds))
+                val actual = policy.decide(failedAttempt(number = 1, elapsed = 900.milliseconds))
 
                 // then
                 actual shouldBe ContinueRetrying
             }
 
-            "stops once the pauses spent reach the budget" {
+            "stops once the time spent passes the budget" {
                 // given
                 val policy = RetryPolicy.withinBudget(1.seconds)
 
                 // when
-                val actual = policy.decide(failedAttempt(number = 2, cumulativeDelay = 1.seconds))
+                val actual = policy.decide(failedAttempt(number = 2, elapsed = 1.seconds + 1.milliseconds))
+
+                // then
+                actual shouldBe StopRetrying
+            }
+
+            "stops instead of taking a pause that would overrun the budget" {
+                // given
+                val policy = RetryPolicy.withinBudget(1.seconds).constantDelay(200.milliseconds)
+
+                // when
+                val actual = policy.decide(failedAttempt(number = 1, elapsed = 900.milliseconds))
 
                 // then
                 actual shouldBe StopRetrying
@@ -246,7 +257,7 @@ class PoliciesTest :
                 val policy = RetryPolicy.withinBudget(Duration.INFINITE)
 
                 // when
-                val actual = policy.decide(failedAttempt(number = 99, cumulativeDelay = 365.milliseconds * 24 * 3600))
+                val actual = policy.decide(failedAttempt(number = 99, elapsed = 365.milliseconds * 24 * 3600))
 
                 // then
                 actual shouldBe ContinueRetrying

@@ -45,10 +45,11 @@ fun RetryPolicy.exponentialBackoff(
 }
 
 /**
- * Appends a stage that stops once the pauses already spent reach [budget].
+ * Appends a stage that stops once the retry has spent [budget] of elapsed time.
  *
- * The budget covers the pauses, not the time the attempts themselves take: a policy sees only what
- * the driver reports, and the driver knows just how long it slept.
+ * The budget covers everything the retry has cost — the attempts themselves and the pauses between
+ * them. A pause that would carry the retry past the budget is not taken at all, so the budget is a
+ * ceiling rather than a checkpoint.
  */
 fun RetryPolicy.withinBudget(budget: Duration): RetryPolicy = then(WithinBudget(budget))
 
@@ -88,8 +89,7 @@ private class ExponentialBackoff(
     }
 }
 
-private class WithinBudget(private val budget: Duration) : Stage {
+private class WithinBudget(override val budget: Duration) : TimeBudget {
 
-    override fun decide(attempt: FailedAttempt): RetryInstruction =
-        if (attempt.cumulativeDelay >= budget) StopRetrying else ContinueRetrying
+    override fun decide(attempt: FailedAttempt): RetryInstruction = ContinueRetrying
 }

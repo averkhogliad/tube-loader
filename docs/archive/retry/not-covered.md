@@ -17,9 +17,9 @@
 | `perAttemptTimeout` (таймаут одной попытки) | `kmp-resilient 2.0+` через `RetryPolicyConfig.perAttemptTimeout`; Failsafe/Polly через отдельный `Timeout` | Нет. Обходится `withTimeout` вокруг блока или в `HttpTool.open` | Не шов движка — отдельный шов `HttpTool` (#68) |
 | Decorrelated jitter (AWS-формула) | kmp-resilient `DecorrelatedJitterBackoff`, Polly `MedianFirstJitterBackoff`, tenacity `wait_random_jitter` | Нет. Только ±N% `randomizationFactor` (идея 2 ADR-0004) | Сегменты качаются последовательно (память `Retry_libraries_survey_-_kotlin-retry_closest-877ba70d281e.md`), декорелированный jitter избыточен |
 | `Retry-After` от сервера | resilience4j через `RetryAfter` response handler, Failsafe/Polly в `Handle`/`WaitAndRetry` | Нет. Экспонента как дешёвая замена | Порт `HttpTool.open` не отдаёт header; правка порта — отдельный тикет |
-| Wall-clock-бюджет (`withMaxDuration`) | Failsafe `.withMaxDuration`, Guava `WaitStrategies.maxDuration`, Polly `MedianTime`, tenacity `stop_after_delay` | Нет. Только `withinBudget(cumulativeDelay)` — сумма пауз, не wall-clock | Другое требование: `cumulativeDelay` гарантирует предсказуемый предел пауз; wall-clock включает тело запроса и зависит от `HttpTool` |
+| Бюджет по паузам (`cumulativeDelay`) | `kotlin-retry` | Нет. Бюджет считается по прошедшему времени (`withinBudget(elapsed)`), как у Failsafe/Polly/tenacity | Сумма пауз не ограничивает реальное время: зависший запрос не двигает `cumulativeDelay` |
 | `RetryRegistry`/`Retry.ofDefaults`/`Retry()` без аргументов | resilience4j, Kresil, kmp-resilient | Нет — адаптер сам собирает политику | Не нужно скрывать явную сборку |
-| `MAX_ATTEMPTS = 5`, `RETRY_BASE_PAUSE = 250ms` — провенанс невосстановим | n/a (наши) | Дефолты в коде адаптера, грил-заметок в git нет | Согласование дефолтов — отдельная задача, когда они станут TOML-параметрами (#67) |
+| `MAX_ATTEMPTS = 5`, `RETRY_BASE_PAUSE = 250ms` — провенанс невосстановим | n/a (наши) | Дефолты в `HttpToolConfig`, грил-заметок в git нет | Согласование дефолтов — отдельная задача |
 | `Retry.onAttempt`, `Retry.onSuccess` (расширение `onRetry`) | Kresil `retry.onEvent`, Failsafe `FailsafeListener.onComplete` | Нет — только `onRetry` (идея 3 ADR-0004) | Понадобятся — отдельный тикет, через те же `+`-точки, что и `onRetry` |
 | `SharedFlow<ResilientEvent>` + `RetrySnapshot` + OTel/Micrometer export | kmp-resilient 2.0+ | Нет | Не нужно сейчас; `onRetry` callback закрывает минимум наблюдаемости |
 | DSL-блок `retryConfig { … }` | Kresil, kmp-resilient | Нет — Compose-DSL (issue #63) | Ломает Compose-форму (`+`-оператор как точка сборки). Отдельный гриль при появлении use-case |
@@ -73,7 +73,7 @@
 
 | Источник | Кейс | Почему не нужен |
 |---|---|---|
-| kmp-resilient `ResilientDeadline` (coroutine-context budget) | Wall-clock бюджет через coroutine context | У нас budget по паузам. Другая семантика, не нужен |
+| kmp-resilient `ResilientDeadline` (coroutine-context budget) | Wall-clock бюджет через coroutine context | Есть `withinBudget(elapsed)` в политике, без coroutine context | Другая форма, не другой спрос |
 | kmp-resilient `policy.cancelListeners()` | Управление listener-lifecycle | `onRetry` callback не владеет state'ом — lifecycle не нужен |
 | resilience4j `RetryRegistry` (центральный registry политик) | Именованные политики | У нас каждая политика собирается в адаптере — registry не нужен |
 | Failsafe `Failsafe.shutdown()` | Lifecycle-метод | Наш движок stateless — нет lifecycle |
@@ -94,7 +94,7 @@
 4. **`MAX_BACKOFF_STEP = 30` защита от переполнения shift**. Длинная экспонента с наивным
    `base * 2^(n-1)` даёт отрицательную паузу после ~30 итераций. Ни одна рассмотренная
    публичная библиотека не вытаскивает это в видимое свойство.
-5. **`withinBudget(cumulativeDelay)` без дефолта бюджета**. У `kotlin-retry` бюджет по
+5. **`withinBudget(elapsed)` без дефолта бюджета**. У `kotlin-retry` бюджет по
    `cumulativeDelay` есть; в пайплайне по умолчанию не выключен — политика неявно ограничена.
    У нас бюджет задаёт вызывающий явно, политика не подменяется скрытым потолком.
 

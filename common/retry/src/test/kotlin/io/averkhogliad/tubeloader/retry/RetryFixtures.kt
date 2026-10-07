@@ -41,5 +41,6 @@ internal fun failedAttempt(
     number: Int,
     previousDelay: Duration = Duration.ZERO,
     cumulativeDelay: Duration = Duration.ZERO,
+    elapsed: Duration = Duration.ZERO,
     failure: Throwable = IOException(UNREACHABLE),
-): FailedAttempt = FailedAttempt(failure, number, previousDelay, cumulativeDelay)
+): FailedAttempt = FailedAttempt(failure, number, previousDelay, cumulativeDelay, elapsed)

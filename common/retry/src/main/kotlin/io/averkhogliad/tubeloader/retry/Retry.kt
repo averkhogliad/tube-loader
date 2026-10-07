@@ -5,6 +5,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
+import kotlin.time.TimeSource
 
 /**
  * Repeats [block] while its outcome is refused and [policy] asks for another attempt.
@@ -15,12 +16,17 @@ import kotlin.time.Duration
  * the last outcome — the failure itself, or [RetryExhausted] when the attempts ran out on a value
  * the context kept refusing. Cancellation is rethrown rather than retried: a cancelled caller is not
  * waiting for another attempt.
+ *
+ * [timeSource] is what [FailedAttempt.elapsed] is measured against; a test hands in its own so that
+ * a budget can be checked without waiting for real time to pass.
  */
 suspend fun <T> retry(
     policy: RetryPolicy,
     context: RetryContext<T> = RetryContext(),
+    timeSource: TimeSource = TimeSource.Monotonic,
     block: suspend () -> Result<T>,
 ): Result<T> {
+    val start = timeSource.markNow()
     var number = 1
     var previousDelay = Duration.ZERO
     var cumulativeDelay = Duration.ZERO
@@ -37,7 +43,7 @@ suspend fun <T> retry(
                     error
                 },
             )
-        val attempt = FailedAttempt(failure, number, previousDelay, cumulativeDelay)
+        val attempt = FailedAttempt(failure, number, previousDelay, cumulativeDelay, start.elapsedNow())
         when (val instruction = policy.decide(attempt)) {
             StopRetrying -> {
                 return Result.failure(failure)

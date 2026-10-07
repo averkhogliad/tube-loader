@@ -6,9 +6,12 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TestTimeSource
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RetryTest :
@@ -70,6 +73,27 @@ class RetryTest :
 
                 // then
                 spent shouldBe 200L
+            }
+
+            "counts the budget in elapsed time, not in the pauses it slept" {
+                runTest {
+                    // given a source that takes twelve seconds to answer and then refuses
+                    val timeSource = TestTimeSource()
+                    val budget = 30.seconds
+                    val calls = AtomicInteger()
+
+                    // when
+                    val actual =
+                        retry(RetryPolicy.withinBudget(budget), timeSource = timeSource) {
+                            calls.incrementAndGet()
+                            timeSource += 12.seconds
+                            Result.failure(IOException(UNREACHABLE))
+                        }
+
+                    // then three attempts fit in the budget and the fourth does not
+                    actual.isFailure shouldBe true
+                    calls.get() shouldBe 3
+                }
             }
 
             "hands the attempt number and the delays it spent to the policy" {
