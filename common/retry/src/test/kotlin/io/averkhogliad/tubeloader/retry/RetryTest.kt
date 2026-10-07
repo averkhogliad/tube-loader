@@ -59,6 +59,18 @@ class RetryTest :
                 attempts.calls shouldBe 2
             }
 
+            "stops after a single attempt when the policy names no link at all" {
+                // given
+                val attempts = Attempts(failures = 5)
+
+                // when
+                val actual = retry(RetryPolicy) { attempts.answer("payload") }
+
+                // then
+                actual.isFailure shouldBe true
+                attempts.calls shouldBe 1
+            }
+
             "waits for the pause the policy asks for" {
                 // given
                 val attempts = Attempts(failures = 2)
@@ -120,16 +132,25 @@ class RetryTest :
                 // given
                 val recording = RecordingPolicy { ContinueRetrying }
                 val policy = RetryPolicy.then(recording)
+                var judged = 0
+                val context =
+                    RetryContext<String>(
+                        judging = {
+                            judged += 1
+                            true
+                        },
+                    )
 
                 // when
                 val thrown =
                     runCatching {
-                        runTest { retry<String>(policy) { throw CancellationException("cancelled") } }
+                        runTest { retry(policy, context) { throw CancellationException("cancelled") } }
                     }.exceptionOrNull()
 
                 // then
                 thrown.shouldBeInstanceOf<CancellationException>()
                 recording.seen shouldBe emptyList()
+                judged shouldBe 0
             }
         }
 

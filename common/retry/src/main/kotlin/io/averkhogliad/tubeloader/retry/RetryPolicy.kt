@@ -53,7 +53,8 @@ internal fun RetryPolicy.stages(): List<Stage> =
 
 /**
  * Folds the decisions of the chain into the single instruction the driver acts on. Nothing votes for
- * a pause, the retry repeats at once; nothing stops it, the retry continues.
+ * a pause, the retry repeats at once. A chain of no links at all stops at once: a caller that named
+ * no limit gets a single attempt rather than a loop, so forgetting a link is not a silent spin.
  *
  * A time budget is judged here rather than by its own stage, because the question it asks is about
  * the pause the attempt is about to take: a pause that would carry the retry past the budget is not
@@ -67,7 +68,7 @@ internal fun RetryPolicy.decide(attempt: FailedAttempt): RetryInstruction {
     val budget = stages.filterIsInstance<TimeBudget>().minOfOrNull { it.budget }
     val overBudget = budget != null && attempt.elapsed + pause > budget
     return when {
-        decisions.any { it is StopRetrying } || overBudget -> StopRetrying
+        stages.isEmpty() || decisions.any { it is StopRetrying } || overBudget -> StopRetrying
         else -> awaited ?: ContinueRetrying
     }
 }

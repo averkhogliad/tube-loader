@@ -112,7 +112,8 @@ class RutubeRetryTest :
             "does not retry a server error outside the transient set" {
                 // given
                 // 500 is the verdict of the source, not a hiccup: the default set names only 502/503/504
-                val http = FakeHttpTool().route(OPTIONS_URL, HttpStub.Respond(textBody("boom", status = 500)))
+                val refused = trackedBody("boom", 500)
+                val http = FakeHttpTool().route(OPTIONS_URL, refused.response)
 
                 // when
                 val actual = adapter(http).loadMeta(MEDIA_ID)
@@ -120,6 +121,7 @@ class RutubeRetryTest :
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
                 http.opened.size shouldBe 1
+                refused.isClosed shouldBe true
             }
 
             "repeats a request timeout answer and answers from the next response" {

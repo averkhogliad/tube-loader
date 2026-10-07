@@ -52,4 +52,4 @@ Remove-Item -Recurse -Force core/build/test-results
 даёт на `:core:test --rerun-tasks` ровно `> java.io.EOFException` (в `--stacktrace` —
 `Caused by: java.io.UncheckedIOException: java.io.EOFException`, кадр
 `org.gradle.api.tasks.testing.Test.getPreviousFailedTestClasses(Test.java:752)`); удаление
-каталога и повторный прогон — `BUILD SUCCESSFUL`, 226 тестов, 0 failures.
+каталога и повторный прогон — `BUILD SUCCESSFUL`, тесты проходят, 0 failures.

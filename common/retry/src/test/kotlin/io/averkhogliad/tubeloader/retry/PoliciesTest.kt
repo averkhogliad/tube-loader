@@ -350,7 +350,7 @@ class PoliciesTest :
                 actual shouldBe RetryAfter(2.seconds)
             }
 
-            "repeats at once when the empty element is the only link" {
+            "stops at once when the empty element is the only link" {
                 // given
                 val policy = RetryPolicy + RetryPolicy
 
@@ -358,7 +358,7 @@ class PoliciesTest :
                 val actual = policy.decide(failedAttempt(number = 1))
 
                 // then
-                actual shouldBe ContinueRetrying
+                actual shouldBe StopRetrying
             }
         }
     })
