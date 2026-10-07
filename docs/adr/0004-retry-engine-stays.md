@@ -12,9 +12,10 @@
 портирующих контракты `kotlin-retry 2.0.2` на наш шов (`kotlin.Result`, без generic по типу
 ошибки, `+`-композиция `Stop`/`maxOf`, `withinBudget(elapsed)` без дефолта бюджета,
 `MAX_BACKOFF_STEP = 30` от переполнения shift). Адаптеры собирают политику из фабрик
-(`stopAtAttempts + continueIf + exponentialBackoff`) и сейчас ретраят по маркеру
+(`stopAtAttempts + continueIf + exponentialBackoff`) и ретраили по маркеру
 `HttpStatusException : IOException` (память
-`Rutube_retry_-_4xx_filtered_by_value_before_retry_-_5xx_via_marker-0ed5834c83bb.md`).
+`Rutube_retry_-_4xx_filtered_by_value_before_retry_-_5xx_via_marker-0ed5834c83bb.md`); маркер убран
+задачей #66.
 
 Пользователь поднял вопрос: «сравни и рассмотри возможность и необходимость перейти на
 kmp-resilient — стандарт де-факто в отрасли», а потом уточнил рамку: «не “стандарт де-факто”, а
@@ -23,7 +24,7 @@ kmp-resilient — стандарт де-факто в отрасли», а по�
 
 | Кандидат | Coroutines | `kotlin.Result` | Бюджет по времени | Чистая политика | `retryOnResult` | Отдельный артефакт | Лидер ниши |
 |---|---|---|---|---|---|---|---|
-| `:common:retry` (текущий) | ✅ | ✅ | ✅ | ✅ `RetryPolicy` + `Stage` | ❌ план | n/a (наш) | n/a |
+| `:common:retry` (текущий) | ✅ | ✅ | ✅ | ✅ `RetryPolicy` + `Stage` | ✅ `judging` + `onExhausted` | n/a (наш) | n/a |
 | `kotlin-retry 2.0.2` (michaelbull, 378★, ISC) | ✅ | ❌ свой `Ok/Err` | ⚠️ по паузам (`cumulativeDelay`) | ✅ | ✅ через `RetryOn.returned` | ✅ `kotlin-retry` | 378★ Kotlin coroutines retry |
 | `kmp-resilient 2.0.1` (santimattius, 149★, Apache-2.0) | ✅ | ❌ throws last error | ✅ `ResilientDeadline` (вне политики) | ❌ `BackoffStrategy` sealed | ⚠️ `shouldRetryResult` (только Ktor-плагин) | ❌ тянет весь `resilient-jvm` | KMP-only resilience |
 | Arrow Resilience 2.2.3 (Apache-2.0) | ✅ | ❌ throws / `Either` | ❌ нет | ❌ `Schedule` stateful | ❌ через `retryOrElseEither` | ✅ `arrow-resilience-core` | часть Arrow-экосистемы |
@@ -95,6 +96,10 @@ DSL-блок `retryConfig { … }` (Kresil/kmp-resilient) — **отвергну
   пауза считается как `base * (1 - factor + 2 * factor * random())`, где `random: () -> Double`
   по умолчанию `Math::random`. Тесты подставляют `Random(seed)`, поэтому окно джиттера
   проверяется детерминированно, а не флакает.
+- **Бюджет считается по источнику времени, который передаёт вызывающий.** Сигнатура —
+  `retry(policy, context, timeSource = TimeSource.Monotonic, block)`; `FailedAttempt.elapsed`
+  меряется от старта retry. Тесты подставляют `TestTimeSource` и двигают время вручную, поэтому
+  бюджет проверяется без ожидания реального времени.
 - **`perAttemptTimeout` (#68) отложен.** Ограничивать по времени пока нечего: production-реализации
   `HttpTool`/`MediaTool` в репозитории нет, есть только порты ядра и тестовые фейки. Шов получает
   таймаут вместе с первым реальным клиентом; параметры `connect-timeout-ms`/`read-timeout-ms`
@@ -112,20 +117,21 @@ DSL-блок `retryConfig { … }` (Kresil/kmp-resilient) — **отвергну
    `core/.../adapters/rutube/RutubeSourceAdapter.kt` (убрать `HttpStatusException`-маркер).
    ~60 LoC.
 3. #69 — Compose-DSL из issue #63: влитие выбранной формы (`interface RetryPolicy` +
-   `companion object : RetryPolicy` + `then`/`Combined`/`Stage`). ~40 LoC, 23 аннотации `<Throwable>`
-   уходят. Форма `fun interface` была отвергнута пробой: `companion object` требует конструктора
+   `companion object : RetryPolicy` + `then`/`Combined`/`Stage`). ~40 LoC, 29 аннотаций `<Throwable>`
+   уходят — счёт по всем `*.kt` на базовом коммите `a27badd`. Форма `fun interface` была отвергнута пробой: `companion object` требует конструктора
    у интерфейса, а `fun interface` его не даёт («Interface 'interface RetryPolicy : Any' does not
    have constructors»).
 4. #67 — `[download.http-tool]` плоский блок + `HttpToolConfig` в `AppConfig` + интеграция
    в адаптер. ~50 LoC + 30 LoC тестов. Заблокирован тикетом #66.
 5. #68 — `perAttemptTimeout` через `withTimeout` в `HttpTool.open` (долг из памяти
    `Retry_engine_in_common_retry-37360798096e.md`). Заблокирован тикетом #67 (нужны
-   `connectTimeout`/`readTimeout`). **Отложен 16.10.2026:** production-реализации `HttpTool` в
+   `connectTimeout`/`readTimeout`). **Отложен 07.10.2026:** production-реализации `HttpTool` в
    репозитории нет, ограничивать по времени нечего — задача ждёт первого реального клиента.
 
-**Локальный долг.** `MAX_ATTEMPTS = 5` и `RETRY_BASE_PAUSE = 250ms` — дефолты из кода адаптера,
-**не из грил-заметок**. Провенанс невосстановим: `git ls-files | grep grill` пусто. Согласование
-дефолтов — отдельная задача, когда retry-параметры станут настраиваемыми через TOML (тикет 3).
+**Локальный долг.** Константы `MAX_ATTEMPTS = 5` и `RETRY_BASE_PAUSE = 250ms` были дефолтами из
+кода адаптера, **не из грил-заметок**: провенанс невосстановим, `git ls-files | grep grill` пусто.
+Тикет #67 их удалил — значения приходят из `[download.http-tool]`, дефолты живут в `HttpToolConfig`.
+Согласование дефолтов между источниками — отдельная задача.
 
 **Что остаётся не покрыто `:common:retry`.** См. `docs/archive/retry/not-covered.md`: per-attempt
 timeout (отдельный шов `HttpTool`), decorrelated jitter (избыточно для текущего профиля),

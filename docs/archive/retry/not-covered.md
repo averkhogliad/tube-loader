@@ -66,7 +66,7 @@
 | Kresil `retryConfig { maxAttempts = N; retryIf { ... } }` | DSL-блок настроек | Compose-DSL (issue #63). DSL-блок ломает `+`-оператор как точку сборки |
 | kmp-resilient `resilient { timeout{}; retry{}; circuitBreaker{} }` | Пайплайн-билдер | У нас нет CB/rate limiter/timeout-узла. Pipeline — будущее, не сейчас |
 | Arrow `Schedule.andThen(other)` | Последовательная композиция («после K попыток с одной политикой — другая») | У нас не выражается через `+`-композицию. Use-case отсутствует — отдельный тикет при появлении |
-| Arrow `Schedule.zipLeft`, `Schedule.zipRight`, `Schedule.collect` | Композиция stateful-расписаний | `Schedule` stateful — ломает чистую политику (`fun interface RetryPolicy`) |
+| Arrow `Schedule.zipLeft`, `Schedule.zipRight`, `Schedule.collect` | Композиция stateful-расписаний | `Schedule` stateful — ломает чистую политику (`interface RetryPolicy`) |
 | Arrow `forever().fold({ ... }, { ... })` | Ручная реализация бюджета через state | У нас бюджет встроен в `RetryPolicy` через `withinBudget` — без state |
 | kmp-resilient `policy.events: SharedFlow<ResilientEvent>` | Reactive-типироузинг через `SharedFlow` | Нам не нужна `SharedFlow` для `onRetry`-callback'а. На 5–10 вызовов ретрая на одну загрузку callback достаточно |
 
@@ -83,9 +83,9 @@
 
 Свойства, которые ни одна публичная альтернатива не закрывает без обёртки:
 
-1. **`kotlin.Result` + `cumulativeDelay`-бюджет одновременно**. `kotlin-retry` — да, но с чужим
-   `Ok/Err`. kmp-resilient/Arrow/Kresil — нет `cumulativeDelay` бюджета. `kotlin.Result` на шве
-   при бюджете по паузам — это наш движок.
+1. **`kotlin.Result` + бюджет по прошедшему времени одновременно**. `kotlin-retry` держит
+   `Ok/Err` и бюджет по `cumulativeDelay`; kmp-resilient/Arrow/Kresil — ни того, ни другого в
+   паре с `kotlin.Result`. `kotlin.Result` на шве при wall-clock-бюджете — это наш движок.
 2. **Предикат видит метаданные попытки** (`previousDelay`, `cumulativeDelay`). kmp-resilient
    прячет в `onRetry` listener (уведомление, не условие). Arrow показывает через stateful
    `Schedule` (но ломает чистую политику). Kresil показывает только в `customDelay` (delay,
@@ -131,9 +131,9 @@
   — decorrelated jitter (AWS) вместо `±N%`. Решение — отдельный тикет.
 - **Если** появится `Retry-After` в порте `HttpTool` — правка порта + адаптер использует
   header, а не экспоненту.
-- **Если** появится wall-clock-бюджет как требование (например, для total download за 30 с)
-  — Arrow-форма `forever().fold(...)` или пересмотр подхода к `withinBudget`.
+- **Если** понадобится ограничить не только прошедшее время retry, но и длительность одной
+  попытки — `perAttemptTimeout` (тикет #68). Wall-clock-бюджет к этому моменту уже есть.
 - **Если** дойдёт до «+1 адаптер с другим стеком» — замерить вклад своего движка в CI-бюджет
-  (5 файлов, ~150 LoC, 26 тестов). Цифры памяти
+(7 файлов, ~150 LoC, 44 теста). Цифры памяти
   `Kover_coverage_in_core_and_common_config` показывают 44 теста на `:common:config` после
   интеграции — наш retry тоже масштабируется в этот диапазон.

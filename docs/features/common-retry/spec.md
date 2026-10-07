@@ -70,7 +70,7 @@ generic по типу ошибки, `+`-оператор как `then`, прив
    (`stopAtAttempts` + `continueIf` + `exponentialBackoff`), чтобы каждый кусок был независимо
    читаем.
 9. Как разработчик, я хочу писать цепочку политики без аннотаций `<Throwable>` в каждом звене,
-   чтобы рефакторинг типа ошибки не требовал править 23 точки.
+   чтобы рефакторинг типа ошибки не требовал править 29 точек.
 10. Как разработчик, я хочу иметь `judging: (T) -> Boolean` на вызове `retry`, чтобы протокольное
     знание «какой статус плохой» принадлежало адаптеру, а не движку.
 11. Как разработчик, я хочу, чтобы движок не требовал от меня создавать синтетические исключения
@@ -103,9 +103,11 @@ generic по типу ошибки, `+`-оператор как `then`, прив
 `:common` (память «Retry engine in `:common:retry`»: `:common` — `java-platform`, Kotlin-код в
 нём не заводится). Гейт Kover 80/75 распространяется автоматически.
 
-**Контракт наружу — `kotlin.Result`.** Драйвер — `suspend fun <T> retry(policy, context, block): Result<T>`,
+**Контракт наружу — `kotlin.Result`.** Драйвер — `suspend fun <T> retry(policy, context, timeSource, block): Result<T>`,
 где `context: RetryContext<T>` несёт `judging`, `onRetry` и `onExhausted` (объединение продиктовано
-лимитом ktlint на сигнатуру). `Ok(value)` при `judging(value) == false` — неудачная попытка, идёт в
+лимитом ktlint на сигнатуру), а `timeSource: TimeSource = TimeSource.Monotonic` задаёт, от чего
+меряется `FailedAttempt.elapsed`; тесты подставляют `TestTimeSource` и двигают время вручную.
+`Ok(value)` при `judging(value) == false` — неудачная попытка, идёт в
 тот же цикл. `CancellationException` перебрасывается, `ensureActive()` после `delay`. Контракт
 `SourceAdapter` сохраняет `kotlin.Result`/`DownloadResult.Failed` без смены шва.
 
@@ -187,7 +189,8 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
 - `randomizationFactor = 0.0` — детерминированная последовательность; `> 0.0` с seeded
   `Random` — паузы в окне `[base*0.9, base*1.1]`;
 - `+`-композиция: `Stop` с любой стороны — стоп; `maxOf` пауз;
-- отмена во время `delay` — следующая попытка не стартует.
+- отмена во время `delay` — следующая попытка не стартует (кейс закрыт на уровне адаптера:
+  `RutubeRetryTest` «breaks the retry wait as soon as the task is cancelled»).
 
 ## Out of Scope
 
