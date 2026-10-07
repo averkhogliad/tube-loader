@@ -3,31 +3,14 @@ package io.averkhogliad.tubeloader.adapters.rutube
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.SourceProgress
-import io.averkhogliad.tubeloader.core.port.HttpResponse
 import io.averkhogliad.tubeloader.core.port.HttpStub
 import io.averkhogliad.tubeloader.core.port.httpBody
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import java.io.IOException
-import java.io.InputStream
 import java.nio.file.Files
 import kotlin.coroutines.cancellation.CancellationException
-
-/**
- * A body that records whether the caller released the connection it holds.
- */
-private class CloseTrackingInputStream : InputStream() {
-
-    var closed = false
-        private set
-
-    override fun read(): Int = -1
-
-    override fun close() {
-        closed = true
-    }
-}
 
 class RutubeSegmentTest :
     FreeSpec({
@@ -78,15 +61,15 @@ class RutubeSegmentTest :
 
             "closes the response of a segment that answers with a client error" {
                 // given
-                val body = CloseTrackingInputStream()
-                val http = streaming().route(SEGMENT_2, HttpStub.Respond(HttpResponse(404, body)))
+                val refused = trackedBody("gone", 404)
+                val http = streaming().route(SEGMENT_2, refused.response)
 
                 // when
                 val actual = adapter(http).download(MEDIA_ID, VIDEO_1080, clip("segments")) {}
 
                 // then
                 actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken)
-                body.closed shouldBe true
+                refused.isClosed shouldBe true
             }
 
             "returns NetworkTransient when a segment answers with a server error" {

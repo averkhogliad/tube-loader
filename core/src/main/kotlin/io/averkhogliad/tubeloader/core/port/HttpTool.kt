@@ -14,24 +14,33 @@ interface HttpTool : Closeable {
     /**
      * Opens [url] for reading. [headers] carries what the source requires (for example a referer).
      * The returned response is owned by the caller and must be closed by it.
+     *
+     * A transport failure (DNS, TCP, TLS, timeout, a broken body) comes back as a failure; everything
+     * the server answered, 4xx and 5xx included, comes back as a success carrying its status.
      */
-    suspend fun open(url: String, headers: Map<String, String> = emptyMap()): HttpResponse
+    suspend fun open(url: String, headers: Map<String, String> = emptyMap()): Result<HttpResponse>
 }
 
 /**
- * A response opened by [HttpTool]: its metadata and the body stream. [status] carries the HTTP status
- * code so an adapter can tell a missing resource from a broken one without a client library.
+ * A response opened by [HttpTool]: [status], [contentLength] and the body. [status] is what lets an
+ * adapter tell a missing resource from a broken one without a client library.
  *
- * Closing is the response's own operation, not the stream's: a caller that reads the body with
- * [bytes] or turns the response down never touches [body] itself.
+ * Closing belongs to the response, not to the stream: [content] with a block closes what it handed
+ * out, and a response a caller turns down is closed by the caller itself.
  */
-data class HttpResponse(
-    val status: Int,
-    val body: InputStream,
-    val contentLength: Long? = null,
-) : Closeable {
+interface HttpResponse : Closeable {
 
-    override fun close() = body.close()
+    val status: Int
+
+    val contentLength: Long?
+
+    /**
+     * The raw stream, closed by the caller. Meant for the rare read that needs the descriptor itself.
+     */
+    fun content(): InputStream
+
+    /**
+     * The default read: [block] runs on the stream and the stream is closed afterwards.
+     */
+    suspend fun <R> content(block: (InputStream) -> R): R
 }
-
-fun HttpResponse.bytes(): ByteArray = use { it.body.readBytes() }
