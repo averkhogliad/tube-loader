@@ -12,6 +12,7 @@ import io.averkhogliad.tubeloader.core.port.httpBody
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import java.nio.file.Files
+import kotlin.time.Duration.Companion.seconds
 
 class RutubePlaylistTest :
     FreeSpec({
@@ -106,7 +107,7 @@ class RutubePlaylistTest :
                 val file = clip("playlist")
 
                 // when
-                RutubeSourceAdapter(streaming(), FakeMediaTool(), { HttpToolConfig() })
+                RutubeSourceAdapter(streaming(), FakeMediaTool(), { HttpToolConfig(perAttemptTimeout = 30.seconds) })
                     .download(MEDIA_ID, VIDEO_1080, file) {}
 
                 // then

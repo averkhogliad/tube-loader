@@ -2,6 +2,7 @@ package io.averkhogliad.tubeloader.core.facade
 
 import io.averkhogliad.tubeloader.core.adapter.FakeSourceAdapter
 import io.averkhogliad.tubeloader.core.config.AppConfig
+import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.domain.MediaRef
 import io.averkhogliad.tubeloader.core.domain.TaskId
 import io.averkhogliad.tubeloader.core.download.DownloadHandle
@@ -31,6 +32,7 @@ import kotlin.io.path.deleteRecursively
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
+internal val testHttpTool = HttpToolConfig(perAttemptTimeout = 30.seconds)
 internal val mediaIds = Arb.string(1..12)
 internal val inputs = Arb.string(1..24)
 
@@ -43,7 +45,7 @@ internal fun cleanUp(dir: Path) {
 
 internal data class FacadeSettings(
     val adapters: List<FakeSourceAdapter> = listOf(FakeSourceAdapter()),
-    val initialConfig: AppConfig = AppConfig(),
+    val initialConfig: AppConfig = AppConfig(httpTool = testHttpTool),
     val taskIdGenerator: TaskIdGenerator = RandomTaskIdGenerator,
     val clock: Clock = Clock.System,
 )

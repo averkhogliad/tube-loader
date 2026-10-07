@@ -13,6 +13,7 @@ import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 private val EXPECTED_META =
     MediaMeta(
@@ -32,7 +33,8 @@ class RutubeLoadMetaTest :
             "returns Found with the meta parsed from the recording" {
                 // given
                 val http = FakeHttpTool().recording("rutube/playOptions.json")
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { HttpToolConfig() })
+                val settings = HttpToolConfig(perAttemptTimeout = 30.seconds)
+                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
                 val actual = adapter.loadMeta(MEDIA_ID)
@@ -44,7 +46,8 @@ class RutubeLoadMetaTest :
             "asks playOptions once with the referer the source requires" {
                 // given
                 val http = FakeHttpTool().recording("rutube/playOptions.json")
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { HttpToolConfig() })
+                val settings = HttpToolConfig(perAttemptTimeout = 30.seconds)
+                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
                 adapter.loadMeta(MEDIA_ID)
@@ -60,7 +63,8 @@ class RutubeLoadMetaTest :
                 val http =
                     FakeHttpTool()
                         .recording("rutube/playOptions-notfound.json", status = 244)
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { HttpToolConfig() })
+                val settings = HttpToolConfig(perAttemptTimeout = 30.seconds)
+                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
                 val actual = adapter.loadMeta(MEDIA_ID)
@@ -72,7 +76,8 @@ class RutubeLoadMetaTest :
             "returns NotFound for a plain request that answers 404 with the same reason" {
                 // given
                 val http = FakeHttpTool().recording("rutube/playOptions-notfound.json", status = 404)
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { HttpToolConfig() })
+                val settings = HttpToolConfig(perAttemptTimeout = 30.seconds)
+                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
                 val actual = adapter.loadMeta(MEDIA_ID)
@@ -84,7 +89,8 @@ class RutubeLoadMetaTest :
             "returns Failed(ExtractorBroken) for a body that is not json" {
                 // given
                 val http = FakeHttpTool().recording("rutube/playOptions-broken.json")
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { HttpToolConfig() })
+                val settings = HttpToolConfig(perAttemptTimeout = 30.seconds)
+                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
                 val actual = adapter.loadMeta(MEDIA_ID)
@@ -96,7 +102,8 @@ class RutubeLoadMetaTest :
             "returns Failed(ExtractorBroken) when the body carries no video_id" {
                 // given
                 val http = FakeHttpTool().recording("rutube/playOptions-foreign.json")
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { HttpToolConfig() })
+                val settings = HttpToolConfig(perAttemptTimeout = 30.seconds)
+                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
                 val actual = adapter.loadMeta(MEDIA_ID)
@@ -108,7 +115,8 @@ class RutubeLoadMetaTest :
             "returns Failed(ExtractorBroken) for a media that is not the requested one" {
                 // given
                 val http = FakeHttpTool().recording("rutube/playOptions-other-id.json")
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { HttpToolConfig() })
+                val settings = HttpToolConfig(perAttemptTimeout = 30.seconds)
+                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
                 val actual = adapter.loadMeta(MEDIA_ID)
@@ -120,7 +128,8 @@ class RutubeLoadMetaTest :
             "returns Failed(ExtractorBroken) when the title is missing" {
                 // given
                 val http = FakeHttpTool().recording("rutube/playOptions-no-title.json")
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { HttpToolConfig() })
+                val settings = HttpToolConfig(perAttemptTimeout = 30.seconds)
+                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
                 val actual = adapter.loadMeta(MEDIA_ID)
@@ -132,7 +141,8 @@ class RutubeLoadMetaTest :
             "returns Failed(ExtractorBroken) when the body carries no playlist url" {
                 // given
                 val http = FakeHttpTool().recording("rutube/playOptions-no-balancer.json")
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { HttpToolConfig() })
+                val settings = HttpToolConfig(perAttemptTimeout = 30.seconds)
+                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
                 val actual = adapter.loadMeta(MEDIA_ID)
@@ -144,7 +154,8 @@ class RutubeLoadMetaTest :
             "returns Failed(NetworkTransient) for a server error" {
                 // given
                 val http = FakeHttpTool().respondingWith(httpBody(ByteArray(0), status = 503))
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { HttpToolConfig() })
+                val settings = HttpToolConfig(perAttemptTimeout = 30.seconds)
+                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
                 val actual = adapter.loadMeta(MEDIA_ID)
@@ -156,7 +167,8 @@ class RutubeLoadMetaTest :
             "tolerates a response without author and duration" {
                 // given
                 val http = FakeHttpTool().recording("rutube/playOptions-minimal.json")
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { HttpToolConfig() })
+                val settings = HttpToolConfig(perAttemptTimeout = 30.seconds)
+                val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
                 val actual = adapter.loadMeta(MEDIA_ID)

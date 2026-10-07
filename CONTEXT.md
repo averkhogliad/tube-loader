@@ -133,8 +133,9 @@ _Avoid_: тянуть HTTP-клиент прямо в адаптер
 Интерфейс значения, которое отдаёт `HttpTool.open`. Несёт `status: Int` и `contentLength: Long?`;
 body читается двумя формами — `content(): InputStream` (закрывает вызывающий) и
 `content(block)` (закрывает порт). Обе формы отдают уже распакованный поток: реализация порта
-снимает `Content-Encoding` до возврата. Headers ответа, `Content-Type`, редиректы и `Retry-After`
-сознательно вне контракта (ADR-0005).
+снимает `Content-Encoding` до возврата. Headers ответа входят в контракт (`headers`, поиск по имени
+без учёта регистра); `Content-Type`, редиректы и подтипы ответа сознательно вне контракта
+(ADR-0005).
 _Avoid_: `data class` с `val body: InputStream` — закрытие стрима съезжает на каждый адаптер
 
 **Transport error vs application error (различение в порту)**:

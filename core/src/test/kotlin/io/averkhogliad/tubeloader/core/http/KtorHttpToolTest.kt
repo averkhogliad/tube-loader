@@ -20,10 +20,14 @@ import kotlinx.coroutines.test.runTest
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.util.zip.GZIPOutputStream
+import kotlin.time.Duration.Companion.seconds
 
 private const val URL = "http://source.test/file"
 
-private fun client(engine: MockEngine, config: HttpToolConfig = HttpToolConfig()): HttpClient =
+private fun client(
+    engine: MockEngine,
+    config: HttpToolConfig = HttpToolConfig(perAttemptTimeout = 30.seconds),
+): HttpClient =
     HttpClient(engine) {
         install(HttpTimeout) {
             connectTimeoutMillis = config.connectTimeout.inWholeMilliseconds

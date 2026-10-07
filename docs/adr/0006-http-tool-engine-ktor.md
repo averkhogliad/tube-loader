@@ -46,19 +46,23 @@ implementation(libs.ktor.client.encoding)
 реализация, импорт `io.ktor.*` живёт только в этом пакете, `core.port` остаётся чистым. Если
 появится вторая реализация (OkHttp / JDK / native) — модуль выделяется отдельным тикетом.
 
-**Маппинг `HttpToolConfig` в Ktor.** Текущие 6 полей → переоформление:
+**Маппинг `HttpToolConfig` в Ktor.** Текущие 6 полей → 7 (добавляется `perAttemptTimeout`,
+который в Ktor не маппится — его читает адаптер):
 
 | Поле | Было | Стало | Ktor-side |
 |---|---|---|---|
 | `connectTimeout: Duration` | ✅ | ✅ | `HttpTimeout.connectTimeoutMillis = connectTimeout.inWholeMilliseconds` |
 | `readTimeout: Duration` | ✅ | **удалено** | (нет split readTimeout в Ktor) |
 | `requestTimeout: Duration` | — | ✅ новое | `HttpTimeout.requestTimeoutMillis = requestTimeout.inWholeMilliseconds` |
+| `perAttemptTimeout: Duration` | — | ✅ новое, **без дефолта** | (нет: таймаут попытки ставит адаптер, не клиент — #68) |
 | `retryMaxAttempts: Int`, `retryBaseDelay: Duration`, `retryRandomizationFactor: Double`, `retryRetriableStatuses: Set<Int>` | ✅ | ✅ без изменений | retry — не ответственность Ktor, остаётся в `:common:retry` (`ADR-0004`) |
 
 Тип `kotlin.time.Duration` — те же единицы, что и Ktor `HttpTimeout`, маппинг — `Duration.inWholeMilliseconds`.
 Дефолты `HttpToolConfig` сохраняются: `connectTimeout = 5.seconds`, `requestTimeout = 30.seconds`,
 retry-блок — без изменений (`HttpToolConfigTest` 193 строки переписывается вместе с тикетом #74,
-это `HttpToolConfig` уже зашит TODO в тикете #67).
+это `HttpToolConfig` уже зашит TODO в тикете #67). **Исключение — `perAttemptTimeout`, единственное
+поле без дефолта:** и в конструкторе, и в TOML-блоке оно обязательно, потому что таймаут попытки —
+решение конфигурации, а не вкусовая константа. Читает его адаптер, не эта реализация.
 
 **Default request headers.** Ktor-клиент создаётся с блоком:
 

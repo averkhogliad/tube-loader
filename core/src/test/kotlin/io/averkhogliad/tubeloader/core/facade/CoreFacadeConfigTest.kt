@@ -29,7 +29,9 @@ class CoreFacadeConfigTest :
                     val world =
                         facadeWorld(
                             tempDir,
-                            FacadeSettings(initialConfig = AppConfig(maxParallelDownloads = 1)),
+                            FacadeSettings(
+                                initialConfig = AppConfig(maxParallelDownloads = 1, httpTool = testHttpTool),
+                            ),
                             dispatcher = StandardTestDispatcher(testScheduler),
                         )
                     world.adapters.single().onFind = { FindResult.Found(mediaId) }
@@ -46,7 +48,7 @@ class CoreFacadeConfigTest :
                     started shouldBe 1
 
                     // when
-                    world.config.value = AppConfig(maxParallelDownloads = 3)
+                    world.config.value = AppConfig(maxParallelDownloads = 3, httpTool = testHttpTool)
                     testScheduler.advanceUntilIdle()
 
                     // then

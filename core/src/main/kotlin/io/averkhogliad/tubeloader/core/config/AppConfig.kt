@@ -7,7 +7,7 @@ import java.nio.file.Path
 data class AppConfig(
     val maxParallelDownloads: Int = DEFAULT_MAX_PARALLEL_DOWNLOADS,
     val defaultTargetDir: Path? = null,
-    val httpTool: HttpToolConfig = HttpToolConfig(),
+    val httpTool: HttpToolConfig,
 ) {
 
     init {

@@ -1,7 +1,6 @@
 package io.averkhogliad.tubeloader.core.config
 
 import io.averkhogliad.tubeloader.config.TomlConfig
-import io.averkhogliad.tubeloader.config.mapConfig
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
@@ -20,23 +19,20 @@ class HttpToolConfigTest :
     FreeSpec({
 
         "fromConfig" - {
-            "returns the defaults when the block is missing" {
+            "raises for the required key when the block is missing" {
                 // given
-                val config = mapConfig("download.max-parallel-downloads" to "2")
+                val config = toml("[download]\nmax-parallel-downloads = 2")
 
                 // when
-                val actual = HttpToolConfig.fromConfig(config)
+                val thrown = shouldThrow<IllegalArgumentException> { HttpToolConfig.fromConfig(config) }
 
                 // then
-                actual shouldBe HttpToolConfig()
-                actual.retryMaxAttempts shouldBe 5
-                actual.retryBaseDelay shouldBe 250.milliseconds
-                actual.retryRetriableStatuses shouldBe setOf(408, 429, 502, 503, 504)
+                thrown.message shouldBe "download.http-tool.per-attempt-timeout-ms is required"
             }
 
             "returns the defaults for a partly written block" {
                 // given
-                val config = toml("[download.http-tool]\nmax-attempts = 2")
+                val config = toml("[download.http-tool]\nper-attempt-timeout-ms = 30000\nmax-attempts = 2")
 
                 // when
                 val actual = HttpToolConfig.fromConfig(config)
@@ -55,6 +51,7 @@ class HttpToolConfigTest :
                         [download.http-tool]
                         connect-timeout-ms = 1500
                         request-timeout-ms = 4500
+                        per-attempt-timeout-ms = 30000
                         max-attempts = 7
                         base-delay-ms = 100
                         randomization-factor = 0.25
@@ -68,6 +65,7 @@ class HttpToolConfigTest :
                 // then
                 actual.connectTimeout shouldBe 1500.milliseconds
                 actual.requestTimeout shouldBe 4500.milliseconds
+                actual.perAttemptTimeout shouldBe 30.seconds
                 actual.retryMaxAttempts shouldBe 7
                 actual.retryBaseDelay shouldBe 100.milliseconds
                 actual.retryRandomizationFactor shouldBe 0.25
@@ -76,7 +74,16 @@ class HttpToolConfigTest :
 
             "keeps an unrelated block out of the reading" {
                 // given
-                val config = toml("[download.http-tool.retry]\nmax-attempts = 9")
+                val config =
+                    toml(
+                        """
+                        [download.http-tool]
+                        per-attempt-timeout-ms = 30000
+
+                        [download.http-tool.retry]
+                        max-attempts = 9
+                        """,
+                    )
 
                 // when
                 val actual = HttpToolConfig.fromConfig(config)
@@ -85,9 +92,44 @@ class HttpToolConfigTest :
                 actual.retryMaxAttempts shouldBe 5
             }
 
+            "raises for the required key when the block writes every other key" {
+                // given
+                val config =
+                    toml(
+                        """
+                        [download.http-tool]
+                        connect-timeout-ms = 1500
+                        request-timeout-ms = 4500
+                        max-attempts = 7
+                        base-delay-ms = 100
+                        randomization-factor = 0.25
+                        retriable-statuses = [429, 503]
+                        """,
+                    )
+
+                // when
+                val thrown = shouldThrow<IllegalArgumentException> { HttpToolConfig.fromConfig(config) }
+
+                // then
+                thrown.message shouldBe "download.http-tool.per-attempt-timeout-ms is required"
+            }
+
+            "rejects a zero per attempt timeout" {
+                // given
+                val config = toml("[download.http-tool]\nper-attempt-timeout-ms = 0")
+
+                // when
+                val thrown = shouldThrow<IllegalArgumentException> { HttpToolConfig.fromConfig(config) }
+
+                // then
+                thrown.message shouldBe
+                    "download.http-tool.per-attempt-timeout-ms must be positive, got 0"
+            }
+
             "rejects a whole number that cannot be read" {
                 // given
-                val config = toml("[download.http-tool]\nbase-delay-ms = \"abc\"")
+                val config =
+                    toml("[download.http-tool]\nper-attempt-timeout-ms = 30000\nbase-delay-ms = \"abc\"")
 
                 // when
                 val thrown = shouldThrow<IllegalArgumentException> { HttpToolConfig.fromConfig(config) }
@@ -99,7 +141,7 @@ class HttpToolConfigTest :
 
             "rejects an attempt count below one" {
                 // given
-                val config = toml("[download.http-tool]\nmax-attempts = 0")
+                val config = toml("[download.http-tool]\nper-attempt-timeout-ms = 30000\nmax-attempts = 0")
 
                 // when
                 val thrown = shouldThrow<IllegalArgumentException> { HttpToolConfig.fromConfig(config) }
@@ -111,7 +153,7 @@ class HttpToolConfigTest :
 
             "rejects a non positive timeout" {
                 // given
-                val config = toml("[download.http-tool]\nrequest-timeout-ms = 0")
+                val config = toml("[download.http-tool]\nper-attempt-timeout-ms = 30000\nrequest-timeout-ms = 0")
 
                 // when
                 val thrown = shouldThrow<IllegalArgumentException> { HttpToolConfig.fromConfig(config) }
@@ -123,7 +165,7 @@ class HttpToolConfigTest :
 
             "accepts a zero retry base delay, which repeats without waiting" {
                 // given
-                val config = toml("[download.http-tool]\nbase-delay-ms = 0")
+                val config = toml("[download.http-tool]\nper-attempt-timeout-ms = 30000\nbase-delay-ms = 0")
 
                 // when
                 val actual = HttpToolConfig.fromConfig(config)
@@ -134,7 +176,7 @@ class HttpToolConfigTest :
 
             "rejects a randomization factor outside the unit interval" {
                 // given
-                val config = toml("[download.http-tool]\nrandomization-factor = 2.0")
+                val config = toml("[download.http-tool]\nper-attempt-timeout-ms = 30000\nrandomization-factor = 2.0")
 
                 // when
                 val thrown = shouldThrow<IllegalArgumentException> { HttpToolConfig.fromConfig(config) }
@@ -146,7 +188,7 @@ class HttpToolConfigTest :
 
             "rejects a status list that is not a list" {
                 // given
-                val config = toml("[download.http-tool]\nretriable-statuses = 503")
+                val config = toml("[download.http-tool]\nper-attempt-timeout-ms = 30000\nretriable-statuses = 503")
 
                 // when
                 val thrown = shouldThrow<IllegalArgumentException> { HttpToolConfig.fromConfig(config) }
@@ -167,6 +209,7 @@ class HttpToolConfigTest :
                         max-parallel-downloads = 2
 
                         [download.http-tool]
+                        per-attempt-timeout-ms = 30000
                         max-attempts = 4
                         """,
                     )
@@ -181,7 +224,7 @@ class HttpToolConfigTest :
 
             "reads the block under its own key prefix" {
                 // given
-                val config = toml("[other.http-tool]\nmax-attempts = 6")
+                val config = toml("[other.http-tool]\nper-attempt-timeout-ms = 30000\nmax-attempts = 6")
 
                 // when
                 val actual = AppConfig.fromConfig(config, keyPrefix = "other")

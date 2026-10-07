@@ -16,6 +16,7 @@ import java.net.UnknownHostException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.Duration.Companion.seconds
 
 internal const val RECORDING_OPTIONS = "rutube/playOptions-download.json"
 
@@ -47,11 +48,14 @@ internal fun streaming(): FakeHttpTool =
         .routeRecording(SEGMENT_2, "rutube/segment-2.ts")
         .routeRecording(SEGMENT_3, "rutube/segment-3.ts")
 
-internal fun adapter(http: FakeHttpTool, settings: HttpToolConfig = HttpToolConfig()) =
+internal fun adapter(http: FakeHttpTool, settings: HttpToolConfig = HttpToolConfig(perAttemptTimeout = 30.seconds)) =
     RutubeSourceAdapter(http, FakeMediaTool().copyStreams(), { settings })
 
-internal fun adapter(http: FakeHttpTool, media: FakeMediaTool, settings: HttpToolConfig = HttpToolConfig()) =
-    RutubeSourceAdapter(http, media, { settings })
+internal fun adapter(
+    http: FakeHttpTool,
+    media: FakeMediaTool,
+    settings: HttpToolConfig = HttpToolConfig(perAttemptTimeout = 30.seconds),
+) = RutubeSourceAdapter(http, media, { settings })
 
 internal fun workDir(prefix: String): Path = Files.createTempDirectory(prefix)
 

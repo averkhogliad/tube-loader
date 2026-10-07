@@ -280,7 +280,9 @@ class CoreFacadeCancelTest :
                     val world =
                         facadeWorld(
                             tempDir,
-                            FacadeSettings(initialConfig = AppConfig(maxParallelDownloads = 1)),
+                            FacadeSettings(
+                                initialConfig = AppConfig(maxParallelDownloads = 1, httpTool = testHttpTool),
+                            ),
                             dispatcher = StandardTestDispatcher(testScheduler),
                         )
                     world.adapters.single().onFind = { FindResult.Found(mediaId) }

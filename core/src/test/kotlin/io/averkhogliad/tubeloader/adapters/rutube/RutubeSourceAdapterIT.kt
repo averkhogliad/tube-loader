@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Tag
 import java.nio.file.Files
 import kotlin.io.path.exists
 import kotlin.io.path.readBytes
+import kotlin.time.Duration.Companion.seconds
 
 private const val LIVE_MEDIA_ID = "b9852a3ffc38640bdf480f5c9d4d912f"
 
@@ -49,7 +50,12 @@ class RutubeSourceAdapterIT :
             "resolves the relative segment names of a recorded leaf playlist against its own location" {
                 // given
                 val http = recorded()
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool().copyStreams(), { HttpToolConfig() })
+                val adapter =
+                    RutubeSourceAdapter(
+                        http,
+                        FakeMediaTool().copyStreams(),
+                        { HttpToolConfig(perAttemptTimeout = 30.seconds) },
+                    )
                 val dir = Files.createTempDirectory("rutube-it")
                 val target = dir.resolve("clip.mp4")
 
@@ -64,7 +70,12 @@ class RutubeSourceAdapterIT :
             "walks from the metadata request down to the segments of the recorded master" {
                 // given
                 val http = recorded()
-                val adapter = RutubeSourceAdapter(http, FakeMediaTool().copyStreams(), { HttpToolConfig() })
+                val adapter =
+                    RutubeSourceAdapter(
+                        http,
+                        FakeMediaTool().copyStreams(),
+                        { HttpToolConfig(perAttemptTimeout = 30.seconds) },
+                    )
                 val dir = Files.createTempDirectory("rutube-it")
                 val target = dir.resolve("clip.mp4")
 
@@ -81,7 +92,12 @@ class RutubeSourceAdapterIT :
 
             "ends on an absolute update and leaves no staging file behind" {
                 // given
-                val adapter = RutubeSourceAdapter(recorded(), FakeMediaTool().copyStreams(), { HttpToolConfig() })
+                val adapter =
+                    RutubeSourceAdapter(
+                        recorded(),
+                        FakeMediaTool().copyStreams(),
+                        { HttpToolConfig(perAttemptTimeout = 30.seconds) },
+                    )
                 val dir = Files.createTempDirectory("rutube-it")
                 val target = dir.resolve("clip.mp4")
                 val progress = mutableListOf<SourceProgress>()
