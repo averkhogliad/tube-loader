@@ -41,9 +41,9 @@
    kmp-resilient `policy.events`. Закрывает долг по наблюдаемости — сейчас нет ни логов, ни
    метрик ретраев.
 
-DSL — Compose-форма, выбранная в issue #63 (форма проверена пробой, не влита): `RetryPolicy` без
+DSL — Compose-форма, выбранная в issue #63 и влитая задачей #69: `RetryPolicy` без
 generic по типу ошибки, `+`-оператор как `then`, приватный `Combined`, `Stage` как receiver фабрик.
-Это убирает 23 явных `<Throwable>` из цепочки без потери типовой безопасности на вызове.
+Это убирает 29 явных `<Throwable>` из цепочки без потери типовой безопасности на вызове.
 
 Параметры повтора — через плоский под-блок `[download.http-tool]` в TOML: `connect-timeout-ms`,
 `read-timeout-ms`, `max-attempts`, `base-delay-ms`, `randomization-factor`, `retriable-statuses`.
@@ -102,10 +102,10 @@ generic по типу ошибки, `+`-оператор как `then`, прив
 нём не заводится). Гейт Kover 80/75 распространяется автоматически.
 
 **Контракт наружу — `kotlin.Result`.** Драйвер — `suspend fun <T> retry(policy, context, block): Result<T>`,
-где `context: RetryContext` несёт `judging` и `onRetry` (объединение продиктовано лимитом ktlint
-на сигнатуру). `Ok(value)` при `judging(value) == false` — неудачная попытка, идёт в тот же цикл.
-`CancellationException` перебрасывается, `ensureActive()` после `delay`. Контракт `SourceAdapter`
-сохраняет `kotlin.Result`/`DownloadResult.Failed` без смены шва.
+где `context: RetryContext<T>` несёт `judging`, `onRetry` и `onExhausted` (объединение продиктовано
+лимитом ktlint на сигнатуру). `Ok(value)` при `judging(value) == false` — неудачная попытка, идёт в
+тот же цикл. `CancellationException` перебрасывается, `ensureActive()` после `delay`. Контракт
+`SourceAdapter` сохраняет `kotlin.Result`/`DownloadResult.Failed` без смены шва.
 
 **Политика — чистая функция, Compose-DSL.** `RetryPolicy` без generic по типу ошибки (issue #63).
 `+`-оператор как `then`, приватный `Combined`, `Stage` как receiver фабрик. `FailedAttempt(failure,
@@ -123,10 +123,16 @@ number, previousDelay, cumulativeDelay, elapsed)` виден предикату 
 - `onRetry: ((FailedAttempt) -> Unit)?` — поле `RetryContext` (по умолчанию `null`). Перед каждой
   паузой. `SharedFlow`/`RetrySnapshot`/телеметрия отложены — на этом этапе достаточно callback'а
   без новых зависимостей.
+- `onExhausted: (T) -> Result<T>` — поле `RetryContext` (по умолчанию `{ Result.failure(
+  RetryExhausted(it)) }`). Решает, чем становится значение, отвергнутое `judging`, когда попытки
+  кончились: обёрткой `RetryExhausted` (дефолт, прежнее поведение) или самим значением
+  (`{ Result.success(it) }`). Источники: kmp-resilient (`RetryableResultException` наружу не
+  выходит — отдаётся последнее значение), resilience4j (`failAfterMaxAttempts = false` по
+  умолчанию), Failsafe (last result as is). На исчерпании по исключению не зовётся.
 
 **TOML — плоский под-блок.** `[download.http-tool]`: `connect-timeout-ms`, `read-timeout-ms`,
 `max-attempts`, `base-delay-ms`, `randomization-factor`, `retriable-statuses`. Конфиг резолвится
-в `HttpToolConfig` (`AppConfig.httpTool`) и читается адаптером через `Config.getTableOrNull("download.http-tool")`.
+в `HttpToolConfig` (`AppConfig.httpTool`) его собственным `fromConfig` через `Config.getTableOrNull("download.http-tool")`.
 Никакого вложенного `[download.http-tool.retry]` — одна вложенность (`download` → `http-tool`).
 
 **Что не делается в этой миграции.** Decorator-style API (`executeSupplier`/`decorateSupplier`),
@@ -137,8 +143,9 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
 **Связь с другими решениями.** ADR-0004 (это решение). Инварианты — `docs/standards/architecture.md`.
 Стандарт ошибок — `docs/standards/errors.md`: наружу выходит `DownloadResult.Failed(error)`,
 `Result`-фасад внутренний. Стандарт тестов — `docs/standards/testing.md`. Стандарт линта —
-`docs/standards/build.md`: сигнатуры ≤5 параметров (порог ktlint). Форма принята: `judging` и
-`onRetry` объединяются через `RetryContext`, драйвер вызывается как `retry(policy, context, block)`.
+`docs/standards/build.md`: сигнатуры ≤5 параметров (порог ktlint). Форма принята: `judging`,
+`onRetry` и `onExhausted` объединяются через `RetryContext`, драйвер вызывается как
+`retry(policy, context, block)`.
 
 ## Testing Decisions
 
@@ -148,12 +155,13 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
 
 **Швы, на которых тесты:**
 1. `:common:retry` — unit-тесты на драйвер и фабрики (`RetryTest`, `PoliciesTest`).
-2. `:common:retry` — testFixtures с `RecordingPolicy` для контрактной пробы новых политик
-   (`RetryFixtures`).
+2. `:common:retry` — фейки политик рядом с тестами (`RetryFixtures`): `java-test-fixtures` подключён,
+   но каталога `src/testFixtures` в модуле нет, `RecordingPolicy` живёт в `src/test/`.
 3. `core/.../adapters/rutube` — контрактные тесты на retry-логику адаптера (`RutubeRetryTest`):
    `judging` видит `HttpBody.status`, исчерпание → `DownloadResult.Failed(NetworkTransient)`,
-   4xx не ретраится, 429 и 5xx ретраятся, `CancellationException` не проглатывается.
-4. `core/.../config` — unit-тесты на чтение `[download.http-tool]` (`AppConfigTest`-расширение):
+   нетранзиентный статус не ретраится, транзиентный (408/429/502/503/504) ретраится,
+   `CancellationException` не проглатывается.
+4. `core/.../config` — unit-тесты на чтение `[download.http-tool]` (`HttpToolConfigTest`):
    дефолты, отсутствующий блок, невалидные значения.
 
 **Prior art в проекте:**
@@ -166,7 +174,10 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
 **Конкретные кейсы, которые должны быть покрыты (минимум):**
 - успех первой попытки — `onRetry` не зовётся, `judging` уже увидел значение;
 - `judging(value) == false` после `Ok` — попытка считается неуспешной, идёт в цикл;
-- исчерпание по `judging` — последнее значение возвращается, терминальный `Result.failure(...)`;
+- исчерпание по `judging` — исход задаёт `RetryContext.onExhausted`: по умолчанию `Result.failure(
+  RetryExhausted(value))`, с `{ Result.success(it) }` — само значение;
+- исчерпание по исключению — `onExhausted` не зовётся, наружу идёт исходное исключение;
+- `judging` отвергает `null` — заворачивается именно `null`, а не теряется;
 - `CancellationException` из блока перебрасывается, не считается `IOException`;
 - `withinBudget` — стоп, когда прошедшее время вместе с предстоящей паузой превышает бюджет;
 - `randomizationFactor = 0.0` — детерминированная последовательность; `> 0.0` с seeded
@@ -195,9 +206,9 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
 - **`SharedFlow<ResilientEvent>`, `RetrySnapshot`, телеметрия-флоу.** Не нужно сейчас; `onRetry`
   callback закрывает минимум.
 - **`Retry.onAttempt`, `Retry.onSuccess`.** Понадобятся — расширение `onRetry` отдельным тикетом.
-- **`MAX_ATTEMPTS = 5`, `RETRY_BASE_PAUSE = 250ms`.** Дефолты из кода адаптера, **не из
-  грил-заметок** (`git ls-files | grep grill` пусто, память
-  `Retry_engine_in_common_retry-37360798096e.md`). Согласование дефолтов — отдельный тикет.
+- **`MAX_ATTEMPTS = 5`, `RETRY_BASE_PAUSE = 250ms` как константы адаптера.** Удалены задачей #67;
+  значения приходят из `[download.http-tool]`, дефолты живут в `HttpToolConfig`. Согласование
+  дефолтов между источниками — отдельный тикет.
 - **Долг по другим адаптерам.** yt-dlp (Delegate) — отдельная спека.
 
 ## Further Notes
@@ -212,7 +223,7 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
 - `docs/standards/build.md` — Kover-гейт 80/75 на `:common:retry`.
 - `docs/standards/testing.md` — `*Test.kt` + `Gen.kt` + `testFixtures`, правила стиля.
 
-**Открытые тикеты (по состоянию на 2026-10-16).**
+**Открытые тикеты (по состоянию на 2026-10-07).**
 - Issue #63: Compose-DSL — форма влита задачей #69 (коммит `3ed5437`).
 - Issues #64–#69: родитель и пять подзадач этого решения. В работе одним PR: #65, #69, #66, #67;
   #68 отложен.

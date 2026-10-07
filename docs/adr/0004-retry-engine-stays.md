@@ -8,7 +8,7 @@
 ## Context
 
 Адаптеры источников ретраят сетевые сбои (обрыв, таймаут, 5xx, 429) через собственный движок
-`:common:retry` — пять исходников в `:common:retry/src/main/kotlin/io/averkhogliad/tubeloader/retry/`,
+`:common:retry` — семь исходников в `:common:retry/src/main/kotlin/io/averkhogliad/tubeloader/retry/`,
 портирующих контракты `kotlin-retry 2.0.2` на наш шов (`kotlin.Result`, без generic по типу
 ошибки, `+`-композиция `Stop`/`maxOf`, `withinBudget(elapsed)` без дефолта бюджета,
 `MAX_BACKOFF_STEP = 30` от переполнения shift). Адаптеры собирают политику из фабрик
@@ -49,7 +49,7 @@ Sandbox-пробы (артефакты в `.tasks/probe-arrow-resilience/`):
 от публичных библиотек. Переносим в движок три идеи из рассмотренных альтернатив:
 
 1. **`retryOnResult` через `judging: (T) -> Boolean`** на вызове `retry`, вместе с `onRetry`
-   в `RetryContext`. Источники: Polly
+   и `onExhausted` в `RetryContext`. Источники: Polly
    `ShouldHandle(args.Outcome)`, Failsafe `.handleResult`/`.handleResultIf`, Guava `retryIfResult`,
    resilience4j `retryOnResultPredicate` + `failAfterMaxAttempts`, Kresil `retryOnResult`,
    kmp-resilient `shouldRetryResult`, tenacity `retry_if_result`, kotlin-retry `RetryOn.returned`.
@@ -62,10 +62,14 @@ Sandbox-пробы (артефакты в `.tasks/probe-arrow-resilience/`):
 3. **`onRetry: ((FailedAttempt) -> Unit)?`** в `RetryContext` — том же шве, что `judging`.
    Источники: Kresil `retry.onRetry`, Failsafe `FailsafeListener`, resilience4j `RetryRegistry`,
    kmp-resilient `policy.events`. Закрывает долг по наблюдаемости без новых зависимостей.
+4. **`onExhausted: (T) -> Result<T>`** в `RetryContext` — чем становится значение, отвергнутое
+   `judging`, когда попытки кончились; дефолт заворачивает его в `RetryExhausted`. Источники:
+   kmp-resilient (последнее значение возвращается, `RetryableResultException` наружу не выходит),
+   resilience4j (`failAfterMaxAttempts = false` по умолчанию), Failsafe (last result as is).
 
 DSL — **Compose-форма** (issue #63, форма выбрана и опробована): `RetryPolicy` — обычный
 `interface` (не `fun interface`) без generic по типу ошибки, `+`-оператор как `then`, приватный
-`Combined`, `Stage` как receiver фабрик. Убирает 23 явных `<Throwable>` из цепочки. Форма `fun
+`Combined`, `Stage` как receiver фабрик. Убирает 29 явных `<Throwable>` из цепочки. Форма `fun
 interface` с `companion object` не компилируется: `companion object` требует конструктора у
 интерфейса, а `fun interface` его не даёт; ковариантный generic-вариант с companion компилируется,
 но падает в рантайме `ClassCastException`.
@@ -77,11 +81,15 @@ TOML — **плоский** под-блок `[download.http-tool]`: `connect-tim
 DSL-блок `retryConfig { … }` (Kresil/kmp-resilient) — **отвергнут**: ломает Compose-форму #63
 (`+`-оператор как точка сборки).
 
-**Уточнения 16.10.2026 (решения пользователя перед прогоном #64).**
+**Уточнения 07.10.2026 (решения пользователя перед прогоном #64).**
 
-- **`judging` и `onRetry` идут одним швом:** драйвер принимает `RetryContext(judging, onRetry)`.
-  Две идеи добавляются одновременно, и раздельные параметры вывели бы сигнатуру за лимит ktlint
+- **`judging`, `onRetry` и `onExhausted` идут одним швом:** драйвер принимает
+  `RetryContext(judging, onRetry, onExhausted)`.
+  Идеи добавляются одновременно, и раздельные параметры вывели бы сигнатуру за лимит ktlint
   (≤5 параметров). `onRetry` закрывается в тикете #66 вместе с `judging`.
+- **Исход по значению выбирает вызывающий.** Обёртка в `RetryExhausted` была единственным
+  исходом, а библиотеки отрасли отдают отклонённое значение как есть; теперь это лямбда
+  `onExhausted`, дефолт сохраняет прежнее поведение. На исчерпании по исключению она не зовётся.
 - **Источник случайности в `exponentialBackoff` — параметр.** При `randomizationFactor > 0`
   пауза считается как `base * (1 - factor + 2 * factor * random())`, где `random: () -> Double`
   по умолчанию `Math::random`. Тесты подставляют `Random(seed)`, поэтому окно джиттера
