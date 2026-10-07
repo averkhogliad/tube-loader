@@ -1,0 +1,61 @@
+package io.averkhogliad.tubeloader.core.http
+
+import io.averkhogliad.tubeloader.core.config.HttpToolConfig
+import io.averkhogliad.tubeloader.core.port.HttpResponse
+import io.averkhogliad.tubeloader.core.port.HttpTool
+import io.ktor.client.HttpClient
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.request
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.http.HttpHeaders
+import io.ktor.http.contentLength
+import kotlinx.coroutines.CancellationException
+
+/**
+ * The port over Ktor. [client] is built and owned by the caller, which installs `HttpTimeout` from
+ * [config] and registers shutdown; this class neither creates nor outlives it.
+ */
+class KtorHttpTool(private val client: HttpClient, private val config: () -> HttpToolConfig) : HttpTool {
+
+    @Suppress("TooGenericExceptionCaught")
+    override suspend fun open(url: String, headers: Map<String, String>): Result<HttpResponse> =
+        try {
+            val response = client.request(url) { applyHeaders(headers) }
+            Result.success(
+                KtorHttpResponse(
+                    status = response.status.value,
+                    contentLength = response.contentLength(),
+                    body = response.bodyAsChannel(),
+                ),
+            )
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            // any transport failure is an outcome of the port, never a throw (spec: HttpTool contract)
+            Result.failure(failure)
+        }
+
+    override fun close() = client.close()
+
+    private fun HttpRequestBuilder.applyHeaders(adapterHeaders: Map<String, String>) {
+        val overridden = adapterHeaders.keys
+        DEFAULTS.forEach { (name, value) ->
+            if (overridden.none { it.equals(name, ignoreCase = true) }) headers.append(name, value)
+        }
+        adapterHeaders.forEach { (name, value) -> headers.append(name, value) }
+    }
+
+    companion object {
+
+        private val DEFAULTS =
+            mapOf(
+                HttpHeaders.UserAgent to "Tubeloader/0",
+                HttpHeaders.Accept to "*/*",
+                HttpHeaders.AcceptEncoding to "identity",
+            )
+    }
+}
+
+object HttpTools {
+    fun create(client: HttpClient, config: () -> HttpToolConfig): HttpTool = KtorHttpTool(client, config)
+}

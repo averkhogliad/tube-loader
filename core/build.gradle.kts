@@ -17,6 +17,9 @@ kotlin {
 dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.encoding)
     implementation(project(":common:config"))
     implementation(project(":common:retry"))
 
@@ -28,6 +31,7 @@ dependencies {
     testImplementation(libs.kotest.property)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.ktor.client.mock)
     testImplementation(testFixtures(project()))
     testImplementation(testFixtures(project(":common:config")))
     testRuntimeOnly(libs.junit.platform.launcher)

@@ -28,6 +28,13 @@
 ```
 implementation(libs.ktor.client.core)
 implementation(libs.ktor.client.cio)
+implementation(libs.ktor.client.encoding)
+```
+
+`ktor-client-encoding` нужен и не является транзитивным: `ktor-client-core` и `ktor-client-cio` не
+содержат плагина `ContentEncoding` (проверено пробой: с ними gzip-тело приходит адаптеру сырыми
+байтами). Плагин устанавливается в тот `HttpClient`, который создаёт вызывающий:
+`install(ContentEncoding) { gzip() }`.
 ```
 
 `ktor-client-okhttp` отвергнут: под ним тянется OkHttp, и тогда Ktor — лишний слой над тем, что
@@ -62,6 +69,7 @@ HttpClient(CIO) {
         connectTimeoutMillis = config().connectTimeout.inWholeMilliseconds
         requestTimeoutMillis = config().requestTimeout.inWholeMilliseconds
     }
+    install(ContentEncoding) { gzip() }
     expectSuccess = false            // non-2xx -> Result.success со status: Int, не throw
     followRedirects = false          // финальный URL наружу не отдаём (ADR-0005, Q9 спеки)
     engine { /* пустой, дефолты CIO */ }
@@ -148,6 +156,7 @@ implementation(libs.kotlinx.coroutines.core)
 implementation(libs.kotlinx.serialization.json)
 implementation(libs.ktor.client.core)
 implementation(libs.ktor.client.cio)
+implementation(libs.ktor.client.encoding)
 implementation(project(":common:config"))
 implementation(project(":common:retry"))
 ```

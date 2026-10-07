@@ -13,7 +13,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 data class HttpToolConfig(
     val connectTimeout: Duration = DEFAULT_CONNECT_TIMEOUT,
-    val readTimeout: Duration = DEFAULT_READ_TIMEOUT,
+    val requestTimeout: Duration = DEFAULT_REQUEST_TIMEOUT,
     val retryMaxAttempts: Int = DEFAULT_RETRY_MAX_ATTEMPTS,
     val retryBaseDelay: Duration = DEFAULT_RETRY_BASE_DELAY,
     val retryRandomizationFactor: Double = DEFAULT_RETRY_RANDOMIZATION_FACTOR,
@@ -22,7 +22,7 @@ data class HttpToolConfig(
 
     init {
         require(connectTimeout > Duration.ZERO) { "connectTimeout must be positive, got $connectTimeout" }
-        require(readTimeout > Duration.ZERO) { "readTimeout must be positive, got $readTimeout" }
+        require(requestTimeout > Duration.ZERO) { "requestTimeout must be positive, got $requestTimeout" }
         require(retryMaxAttempts >= 1) { "retryMaxAttempts must be at least 1, got $retryMaxAttempts" }
         require(retryBaseDelay >= Duration.ZERO) { "retryBaseDelay must not be negative, got $retryBaseDelay" }
         require(retryRandomizationFactor in 0.0..1.0) {
@@ -38,7 +38,7 @@ data class HttpToolConfig(
         const val DEFAULT_RETRY_RANDOMIZATION_FACTOR = 0.0
 
         val DEFAULT_CONNECT_TIMEOUT = 5.seconds
-        val DEFAULT_READ_TIMEOUT = 30.seconds
+        val DEFAULT_REQUEST_TIMEOUT = 30.seconds
         val DEFAULT_RETRY_BASE_DELAY = 250.milliseconds
         val DEFAULT_RETRIABLE_STATUSES = setOf(408, 429, 502, 503, 504)
 
@@ -51,7 +51,7 @@ data class HttpToolConfig(
             val table = config.getTableOrNull(tablePath).orEmpty()
             return HttpToolConfig(
                 connectTimeout = millisecondsAt(table, tablePath, "connect-timeout-ms", DEFAULT_CONNECT_TIMEOUT),
-                readTimeout = millisecondsAt(table, tablePath, "read-timeout-ms", DEFAULT_READ_TIMEOUT),
+                requestTimeout = millisecondsAt(table, tablePath, "request-timeout-ms", DEFAULT_REQUEST_TIMEOUT),
                 retryMaxAttempts = attemptsAt(table, tablePath),
                 retryBaseDelay =
                     millisecondsAt(
