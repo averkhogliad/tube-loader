@@ -36,7 +36,7 @@
 | Polly `ShouldHandle(args.Outcome)` | Единый предикат на исключение ИЛИ значение | У нас раздельное: `retryIf` для исключений в политике, `retryOnResult` через `judging(T)` на вызове. Единый предикат семантически другой — смешивает протокольный уровень (значение) с транспортным (исключение) |
 | Failsafe `.handleResultIf`, `.handleResult` | `Predicate<V>`, фильтрация значения | У нас через `judging`. Имя `retryOnResult` отраслевое (Polly/Failsafe/Guava) — берём; брать отдельный `.handleResultIf`-DSL нет смысла, форма сигнатуры уже зафиксирована |
 | resilience4j `retryOnResultPredicate` + `failAfterMaxAttempts` | Условие «вернуть последнее значение» + «бросить на исчерпание» | У нас исчерпание по значению = `Result.failure(...)` — `DownloadResult.Failed(NetworkTransient)` в адаптере. «Вернуть последнее значение» ломает `kotlin.Result`-контракт |
-| Kresil `retryIf { it is NetworkError }` | Предикат на исключение | У нас `continueIf { it is IOException }` — эквивалент. Имя разное, форма та же |
+| Kresil `retryIf { it is NetworkError }` | Предикат на исключение | У нас `continueIf { failure is IOException }` — эквивалент. Имя разное, форма та же |
 | Failsafe `.abortIf`, `.abortOn`, `.abortWhen` | Форсированный стоп по условию | У нас через `+`-композицию со `StopRetrying`. `abortIf`-DSL — лишний уровень |
 | kmp-resilient `onRetry(attempt, error)` listener-только-не-предикат | Видно метаданные только в `onRetry`, не в условии | У нас метаданные (`previousDelay`, `cumulativeDelay`) видны в предикате через `FailedAttempt` — функциональное преимущество, которое мы уже имеем |
 

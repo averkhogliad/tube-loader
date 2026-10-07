@@ -15,8 +15,15 @@ fun RetryPolicy.stopAtAttempts(attempts: Int): RetryPolicy = then(StopAtAttempts
 
 /**
  * Appends a stage that stops as soon as [predicate] turns a failure down.
+ *
+ * The predicate receives the [FailedAttempt] as a receiver, so it weighs the failure itself against the
+ * metadata of the attempt that carried it — its number, the pauses spent so far and the elapsed time.
+ *
+ * ```
+ * policy.continueIf { number < 3 && failure is IOException }
+ * ```
  */
-fun RetryPolicy.continueIf(predicate: (Throwable) -> Boolean): RetryPolicy = then(ContinueIf(predicate))
+fun RetryPolicy.continueIf(predicate: FailedAttempt.() -> Boolean): RetryPolicy = then(ContinueIf(predicate))
 
 /**
  * Appends a stage that waits the same [delay] before every attempt.
@@ -63,10 +70,10 @@ private class StopAtAttempts(private val attempts: Int) : Stage {
         if (attempt.number >= attempts) StopRetrying else ContinueRetrying
 }
 
-private class ContinueIf(private val predicate: (Throwable) -> Boolean) : Stage {
+private class ContinueIf(private val predicate: FailedAttempt.() -> Boolean) : Stage {
 
     override fun decide(attempt: FailedAttempt): RetryInstruction =
-        if (predicate(attempt.failure)) ContinueRetrying else StopRetrying
+        if (attempt.predicate()) ContinueRetrying else StopRetrying
 }
 
 private class ConstantDelay(private val delay: Duration) : Stage {

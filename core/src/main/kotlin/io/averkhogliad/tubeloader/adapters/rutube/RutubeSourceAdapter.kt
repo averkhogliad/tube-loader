@@ -292,7 +292,7 @@ private fun refusalOf(body: HttpBody?): DownloadResult? =
 private fun policyOf(settings: HttpToolConfig): RetryPolicy =
     RetryPolicy
         .stopAtAttempts(settings.retryMaxAttempts)
-        .continueIf { failure -> failure is IOException || failure is RetryExhausted }
+        .continueIf { failure is IOException || failure is RetryExhausted }
         .exponentialBackoff(settings.retryBaseDelay, randomizationFactor = settings.retryRandomizationFactor)
 
 private fun classifyMeta(id: String, body: HttpBody): LoadMetaResult {

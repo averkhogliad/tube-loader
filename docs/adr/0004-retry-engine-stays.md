@@ -69,7 +69,8 @@ Sandbox-пробы (артефакты в `.tasks/probe-arrow-resilience/`):
 
 DSL — **Compose-форма** (issue #63, форма выбрана и опробована): `RetryPolicy` — обычный
 `interface` (не `fun interface`) без generic по типу ошибки, `+`-оператор как `then`, приватный
-`Combined`, `Stage` как receiver фабрик. Убирает 29 явных `<Throwable>` из цепочки. Форма `fun
+`Combined`, `Stage` как receiver фабрик, предикат `continueIf` — лямбда с ресивером
+`FailedAttempt.() -> Boolean`. Убирает 29 явных `<Throwable>` из цепочки. Форма `fun
 interface` с `companion object` не компилируется: `companion object` требует конструктора у
 интерфейса, а `fun interface` его не даёт; ковариантный generic-вариант с companion компилируется,
 но падает в рантайме `ClassCastException`.

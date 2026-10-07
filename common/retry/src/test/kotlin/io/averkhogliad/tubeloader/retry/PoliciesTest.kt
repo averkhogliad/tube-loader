@@ -48,7 +48,7 @@ class PoliciesTest :
         "continueIf" - {
             "continues a failure the predicate accepts" {
                 // given
-                val policy = RetryPolicy.continueIf { it is IOException }
+                val policy = RetryPolicy.continueIf { failure is IOException }
 
                 // when
                 val actual = policy.decide(failedAttempt(number = 1, failure = IOException("reset")))
@@ -59,13 +59,35 @@ class PoliciesTest :
 
             "stops a failure the predicate turns down" {
                 // given
-                val policy = RetryPolicy.continueIf { it is IOException }
+                val policy = RetryPolicy.continueIf { failure is IOException }
 
                 // when
                 val actual = policy.decide(failedAttempt(number = 1, failure = IllegalStateException("broken")))
 
                 // then
                 actual shouldBe StopRetrying
+            }
+
+            "reads the attempt number it is given as a receiver" {
+                // given
+                val policy = RetryPolicy.stopAtAttempts(5).continueIf { number < 3 }
+
+                // when / then
+                policy.decide(failedAttempt(number = 2)) shouldBe ContinueRetrying
+                policy.decide(failedAttempt(number = 3)) shouldBe StopRetrying
+            }
+
+            "reads the failure and the attempt metadata at once" {
+                // given
+                val policy = RetryPolicy.continueIf { number < 3 && failure is IOException }
+                val withinNumber = failedAttempt(number = 1, failure = IOException("reset"))
+                val pastNumber = failedAttempt(number = 3, failure = IOException("reset"))
+                val otherFailure = failedAttempt(number = 1, failure = IllegalStateException("broken"))
+
+                // when / then
+                policy.decide(withinNumber) shouldBe ContinueRetrying
+                policy.decide(pastNumber) shouldBe StopRetrying
+                policy.decide(otherFailure) shouldBe StopRetrying
             }
         }
 
@@ -292,7 +314,7 @@ class PoliciesTest :
             "stops when either side stops" {
                 // given
                 val attempts = RetryPolicy.stopAtAttempts(5)
-                val predicate = RetryPolicy.continueIf { it is IOException }
+                val predicate = RetryPolicy.continueIf { failure is IOException }
 
                 // when
                 val stopped =
