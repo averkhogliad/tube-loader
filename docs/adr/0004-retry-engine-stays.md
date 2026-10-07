@@ -77,8 +77,11 @@ interface` с `companion object` не компилируется: `companion obj
 но падает в рантайме `ClassCastException`.
 
 TOML — **плоский** под-блок `[download.http-tool]`: `connect-timeout-ms`, `request-timeout-ms`,
-`max-attempts`, `base-delay-ms`, `randomization-factor`, `retriable-statuses`. Никакого вложенного
-`[download.http-tool.retry]` — одна вложенность.
+`per-attempt-timeout-ms`, `max-attempts`, `base-delay-ms`, `randomization-factor`,
+`retriable-statuses`. Никакого вложенного
+`[download.http-tool.retry]` — одна вложенность. `per-attempt-timeout-ms` обязателен: это
+единственная настройка без дефолта, потому что таймаут попытки — решение конфигурации, а не
+вкусовая константа.
 
 DSL-блок `retryConfig { … }` (Kresil/kmp-resilient) — **отвергнут**: ломает Compose-форму #63
 (`+`-оператор как точка сборки).
@@ -100,10 +103,14 @@ DSL-блок `retryConfig { … }` (Kresil/kmp-resilient) — **отвергну
   `retry(policy, context, timeSource = TimeSource.Monotonic, block)`; `FailedAttempt.elapsed`
   меряется от старта retry. Тесты подставляют `TestTimeSource` и двигают время вручную, поэтому
   бюджет проверяется без ожидания реального времени.
-- **`perAttemptTimeout` (#68) отложен.** Ограничивать по времени пока нечего: production-реализации
-  `HttpTool`/`MediaTool` в репозитории нет, есть только порты ядра и тестовые фейки. Шов получает
-  таймаут вместе с первым реальным клиентом; параметры `connect-timeout-ms`/`request-timeout-ms`
-  читаются в `HttpToolConfig` уже сейчас (#67).
+- **`perAttemptTimeout` (#68) решён 07.10.2026 — ответственность адаптера.** Три таймаута
+  разведены: `connectTimeout` и `requestTimeout` — HTTP-клиента (`HttpTimeout` в том
+  `HttpClient`, который собирает вызывающий), `perAttemptTimeout` — адаптера, который оборачивает
+  `HttpTool.open` в `withTimeout` внутри своей retry-обёртки. Порт таймаут попытки не ставит и
+  retry-движок его не ставит. Значение приходит из обязательного ключа `per-attempt-timeout-ms`
+  (`per-attempt-timeout` — только у kmp-resilient среди исследованных движков; у Failsafe/Polly
+  это отдельный `Timeout`). Был отложен 07.10.2026 как «нечего ограничивать» — обоснование снято:
+  production-реализация `HttpTool` влита (PR #76), ключ в дефолт-конфиге уже стоит.
 
 ## Consequences
 
@@ -123,10 +130,11 @@ DSL-блок `retryConfig { … }` (Kresil/kmp-resilient) — **отвергну
    have constructors»).
 4. #67 — `[download.http-tool]` плоский блок + `HttpToolConfig` в `AppConfig` + интеграция
    в адаптер. ~50 LoC + 30 LoC тестов. Заблокирован тикетом #66.
-5. #68 — `perAttemptTimeout` через `withTimeout` в `HttpTool.open` (долг из памяти
-   `Retry_engine_in_common_retry-37360798096e.md`). Заблокирован тикетом #67 (нужны
-   `connectTimeout`/`requestTimeout`). **Отложен 07.10.2026:** production-реализации `HttpTool` в
-   репозитории нет, ограничивать по времени нечего — задача ждёт первого реального клиента.
+5. #68 — `perAttemptTimeout` через `withTimeout` вокруг `HttpTool.open` в retry-обёртке
+   адаптера (долг из памяти `Retry_engine_in_common_retry-37360798096e.md`). **Разблокирован
+   07.10.2026:** production-реализация `HttpTool` влита (PR #76), блокировка «нужны
+   `connectTimeout`/`requestTimeout`» снята — ключ `per-attempt-timeout-ms` добавлен в
+   `[download.http-tool]`.
 
 **Локальный долг.** Константы `MAX_ATTEMPTS = 5` и `RETRY_BASE_PAUSE = 250ms` были дефолтами из
 кода адаптера, **не из грил-заметок**: провенанс невосстановим, `git ls-files | grep grill` пусто.

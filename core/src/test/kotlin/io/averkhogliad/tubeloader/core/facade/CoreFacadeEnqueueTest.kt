@@ -71,7 +71,9 @@ class CoreFacadeEnqueueTest :
                     val world =
                         facadeWorld(
                             tempDir,
-                            FacadeSettings(initialConfig = AppConfig(maxParallelDownloads = 1)),
+                            FacadeSettings(
+                                initialConfig = AppConfig(maxParallelDownloads = 1, httpTool = testHttpTool),
+                            ),
                         )
                     world.adapters.single().onFind = { FindResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
@@ -91,7 +93,9 @@ class CoreFacadeEnqueueTest :
                     world.state(queued.taskId).status shouldBe DownloadStatus.Queued
                     withTimeout(1.seconds) { world.facade.findByUrl(inputs.next()) }
                         .shouldBeInstanceOf<ResolveResult.Resolved>()
-                    withTimeout(1.seconds) { world.config.value = AppConfig(maxParallelDownloads = 2) }
+                    withTimeout(1.seconds) {
+                        world.config.value = AppConfig(maxParallelDownloads = 2, httpTool = testHttpTool)
+                    }
                     world.config.value.maxParallelDownloads shouldBe 2
                     world.state(running.taskId).status shouldBe DownloadStatus.Downloading
                     release.complete(Unit)

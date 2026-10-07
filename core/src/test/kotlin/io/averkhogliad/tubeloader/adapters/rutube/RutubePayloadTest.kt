@@ -11,6 +11,7 @@ import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 private val expectedMeta =
     MediaMeta(
@@ -26,7 +27,7 @@ private fun adapter(body: String) =
     RutubeSourceAdapter(
         FakeHttpTool().route(OPTIONS_URL, recordedStubWith(body, 200)),
         FakeMediaTool().copyStreams(),
-        { HttpToolConfig() },
+        { HttpToolConfig(perAttemptTimeout = 30.seconds) },
     )
 
 class RutubePayloadTest :

@@ -14,7 +14,7 @@
 
 | Что | Где закрыто | У нас | Что мешает |
 |---|---|---|---|
-| `perAttemptTimeout` (таймаут одной попытки) | `kmp-resilient 2.0+` через `RetryPolicyConfig.perAttemptTimeout`; Failsafe/Polly через отдельный `Timeout` | Нет. Обходится `withTimeout` вокруг блока или в `HttpTool.open` | Не шов движка — отдельный шов `HttpTool` (#68) |
+| `perAttemptTimeout` (таймаут одной попытки) | `kmp-resilient 2.0+` через `RetryPolicyConfig.perAttemptTimeout`; Failsafe/Polly через отдельный `Timeout` | Нет. Обходится `withTimeout` вокруг блока в адаптере | Не шов движка — обёртка живёт в адаптере (#68); ключ `per-attempt-timeout-ms` обязателен |
 | Decorrelated jitter (AWS-формула) | kmp-resilient `DecorrelatedJitterBackoff`, Polly `MedianFirstJitterBackoff`, tenacity `wait_random_jitter` | Нет. Только ±N% `randomizationFactor` (идея 2 ADR-0004) | Сегменты качаются последовательно (память `Retry_libraries_survey_-_kotlin-retry_closest-877ba70d281e.md`), декорелированный jitter избыточен |
 | `Retry-After` от сервера | resilience4j через `RetryAfter` response handler, Failsafe/Polly в `Handle`/`WaitAndRetry` | Нет. Экспонента как дешёвая замена | Заголовки отдаются портом с #75 (`HttpResponse.headers`), но движок судит по `status`; ждать паузу из header — отдельный тикет |
 | Бюджет по паузам (`cumulativeDelay`) | `kotlin-retry` | Нет. Бюджет считается по прошедшему времени (`withinBudget`), как у Failsafe/Polly/tenacity | Сумма пауз не ограничивает реальное время: зависший запрос не двигает `cumulativeDelay` |

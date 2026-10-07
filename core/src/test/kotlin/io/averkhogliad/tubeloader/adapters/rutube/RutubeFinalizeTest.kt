@@ -10,6 +10,7 @@ import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import java.nio.file.Files
 import kotlin.io.path.readBytes
+import kotlin.time.Duration.Companion.seconds
 
 private val JOINED_SEGMENTS =
     listOf("rutube/segment-1.ts", "rutube/segment-2.ts", "rutube/segment-3.ts")
@@ -29,7 +30,7 @@ class RutubeFinalizeTest :
 
                 // when
                 val actual =
-                    RutubeSourceAdapter(streaming(), media, { HttpToolConfig() })
+                    RutubeSourceAdapter(streaming(), media, { HttpToolConfig(perAttemptTimeout = 30.seconds) })
                         .download(MEDIA_ID, VIDEO_1080, target) {}
 
                 // then
@@ -84,7 +85,11 @@ class RutubeFinalizeTest :
 
                 // when
                 val actual =
-                    RutubeSourceAdapter(streaming(), media, { HttpToolConfig() }).download(
+                    RutubeSourceAdapter(
+                        streaming(),
+                        media,
+                        { HttpToolConfig(perAttemptTimeout = 30.seconds) },
+                    ).download(
                         MEDIA_ID,
                         VIDEO_1080,
                         dir.resolve("clip.mp4"),

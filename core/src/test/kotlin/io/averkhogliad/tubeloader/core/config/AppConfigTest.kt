@@ -5,6 +5,11 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import java.nio.file.Path
+import kotlin.time.Duration.Companion.seconds
+
+private val httpToolConfig = HttpToolConfig(perAttemptTimeout = 30.seconds)
+
+private val perAttempt = "download.http-tool.per-attempt-timeout-ms" to "30000"
 
 class AppConfigTest :
     FreeSpec({
@@ -12,7 +17,7 @@ class AppConfigTest :
         "fromConfig" - {
             "returns defaults when the config has no download keys" {
                 // given
-                val config = mapConfig()
+                val config = mapConfig(perAttempt)
 
                 // when
                 val actual = AppConfig.fromConfig(config)
@@ -22,6 +27,7 @@ class AppConfigTest :
                     AppConfig(
                         maxParallelDownloads = AppConfig.DEFAULT_MAX_PARALLEL_DOWNLOADS,
                         defaultTargetDir = null,
+                        httpTool = httpToolConfig,
                     )
             }
 
@@ -31,6 +37,7 @@ class AppConfigTest :
                     mapConfig(
                         "download.max-parallel-downloads" to "2",
                         "download.default-target-dir" to "D:/vid",
+                        perAttempt,
                     )
 
                 // when
@@ -41,12 +48,13 @@ class AppConfigTest :
                     AppConfig(
                         maxParallelDownloads = 2,
                         defaultTargetDir = Path.of("D:/vid"),
+                        httpTool = httpToolConfig,
                     )
             }
 
             "trims surrounding whitespace around max-parallel-downloads" {
                 // given
-                val config = mapConfig("download.max-parallel-downloads" to " 7 ")
+                val config = mapConfig("download.max-parallel-downloads" to " 7 ", perAttempt)
 
                 // when
                 val actual = AppConfig.fromConfig(config)
@@ -57,7 +65,7 @@ class AppConfigTest :
 
             "keeps one as the lowest accepted max-parallel-downloads" {
                 // given
-                val config = mapConfig("download.max-parallel-downloads" to "1")
+                val config = mapConfig("download.max-parallel-downloads" to "1", perAttempt)
 
                 // when
                 val actual = AppConfig.fromConfig(config)
@@ -68,8 +76,8 @@ class AppConfigTest :
 
             "falls back to default when max-parallel-downloads is zero or negative" {
                 // given
-                val zero = mapConfig("download.max-parallel-downloads" to "0")
-                val negative = mapConfig("download.max-parallel-downloads" to "-3")
+                val zero = mapConfig("download.max-parallel-downloads" to "0", perAttempt)
+                val negative = mapConfig("download.max-parallel-downloads" to "-3", perAttempt)
 
                 // when
                 val fromZero = AppConfig.fromConfig(zero)
@@ -82,7 +90,7 @@ class AppConfigTest :
 
             "falls back to default when max-parallel-downloads is not a number" {
                 // given
-                val config = mapConfig("download.max-parallel-downloads" to "many")
+                val config = mapConfig("download.max-parallel-downloads" to "many", perAttempt)
 
                 // when
                 val actual = AppConfig.fromConfig(config)
@@ -93,7 +101,7 @@ class AppConfigTest :
 
             "ignores blank default-target-dir" {
                 // given
-                val config = mapConfig("download.default-target-dir" to "   ")
+                val config = mapConfig("download.default-target-dir" to "   ", perAttempt)
 
                 // when
                 val actual = AppConfig.fromConfig(config)
@@ -104,7 +112,7 @@ class AppConfigTest :
 
             "falls back to null when default-target-dir is an invalid path" {
                 // given
-                val config = mapConfig("download.default-target-dir" to "a\u0000b")
+                val config = mapConfig("download.default-target-dir" to "a\u0000b", perAttempt)
 
                 // when
                 val actual = AppConfig.fromConfig(config)
@@ -117,12 +125,12 @@ class AppConfigTest :
         "constructor" - {
             "rejects maxParallelDownloads below one" {
                 shouldThrow<IllegalArgumentException> {
-                    AppConfig(maxParallelDownloads = 0)
+                    AppConfig(maxParallelDownloads = 0, httpTool = httpToolConfig)
                 }
             }
 
             "accepts single-threaded limit" {
-                AppConfig(maxParallelDownloads = 1).maxParallelDownloads shouldBe 1
+                AppConfig(maxParallelDownloads = 1, httpTool = httpToolConfig).maxParallelDownloads shouldBe 1
             }
         }
     })

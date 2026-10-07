@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.core.download
 
 import io.averkhogliad.tubeloader.core.config.AppConfig
+import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
@@ -25,6 +26,8 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+
+private val testHttpTool = HttpToolConfig(perAttemptTimeout = 30.seconds)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DownloadQueueTest :
@@ -234,7 +237,7 @@ class DownloadQueueTest :
             "starts the waiting tasks when the limit is raised" {
                 runTest {
                     // given
-                    val config = MutableStateFlow(AppConfig(maxParallelDownloads = 1))
+                    val config = MutableStateFlow(AppConfig(maxParallelDownloads = 1, httpTool = testHttpTool))
                     val queue = downloadQueue(config)
                     val log = StartLog()
                     (0..2).forEach { queue.submit(log.work(it)) }
@@ -242,7 +245,7 @@ class DownloadQueueTest :
                     log.order shouldBe listOf(0)
 
                     // when
-                    config.value = AppConfig(maxParallelDownloads = 3)
+                    config.value = AppConfig(maxParallelDownloads = 3, httpTool = testHttpTool)
                     testScheduler.advanceUntilIdle()
 
                     // then
@@ -255,7 +258,7 @@ class DownloadQueueTest :
             "does not preempt the running tasks when the limit is lowered" {
                 runTest {
                     // given
-                    val config = MutableStateFlow(AppConfig(maxParallelDownloads = 2))
+                    val config = MutableStateFlow(AppConfig(maxParallelDownloads = 2, httpTool = testHttpTool))
                     val queue = downloadQueue(config)
                     val log = StartLog()
                     (0..3).forEach { queue.submit(log.work(it)) }
@@ -263,7 +266,7 @@ class DownloadQueueTest :
                     log.order shouldBe listOf(0, 1)
 
                     // when
-                    config.value = AppConfig(maxParallelDownloads = 1)
+                    config.value = AppConfig(maxParallelDownloads = 1, httpTool = testHttpTool)
                     testScheduler.advanceUntilIdle()
 
                     // then the running tasks are left alone and no new slot is handed out
@@ -391,7 +394,7 @@ private class StartLog {
 }
 
 private fun config(maxParallelDownloads: Int): MutableStateFlow<AppConfig> =
-    MutableStateFlow(AppConfig(maxParallelDownloads = maxParallelDownloads))
+    MutableStateFlow(AppConfig(maxParallelDownloads = maxParallelDownloads, httpTool = testHttpTool))
 
 private fun TestScope.downloadQueue(config: MutableStateFlow<AppConfig>): DownloadQueue {
     val dispatcher = StandardTestDispatcher(testScheduler)

@@ -98,14 +98,16 @@ Result<HttpResponse>`. `Result.failure` — для транспортных сб
 
 **Cancellation.** Отмена корутины, в которой вызван `open`, прерывает сетевую операцию. Это
 **контракт**: реализация, которая игнорирует cancellation, нарушает спеку. Конкретный таймаут
-(`perAttemptTimeout` через `withTimeout`) — **вне контракта** и остаётся на реализации; тикет #68 в
-`ADR-0004` откладывает его до первой production-реализации порта.
+(`perAttemptTimeout` через `withTimeout`) — **вне контракта порта**: его ставит адаптер в своей
+retry-обёртке; порт ограничивать попытку не обязан и retry-движок тоже. Тикет #68 в `ADR-0004`.
 
 **`HttpToolConfig`.** Конфиг остаётся как в `core/.../config/HttpToolConfig.kt`:
 `connectTimeout`, **`requestTimeout`** (вместо бывшего `readTimeout` — см. ADR-0006 про
-отсутствие split readTimeout в Ktor), `retryMaxAttempts`, `retryBaseDelay`,
+отсутствие split readTimeout в Ktor), `perAttemptTimeout`, `retryMaxAttempts`, `retryBaseDelay`,
 `retryRandomizationFactor`, `retryRetriableStatuses`. Дефолты живут в `HttpToolConfig` и
-нигде больше. Применяются вызывающим, который собирает `HttpClient`
+нигде больше — кроме `perAttemptTimeout`, единственного поля без дефолта: его обязан задать
+конфиг (ключ `per-attempt-timeout-ms`), читает его адаптер. `connectTimeout`/`requestTimeout`
+применяются вызывающим, который собирает `HttpClient`
 (`HttpClient { install(HttpTimeout) { ... } }`), а не кодом ядра. Тесты обвязки порта — в
 `core/src/test/.../http/KtorHttpToolTest.kt` (7 кейсов, см. ADR-0006).
 
@@ -168,13 +170,14 @@ unit-тестах ядра запрещена (`docs/features/core/spec.md`).
   `MockEngine` (happy / non-2xx / transport fail / content closes stream / оба gzip-сценария /
   `Retry-After` из headers).
   ~200 LoC + ~80 LoC тестов. Заблокирован по #73 (форма `HttpResponse`).
-- **#68 — `perAttemptTimeout` одной попытки** (долг из ADR-0004). Отложен: тикет остаётся
-  открытым до первой production-реализации (#74). За ним — развилка, не закрытая ни спекой, ни
-  ADR-0005/0006: спека http-tool говорит «`withTimeout` живёт снаружи порта, в retry-обёртке
-  адаптера», ADR-0005 — «`perAttemptTimeout` остаётся ответственностью реализации порта», а
-  ADR-0006 уже даёт Ktor `requestTimeoutMillis`, ограничивающий попытку внутри клиента. Форма
-  решается отдельным шагом перед реализацией.
-- **#77 — production-сборка `HttpClient`** (timeouts из `HttpToolConfig` + `install(ContentEncoding)`).
-  Реализация порта клиент не строит: `KtorHttpTool` берёт его параметром и lifecycle не владеет.
+- **#68 — `perAttemptTimeout` одной попытки** (долг из ADR-0004). Решён 07.10.2026: таймаут попытки —
+  ответственность **адаптера**, который оборачивает `HttpTool.open` в `withTimeout` внутри своей
+  retry-обёртки; порт таймаут попытки не ставит. `connectTimeout` и `requestTimeout` —
+  ответственность HTTP-клиента (`HttpTimeout` в `HttpClient`, который собирает вызывающий).
+  Значение — из обязательного ключа `per-attempt-timeout-ms` (`HttpToolConfig.perAttemptTimeout`).
+- **#77 — production-сборка `HttpClient`** — **закрыт 07.10.2026 как `wontfix`**: сборка клиента
+  (timeouts из `HttpToolConfig` + `install(ContentEncoding) { gzip() }`) делается после выбора DI
+  и реализации самого приложения. Реализация порта клиент не строит: `KtorHttpTool` берёт его
+  параметром и lifecycle не владеет.
   Сейчас `HttpClient` не создаёт никто, кроме тестового хелпера `KtorHttpToolTest`, поэтому
   `Content-Encoding` в проде не снимается.

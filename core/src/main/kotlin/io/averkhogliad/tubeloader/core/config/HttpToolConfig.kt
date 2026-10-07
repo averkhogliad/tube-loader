@@ -6,14 +6,18 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * What the HTTP port needs beyond the protocol: the two timeouts of a single attempt, and the shape
+ * What the HTTP port needs beyond the protocol: the three timeouts of a single attempt, and the shape
  * of the retry an adapter wraps it in.
+ *
+ * [connectTimeout] and [requestTimeout] belong to the client; [perAttemptTimeout] is the adapter's own
+ * budget for one attempt, and it has no default.
  *
  * The defaults live here and nowhere else, so an adapter holds no retry constant of its own.
  */
 data class HttpToolConfig(
     val connectTimeout: Duration = DEFAULT_CONNECT_TIMEOUT,
     val requestTimeout: Duration = DEFAULT_REQUEST_TIMEOUT,
+    val perAttemptTimeout: Duration,
     val retryMaxAttempts: Int = DEFAULT_RETRY_MAX_ATTEMPTS,
     val retryBaseDelay: Duration = DEFAULT_RETRY_BASE_DELAY,
     val retryRandomizationFactor: Double = DEFAULT_RETRY_RANDOMIZATION_FACTOR,
@@ -23,6 +27,9 @@ data class HttpToolConfig(
     init {
         require(connectTimeout > Duration.ZERO) { "connectTimeout must be positive, got $connectTimeout" }
         require(requestTimeout > Duration.ZERO) { "requestTimeout must be positive, got $requestTimeout" }
+        require(perAttemptTimeout > Duration.ZERO) {
+            "perAttemptTimeout must be positive, got $perAttemptTimeout"
+        }
         require(retryMaxAttempts >= 1) { "retryMaxAttempts must be at least 1, got $retryMaxAttempts" }
         require(retryBaseDelay >= Duration.ZERO) { "retryBaseDelay must not be negative, got $retryBaseDelay" }
         require(retryRandomizationFactor in 0.0..1.0) {
@@ -44,14 +51,16 @@ data class HttpToolConfig(
 
         /**
          * Reads the flat `[download.http-tool]` sub-block. A missing table and a missing key both
-         * answer the default; a value that cannot be read raises with the name of the key and the
-         * value, because a typo in a timeout is worth a loud stop rather than a silent default.
+         * answer the default, except for `per-attempt-timeout-ms`, which is required and raises with
+         * its own name; a value that cannot be read raises with the name of the key and the value,
+         * because a typo in a timeout is worth a loud stop rather than a silent default.
          */
         fun fromConfig(config: Config, tablePath: String = DEFAULT_TABLE): HttpToolConfig {
             val table = config.getTableOrNull(tablePath).orEmpty()
             return HttpToolConfig(
                 connectTimeout = millisecondsAt(table, tablePath, "connect-timeout-ms", DEFAULT_CONNECT_TIMEOUT),
                 requestTimeout = millisecondsAt(table, tablePath, "request-timeout-ms", DEFAULT_REQUEST_TIMEOUT),
+                perAttemptTimeout = requiredMillisecondsAt(table, tablePath, "per-attempt-timeout-ms"),
                 retryMaxAttempts = attemptsAt(table, tablePath),
                 retryBaseDelay =
                     millisecondsAt(
@@ -78,6 +87,11 @@ data class HttpToolConfig(
             val value = requireNonNegative(raw, at)
             require(allowZero || value > 0) { "$at must be positive, got $raw" }
             return value.milliseconds
+        }
+
+        private fun requiredMillisecondsAt(table: Map<String, Any>, tablePath: String, key: String): Duration {
+            require(key in table) { "${name(tablePath, key)} is required" }
+            return millisecondsAt(table, tablePath, key, Duration.ZERO)
         }
 
         private fun attemptsAt(table: Map<String, Any>, tablePath: String): Int =

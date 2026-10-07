@@ -46,9 +46,11 @@ generic по типу ошибки, `+`-оператор как `then`, прив
 Это убирает 29 явных `<Throwable>` из цепочки без потери типовой безопасности на вызове.
 
 Параметры повтора — через плоский под-блок `[download.http-tool]` в TOML: `connect-timeout-ms`,
-`request-timeout-ms`, `max-attempts`, `base-delay-ms`, `randomization-factor`, `retriable-statuses`.
+`request-timeout-ms`, `per-attempt-timeout-ms`, `max-attempts`, `base-delay-ms`, `randomization-factor`,
+`retriable-statuses`.
 Без вложенного `[download.http-tool.retry]`: одна вложенность (`download` → `http-tool`)
-сохраняется.
+сохраняется. `per-attempt-timeout-ms` обязателен — единственный ключ блока без дефолта: таймаут
+попытки задаёт конфигурация, а не константа в коде.
 
 ## User Stories
 
@@ -137,7 +139,7 @@ number, previousDelay, cumulativeDelay, elapsed)` предикат `continueIf` 
   умолчанию), Failsafe (last result as is). На исчерпании по исключению не зовётся.
 
 **TOML — плоский под-блок.** `[download.http-tool]`: `connect-timeout-ms`, `request-timeout-ms`,
-`max-attempts`, `base-delay-ms`, `randomization-factor`, `retriable-statuses`. Конфиг резолвится
+`per-attempt-timeout-ms`, `max-attempts`, `base-delay-ms`, `randomization-factor`, `retriable-statuses`. Конфиг резолвится
 в `HttpToolConfig` (`AppConfig.httpTool`) его собственным `fromConfig` через `Config.getTableOrNull("download.http-tool")`.
 Никакого вложенного `[download.http-tool.retry]` — одна вложенность (`download` → `http-tool`).
 
@@ -203,10 +205,9 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
   но потребителя у них нет: движок судит по `judging(status)`, а не по header. В этом — экспонента как
   дешёвая замена; ждать паузу из `Retry-After` — отдельный тикет.
 - **`perAttemptTimeout` через `withTimeout` (задача #68).** Таймаут одной попытки — отдельный шов
-  `HttpTool`, не retry-движка. Реализация **отложена** вместе с первой production-реализацией
-  `HttpTool`/`MediaTool`: в репозитории есть только порт и тестовый фейк, ограничивать по времени
-  нечего. Параметры `connect-timeout-ms`/`request-timeout-ms` при этом читаются в `HttpToolConfig`
-  (задача #67) — их ждёт первый реальный клиент.
+  `HttpTool`, не retry-движка. Решён 07.10.2026: обёртка живёт в **адаптере** (`withTimeout` вокруг
+  `HttpTool.open` в retry-обёртке), значение — из обязательного `per-attempt-timeout-ms`;
+  `connectTimeout`/`requestTimeout` — у HTTP-клиента. Блокировка снята: порт реализован (PR #76).
 - **Decorrelated jitter (AWS).** `randomizationFactor` ±N% достаточно для текущего профиля
   (сегменты последовательные).
 - **DSL-блок `retryConfig { … }`.** Ломает Compose-форму #63. Отдельный гриль при появлении

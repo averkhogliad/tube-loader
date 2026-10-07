@@ -20,6 +20,7 @@ import java.io.IOException
 import java.nio.file.Files
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class RutubeRetryTest :
     FreeSpec({
@@ -155,7 +156,7 @@ class RutubeRetryTest :
             "takes the number of attempts from the configuration" {
                 // given
                 val http = FakeHttpTool().always(SERVER_ERROR_STUB)
-                val settings = HttpToolConfig(retryMaxAttempts = 2)
+                val settings = HttpToolConfig(perAttemptTimeout = 30.seconds, retryMaxAttempts = 2)
 
                 // when
                 val actual = adapter(http, settings).loadMeta(MEDIA_ID)
@@ -168,7 +169,7 @@ class RutubeRetryTest :
             "does not repeat a status the configuration leaves out" {
                 // given
                 val http = FakeHttpTool().route(OPTIONS_URL, HttpStub.Respond(textBody("slow down", status = 429)))
-                val settings = HttpToolConfig(retryRetriableStatuses = setOf(503))
+                val settings = HttpToolConfig(perAttemptTimeout = 30.seconds, retryRetriableStatuses = setOf(503))
 
                 // when
                 val actual = adapter(http, settings).loadMeta(MEDIA_ID)
@@ -182,7 +183,12 @@ class RutubeRetryTest :
                 // given
                 var attempts = 1
                 val http = FakeHttpTool().always(SERVER_ERROR_STUB)
-                val source = RutubeSourceAdapter(http, FakeMediaTool(), { HttpToolConfig(retryMaxAttempts = attempts) })
+                val source =
+                    RutubeSourceAdapter(
+                        http,
+                        FakeMediaTool(),
+                        { HttpToolConfig(perAttemptTimeout = 30.seconds, retryMaxAttempts = attempts) },
+                    )
 
                 // when
                 source.loadMeta(MEDIA_ID)

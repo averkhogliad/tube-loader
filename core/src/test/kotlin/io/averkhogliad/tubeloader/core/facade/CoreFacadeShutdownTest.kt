@@ -60,7 +60,9 @@ class CoreFacadeShutdownTest :
                     val world =
                         facadeWorld(
                             tempDir,
-                            FacadeSettings(initialConfig = AppConfig(maxParallelDownloads = 1)),
+                            FacadeSettings(
+                                initialConfig = AppConfig(maxParallelDownloads = 1, httpTool = testHttpTool),
+                            ),
                         )
                     world.adapters.single().onFind = { FindResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)

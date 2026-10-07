@@ -7,8 +7,14 @@ import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import kotlin.time.Duration.Companion.seconds
 
-private fun adapter() = RutubeSourceAdapter(FakeHttpTool(), FakeMediaTool(), { HttpToolConfig() })
+private fun adapter() =
+    RutubeSourceAdapter(
+        FakeHttpTool(),
+        FakeMediaTool(),
+        { HttpToolConfig(perAttemptTimeout = 30.seconds) },
+    )
 
 class RutubeSourceAdapterTest :
     FreeSpec({
