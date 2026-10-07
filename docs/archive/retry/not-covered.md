@@ -73,7 +73,7 @@
 
 | Источник | Кейс | Почему не нужен |
 |---|---|---|
-| kmp-resilient `ResilientDeadline` (coroutine-context budget) | Wall-clock бюджет через coroutine context | Есть `withinBudget(elapsed)` в политике, без coroutine context | Другая форма, не другой спрос |
+| kmp-resilient `ResilientDeadline` (coroutine-context budget) | Wall-clock бюджет через coroutine context | У нас `withinBudget(elapsed)` в политике, без coroutine context — другая форма, не другой спрос |
 | kmp-resilient `policy.cancelListeners()` | Управление listener-lifecycle | `onRetry` callback не владеет state'ом — lifecycle не нужен |
 | resilience4j `RetryRegistry` (центральный registry политик) | Именованные политики | У нас каждая политика собирается в адаптере — registry не нужен |
 | Failsafe `Failsafe.shutdown()` | Lifecycle-метод | Наш движок stateless — нет lifecycle |
