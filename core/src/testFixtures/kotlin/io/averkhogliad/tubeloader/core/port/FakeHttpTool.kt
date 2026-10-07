@@ -17,10 +17,15 @@ sealed interface HttpStub {
     data class Fail(val error: Throwable) : HttpStub
 }
 
-fun httpBody(content: ByteArray, contentLength: Long? = content.size.toLong(), status: Int = HTTP_OK): HttpResponse =
-    BytesResponse(status, content, contentLength)
+fun httpBody(
+    content: ByteArray,
+    contentLength: Long? = content.size.toLong(),
+    status: Int = HTTP_OK,
+    headers: Map<String, String> = emptyMap(),
+): HttpResponse = BytesResponse(status, content, contentLength, headers)
 
-fun textBody(content: String, status: Int = HTTP_OK): HttpResponse = httpBody(content.toByteArray(), status = status)
+fun textBody(content: String, status: Int = HTTP_OK, headers: Map<String, String> = emptyMap()): HttpResponse =
+    httpBody(content.toByteArray(), status = status, headers = headers)
 
 /**
  * A response over the bytes it was built from: every read hands out a stream of its own, so a stub
@@ -30,6 +35,7 @@ private class BytesResponse(
     override val status: Int,
     private val body: ByteArray,
     override val contentLength: Long?,
+    override val headers: Map<String, String>,
 ) : HttpResponse {
 
     override fun content(): InputStream = ByteArrayInputStream(body)
@@ -74,13 +80,14 @@ class FakeHttpTool : HttpTool {
         content: ByteArray,
         contentLength: Long? = content.size.toLong(),
         status: Int = HTTP_OK,
-    ): FakeHttpTool = always(HttpStub.Respond(httpBody(content, contentLength, status)))
+        headers: Map<String, String> = emptyMap(),
+    ): FakeHttpTool = always(HttpStub.Respond(httpBody(content, contentLength, status, headers)))
 
     /**
      * Answers every request with the classpath resource at [resource].
      */
-    fun recording(resource: String, status: Int = HTTP_OK): FakeHttpTool =
-        always(HttpStub.Respond(textBody(resourceText(resource), status)))
+    fun recording(resource: String, status: Int = HTTP_OK, headers: Map<String, String> = emptyMap()): FakeHttpTool =
+        always(HttpStub.Respond(textBody(resourceText(resource), status, headers)))
 
     /**
      * Answers every request with [body].
@@ -113,14 +120,22 @@ class FakeHttpTool : HttpTool {
     /**
      * Answers requests whose url equals [url] with [content].
      */
-    fun route(url: String, content: ByteArray, status: Int = HTTP_OK): FakeHttpTool =
-        route(url, HttpStub.Respond(httpBody(content, status = status)))
+    fun route(
+        url: String,
+        content: ByteArray,
+        status: Int = HTTP_OK,
+        headers: Map<String, String> = emptyMap(),
+    ): FakeHttpTool = route(url, HttpStub.Respond(httpBody(content, status = status, headers = headers)))
 
     /**
      * Answers requests whose url equals [url] with the classpath resource at [resource].
      */
-    fun routeRecording(url: String, resource: String, status: Int = HTTP_OK): FakeHttpTool =
-        route(url, HttpStub.Respond(textBody(resourceText(resource), status)))
+    fun routeRecording(
+        url: String,
+        resource: String,
+        status: Int = HTTP_OK,
+        headers: Map<String, String> = emptyMap(),
+    ): FakeHttpTool = route(url, HttpStub.Respond(textBody(resourceText(resource), status, headers)))
 
     private class Route(val prefix: String, private val stubs: List<HttpStub>) {
 

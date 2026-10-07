@@ -143,5 +143,26 @@ class KtorHttpToolTest :
                     body shouldBe "compressed payload"
                 }
             }
+
+            "hands the Retry-After of the answer to the adapter" {
+                runTest {
+                    // given
+                    val engine =
+                        MockEngine {
+                            respond(
+                                "slow down",
+                                HttpStatusCode.TooManyRequests,
+                                headersOf(HttpHeaders.RetryAfter, "120"),
+                            )
+                        }
+
+                    // when
+                    val response = tool(engine).open(URL).getOrThrow()
+
+                    // then
+                    response.status shouldBe 429
+                    response.headers[HttpHeaders.RetryAfter] shouldBe "120"
+                }
+            }
         }
     })
