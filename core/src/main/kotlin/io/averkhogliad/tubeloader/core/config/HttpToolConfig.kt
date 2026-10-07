@@ -40,7 +40,7 @@ data class HttpToolConfig(
         val DEFAULT_CONNECT_TIMEOUT = 5.seconds
         val DEFAULT_READ_TIMEOUT = 30.seconds
         val DEFAULT_RETRY_BASE_DELAY = 250.milliseconds
-        val DEFAULT_RETRIABLE_STATUSES = setOf(429, 500, 502, 503, 504)
+        val DEFAULT_RETRIABLE_STATUSES = setOf(408, 429, 502, 503, 504)
 
         /**
          * Reads the flat `[download.http-tool]` sub-block. A missing table and a missing key both

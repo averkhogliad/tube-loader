@@ -31,7 +31,7 @@ class HttpToolConfigTest :
                 actual shouldBe HttpToolConfig()
                 actual.retryMaxAttempts shouldBe 5
                 actual.retryBaseDelay shouldBe 250.milliseconds
-                actual.retryRetriableStatuses shouldBe setOf(429, 500, 502, 503, 504)
+                actual.retryRetriableStatuses shouldBe setOf(408, 429, 502, 503, 504)
             }
 
             "returns the defaults for a partly written block" {

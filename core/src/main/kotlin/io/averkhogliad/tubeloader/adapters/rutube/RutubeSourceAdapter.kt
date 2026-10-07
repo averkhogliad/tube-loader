@@ -43,8 +43,6 @@ private const val HTTP_OK = 200
 private const val HTTP_LAST_SUCCESS = 299
 private const val HTTP_MISSING_VIDEO = 244
 private const val HTTP_NOT_FOUND = 404
-private const val HTTP_SERVER_ERROR = 500
-private const val HTTP_LAST_SERVER_ERROR = 599
 
 /**
  * Rutube answers 244 instead of 404 for a missing video when the request carries `no_404=true`,
@@ -52,7 +50,6 @@ private const val HTTP_LAST_SERVER_ERROR = 599
  */
 private val MISSING_VIDEO_STATUSES = setOf(HTTP_MISSING_VIDEO, HTTP_NOT_FOUND)
 private val SUCCESS_STATUS = HTTP_OK..HTTP_LAST_SUCCESS
-private val SERVER_ERROR = HTTP_SERVER_ERROR..HTTP_LAST_SERVER_ERROR
 
 private const val MISSING_VIDEO_REASON = "default_does_not_exists_video"
 
@@ -235,10 +232,10 @@ class RutubeSourceAdapter(
 }
 
 /**
- * Opens [url], repeating a hiccup of the source while the policy built from [settings] allows it. A
- * client error is the verdict of the source, not a hiccup, so it comes back as a response for the
- * caller to classify: the context judges the status of the attempt and closes a body it turns down,
- * so no bad status is thrown as an exception and no body outlives its attempt.
+ * Opens [url], repeating a hiccup of the source while the policy built from [settings] allows it. Only
+ * a transient status is a hiccup, so it comes back as a response for the caller to classify: the
+ * context judges the status of the attempt and closes a body it turns down, so no bad status is
+ * thrown as an exception and no body outlives its attempt.
  */
 private suspend fun openWithRetry(http: HttpTool, url: String, settings: HttpToolConfig): Result<HttpBody> =
     retry(
@@ -247,7 +244,7 @@ private suspend fun openWithRetry(http: HttpTool, url: String, settings: HttpToo
             judging = { body ->
                 // a status turned down here is closed here: the loop discards the body, so nothing
                 // else would release it
-                if (body.status in SERVER_ERROR || body.status in settings.retryRetriableStatuses) {
+                if (body.status in settings.retryRetriableStatuses) {
                     body.body.close()
                     false
                 } else {
