@@ -48,7 +48,9 @@ suspend fun <T> retry(
         }
         val attempt = FailedAttempt(reason, number, previousDelay, cumulativeDelay, start.elapsedNow())
         when (val instruction = policy.decide(attempt)) {
-            StopRetrying -> return answer()
+            StopRetrying -> {
+                return answer()
+            }
 
             ContinueRetrying -> {
                 previousDelay = Duration.ZERO
