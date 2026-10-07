@@ -43,7 +43,7 @@ class HttpToolConfigTest :
 
                 // then
                 actual.retryMaxAttempts shouldBe 2
-                actual.readTimeout shouldBe 30.seconds
+                actual.requestTimeout shouldBe 30.seconds
                 actual.retryRandomizationFactor shouldBe 0.0
             }
 
@@ -54,7 +54,7 @@ class HttpToolConfigTest :
                         """
                         [download.http-tool]
                         connect-timeout-ms = 1500
-                        read-timeout-ms = 4500
+                        request-timeout-ms = 4500
                         max-attempts = 7
                         base-delay-ms = 100
                         randomization-factor = 0.25
@@ -67,7 +67,7 @@ class HttpToolConfigTest :
 
                 // then
                 actual.connectTimeout shouldBe 1500.milliseconds
-                actual.readTimeout shouldBe 4500.milliseconds
+                actual.requestTimeout shouldBe 4500.milliseconds
                 actual.retryMaxAttempts shouldBe 7
                 actual.retryBaseDelay shouldBe 100.milliseconds
                 actual.retryRandomizationFactor shouldBe 0.25
@@ -111,14 +111,14 @@ class HttpToolConfigTest :
 
             "rejects a non positive timeout" {
                 // given
-                val config = toml("[download.http-tool]\nread-timeout-ms = 0")
+                val config = toml("[download.http-tool]\nrequest-timeout-ms = 0")
 
                 // when
                 val thrown = shouldThrow<IllegalArgumentException> { HttpToolConfig.fromConfig(config) }
 
                 // then
                 thrown.message shouldBe
-                    "download.http-tool.read-timeout-ms must be positive, got 0"
+                    "download.http-tool.request-timeout-ms must be positive, got 0"
             }
 
             "accepts a zero retry base delay, which repeats without waiting" {

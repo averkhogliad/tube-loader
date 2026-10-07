@@ -35,6 +35,7 @@
 | Kotlin/JVM | Единый язык ядра и фронтендов |
 | kotlinx.coroutines | Конкурентность ядра; модель конкурентности — конфайнмент на одном воркере (ADR-0003) |
 | kotlinx.serialization | Разбор JSON-ответов источника в адаптере (`RutubeSourceAdapter`) |
+| Ktor Client (engine CIO) | Транспорт порта `HttpTool`: реализация `core.http` (ADR-0006) |
 
 ## Конфигурация
 
