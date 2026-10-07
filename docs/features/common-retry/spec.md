@@ -164,7 +164,7 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
 2. `:common:retry` — фейки политик рядом с тестами (`RetryFixtures`): `java-test-fixtures` подключён,
    но каталога `src/testFixtures` в модуле нет, `RecordingPolicy` живёт в `src/test/`.
 3. `core/.../adapters/rutube` — контрактные тесты на retry-логику адаптера (`RutubeRetryTest`):
-   `judging` видит `HttpBody.status`, исчерпание → `DownloadResult.Failed(NetworkTransient)`,
+   `judging` видит `HttpResponse.status`, исчерпание → `DownloadResult.Failed(NetworkTransient)`,
    нетранзиентный статус не ретраится, транзиентный (408/429/502/503/504) ретраится,
    `CancellationException` не проглатывается.
 4. `core/.../config` — unit-тесты на чтение `[download.http-tool]` (`HttpToolConfigTest`):

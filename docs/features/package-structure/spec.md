@@ -44,7 +44,7 @@
 - **`adapter`** — контракт расширения `SourceAdapter` и его sealed-типы исходов (`FindResult`,
   `LoadMetaResult`), `DownloadCapability`, `DownloadResult`. Контракт объявляет ядро; реализации
   (`Rutube`, `yt-dlp`) живут в слое адаптеров вне ядра.
-- **`port`** — интерфейсы портов `MediaTool` и `HttpTool` (и `HttpBody`). Ядро диктует контракт;
+- **`port`** — интерфейсы портов `MediaTool` и `HttpTool` (и `HttpResponse`). Ядро диктует контракт;
   реализации (FFmpeg-обёртка, HTTP-клиент) — инфра.
 - **`domain`** — value-типы: `MediaMeta`, `MediaRef`, `Progress`, `Quality`, `TrackKind`, `Source`,
   `SourceId`, `SourceProgress`, `TaskId`, `DownloadError`.

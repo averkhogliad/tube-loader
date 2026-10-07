@@ -5,7 +5,7 @@ import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
-import io.averkhogliad.tubeloader.core.port.HttpBody
+import io.averkhogliad.tubeloader.core.port.HttpResponse
 import io.averkhogliad.tubeloader.core.port.HttpStub
 import io.averkhogliad.tubeloader.core.port.textBody
 import java.io.ByteArrayInputStream
@@ -83,7 +83,7 @@ internal fun trackedBody(content: String, status: Int): TrackedBody {
                 super.close()
             }
         }
-    return TrackedBody(HttpStub.Respond(HttpBody(status, stream)), closed)
+    return TrackedBody(HttpStub.Respond(HttpResponse(status, stream)), closed)
 }
 
 internal val SERVER_ERROR_STUB: HttpStub = HttpStub.Respond(textBody("unavailable", status = 503))

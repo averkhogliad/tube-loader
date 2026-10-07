@@ -25,7 +25,7 @@
 | `core.domain` | Доменные типы: `MediaMeta`, `MediaRef`, `Progress`, `Quality`, `TrackKind`, `Source`, `SourceId`, `SourceProgress`, `TaskId`, `DownloadError` |
 | `core.download` | Жизненный цикл и исполнение: `DownloadHandle`, `DownloadQueue`, `DownloadState`, `DownloadStatus`, `TaskIdGenerator`, `TaskRegistry` |
 | `core.facade` | Единственная точка входа команд: `CoreFacade` |
-| `core.port` | Порты ядра: `MediaTool`, `HttpTool`, `HttpBody` (несёт `status` ответа) |
+| `core.port` | Порты ядра: `MediaTool`, `HttpTool`, `HttpResponse` (закрываемый ответ, несёт `status`) |
 | `adapters.rutube` | Первый `SourceAdapter`: разбор URL, `playOptions`, HLS-скачивание, финализация через `MediaTool` |
 
 ## Рантайм

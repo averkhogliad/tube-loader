@@ -12,7 +12,7 @@ import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import io.averkhogliad.tubeloader.core.domain.TrackKind
-import io.averkhogliad.tubeloader.core.port.HttpBody
+import io.averkhogliad.tubeloader.core.port.HttpResponse
 import io.averkhogliad.tubeloader.core.port.HttpTool
 import io.averkhogliad.tubeloader.core.port.MediaTool
 import io.averkhogliad.tubeloader.core.port.bytes
@@ -237,7 +237,7 @@ class RutubeSourceAdapter(
  * context judges the status of the attempt and closes a body it turns down, so no bad status is
  * thrown as an exception and no body outlives its attempt.
  */
-private suspend fun openWithRetry(http: HttpTool, url: String, settings: HttpToolConfig): Result<HttpBody> =
+private suspend fun openWithRetry(http: HttpTool, url: String, settings: HttpToolConfig): Result<HttpResponse> =
     retry(
         policyOf(settings),
         RetryContext(
@@ -245,7 +245,7 @@ private suspend fun openWithRetry(http: HttpTool, url: String, settings: HttpToo
                 // a status turned down here is closed here: the loop discards the body, so nothing
                 // else would release it
                 if (body.status in settings.retryRetriableStatuses) {
-                    body.body.close()
+                    body.close()
                     false
                 } else {
                     true
@@ -266,14 +266,14 @@ private suspend fun openWithRetry(http: HttpTool, url: String, settings: HttpToo
  * ends the transfer. A body turned down here is closed here: the loop is already over, so nothing
  * else would release it.
  */
-private fun refusalOf(body: HttpBody?): DownloadResult? =
+private fun refusalOf(body: HttpResponse?): DownloadResult? =
     when {
         body == null -> {
             DownloadResult.Failed(DownloadError.NetworkTransient)
         }
 
         body.status !in SUCCESS_STATUS -> {
-            body.body.close()
+            body.close()
             DownloadResult.Failed(DownloadError.ExtractorBroken)
         }
 
@@ -295,7 +295,7 @@ private fun policyOf(settings: HttpToolConfig): RetryPolicy =
         .continueIf { failure is IOException || failure is RetryExhausted }
         .exponentialBackoff(settings.retryBaseDelay, randomizationFactor = settings.retryRandomizationFactor)
 
-private fun classifyMeta(id: String, body: HttpBody): LoadMetaResult {
+private fun classifyMeta(id: String, body: HttpResponse): LoadMetaResult {
     val text = body.bytes().decodeToString()
     return when {
         body.status in MISSING_VIDEO_STATUSES && missingVideoReason(text) -> LoadMetaResult.NotFound

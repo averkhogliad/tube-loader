@@ -3,7 +3,7 @@ package io.averkhogliad.tubeloader.adapters.rutube
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.SourceProgress
-import io.averkhogliad.tubeloader.core.port.HttpBody
+import io.averkhogliad.tubeloader.core.port.HttpResponse
 import io.averkhogliad.tubeloader.core.port.HttpStub
 import io.averkhogliad.tubeloader.core.port.httpBody
 import io.kotest.core.spec.style.FreeSpec
@@ -79,7 +79,7 @@ class RutubeSegmentTest :
             "closes the response of a segment that answers with a client error" {
                 // given
                 val body = CloseTrackingInputStream()
-                val http = streaming().route(SEGMENT_2, HttpStub.Respond(HttpBody(404, body)))
+                val http = streaming().route(SEGMENT_2, HttpStub.Respond(HttpResponse(404, body)))
 
                 // when
                 val actual = adapter(http).download(MEDIA_ID, VIDEO_1080, clip("segments")) {}
