@@ -12,20 +12,26 @@ import java.io.InputStream
  */
 interface HttpTool : Closeable {
     /**
-     * Opens the body of [url] for reading. [headers] carries what the source requires (for example
-     * a referer). The returned body is owned by the caller and must be closed by it.
+     * Opens [url] for reading. [headers] carries what the source requires (for example a referer).
+     * The returned response is owned by the caller and must be closed by it.
      */
-    suspend fun open(url: String, headers: Map<String, String> = emptyMap()): HttpBody
+    suspend fun open(url: String, headers: Map<String, String> = emptyMap()): HttpResponse
 }
 
 /**
  * A response opened by [HttpTool]: its metadata and the body stream. [status] carries the HTTP status
  * code so an adapter can tell a missing resource from a broken one without a client library.
+ *
+ * Closing is the response's own operation, not the stream's: a caller that reads the body with
+ * [bytes] or turns the response down never touches [body] itself.
  */
-data class HttpBody(
+data class HttpResponse(
     val status: Int,
     val body: InputStream,
     val contentLength: Long? = null,
-)
+) : Closeable {
 
-fun HttpBody.bytes(): ByteArray = body.use(InputStream::readBytes)
+    override fun close() = body.close()
+}
+
+fun HttpResponse.bytes(): ByteArray = use { it.body.readBytes() }
