@@ -62,10 +62,12 @@ internal fun RetryPolicy.stages(): List<Stage> =
 internal fun RetryPolicy.decide(attempt: FailedAttempt): RetryInstruction {
     val stages = stages()
     val decisions = stages.map { it.decide(attempt) }
-    if (decisions.any { it is StopRetrying }) return StopRetrying
     val awaited = decisions.filterIsInstance<RetryAfter>().maxByOrNull { it.delay }
     val pause = awaited?.delay ?: Duration.ZERO
     val budget = stages.filterIsInstance<TimeBudget>().minOfOrNull { it.budget }
-    if (budget != null && attempt.elapsed + pause > budget) return StopRetrying
-    return awaited ?: ContinueRetrying
+    val overBudget = budget != null && attempt.elapsed + pause > budget
+    return when {
+        decisions.any { it is StopRetrying } || overBudget -> StopRetrying
+        else -> awaited ?: ContinueRetrying
+    }
 }
