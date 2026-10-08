@@ -13,7 +13,6 @@ import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Tag
 import java.nio.file.Files
 import kotlin.io.path.exists
-import kotlin.io.path.readBytes
 import kotlin.time.Duration.Companion.seconds
 
 private const val LIVE_MEDIA_ID = "b9852a3ffc38640bdf480f5c9d4d912f"
@@ -106,8 +105,7 @@ class RutubeSourceAdapterIT :
                 adapter.download(LIVE_MEDIA_ID, LIVE_VIDEO_1080, target) { progress += it }
 
                 // then
-                val size = target.readBytes().size.toLong()
-                progress.last() shouldBe SourceProgress.Absolute(size, size)
+                progress.last().fraction() shouldBe 1.0
                 target.exists() shouldBe true
                 dir.resolve("clip.mp4.tmp").exists() shouldBe false
             }

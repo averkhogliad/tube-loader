@@ -28,7 +28,7 @@ class RutubeSegmentTest :
                     listOf(SEGMENT_1, SEGMENT_2, SEGMENT_3)
             }
 
-            "reports a fraction of the downloaded segments after each of them" {
+            "reports the share of the downloaded segments after each of them" {
                 // given
                 val progress = mutableListOf<SourceProgress>()
 
@@ -36,14 +36,7 @@ class RutubeSegmentTest :
                 adapter(streaming()).download(MEDIA_ID, VIDEO_1080, clip("segments")) { progress += it }
 
                 // then
-                progress.take(5) shouldBe
-                    listOf(
-                        SourceProgress.Indeterminate,
-                        SourceProgress.Indeterminate,
-                        SourceProgress.Fraction(1.0 / 3),
-                        SourceProgress.Fraction(2.0 / 3),
-                        SourceProgress.Fraction(1.0),
-                    )
+                progress.take(5).map { it.fraction() } shouldBe listOf(null, null, 1.0 / 3, 2.0 / 3, 1.0)
             }
 
             "leaves no tmp file when a segment fails" {

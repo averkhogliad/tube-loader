@@ -208,7 +208,7 @@ class RutubeSourceAdapter(
                 }
                 sink.write(accepted.content { it.readBytes() })
                 done += 1
-                onProgress(SourceProgress.Fraction(done.toDouble() / segments.size))
+                onProgress(SourceProgress.Absolute(done.toLong(), segments.size.toLong()))
             }
         } finally {
             sink?.close()

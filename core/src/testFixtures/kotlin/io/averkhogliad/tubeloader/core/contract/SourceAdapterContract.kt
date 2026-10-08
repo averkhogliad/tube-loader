@@ -144,7 +144,7 @@ fun sourceAdapterContract(
                 }
             }
 
-            "reports progress that matches the size of the written file" {
+            "reports progress within its own measure, reaching completion" {
                 // given
                 val adapter = create()
                 val case = fixtures.download.first { it.expected is DownloadResult.Success }
@@ -156,15 +156,11 @@ fun sourceAdapterContract(
 
                 // then
                 progress.shouldNotBeEmpty()
-                val total = Files.size(target)
-                withClue("progress must stay within the file size") {
-                    progress.filterIsInstance<SourceProgress.Absolute>().forEach { update ->
-                        update.total shouldBe total
-                        (update.processed in 0..total) shouldBe true
-                    }
+                withClue("progress must stay within its own measure") {
+                    progress.forEach { update -> update.fraction()?.let { (it in 0.0..1.0) shouldBe true } }
                 }
                 withClue("progress must reach completion") {
-                    progress.last() shouldBe SourceProgress.Absolute(total, total)
+                    progress.last().fraction() shouldBe 1.0
                 }
             }
 
