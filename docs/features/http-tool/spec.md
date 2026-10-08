@@ -174,7 +174,7 @@ unit-тестах ядра запрещена (`docs/features/core/spec.md`).
   `Retry-After` из headers).
   ~200 LoC + ~80 LoC тестов. Заблокирован по #73 (форма `HttpResponse`).
 - **#68 — `perAttemptTimeout` одной попытки** (долг из ADR-0004). Решён 07.10.2026: таймаут попытки —
-  ответственность **адаптера**, который оборачивает `HttpTool.open` в `withTimeout` внутри своей
+  ответственность **адаптера**, который оборачивает `HttpTool.open` в `withTimeoutOrNull` внутри своей
   retry-обёртки; порт таймаут попытки не ставит. `connectTimeout` и `requestTimeout` —
   ответственность HTTP-клиента (`HttpTimeout` в `HttpClient`, который собирает вызывающий).
   Значение — из обязательного ключа `per-attempt-timeout-ms` (`HttpToolConfig.perAttemptTimeout`).
