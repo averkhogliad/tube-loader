@@ -117,7 +117,10 @@ class DownloadQueueTest :
                         inside.await(2, TimeUnit.SECONDS) shouldBe true
                         maxConcurrent.get() shouldBe 2
                     } finally {
-                        workers.shutdownNow()
+                        // let the work leave its await on its own (a bounded wait) instead of interrupting it
+                        // mid-await with shutdownNow, which would surface an InterruptedException as a failure
+                        workers.shutdown()
+                        workers.awaitTermination(5, TimeUnit.SECONDS)
                     }
                 }
             }
