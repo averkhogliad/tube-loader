@@ -19,10 +19,13 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import java.nio.file.Files
 import java.nio.file.Path
@@ -30,6 +33,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.deleteRecursively
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 internal val testHttpTool = HttpToolConfig(perAttemptTimeout = 30.seconds)
@@ -38,9 +42,44 @@ internal val inputs = Arb.string(1..24)
 
 internal fun scratchDir(): Path = Files.createTempDirectory("tubeloader-test")
 
+private val worldsByDir = mutableMapOf<Path, MutableList<FacadeWorld>>()
+
+private val retryPauses = listOf(20, 40, 80, 160).map { it.milliseconds }
+
+// cancelling is immediate, but a scope on a test dispatcher cannot finish its cancelled children
+// once the test scheduler stops being advanced: the join has to be bounded, and the retry below
+// covers the deletion of a file a still-running writer held
+private val stopBudget = 1.seconds
+
+internal suspend fun cleanUp(dir: Path) {
+    closeWorldsIn(dir)
+    deleteWithRetry(dir)
+}
+
+private suspend fun closeWorldsIn(dir: Path) {
+    // a world may be built over another world's directory, so its own directory is the key and
+    // every world nested under the spec's directory has to be stopped, not just the direct one
+    val worlds =
+        synchronized(worldsByDir) {
+            val nested = worldsByDir.keys.filter { it.startsWith(dir) }
+            nested.mapNotNull { worldsByDir.remove(it) }.flatten()
+        }
+    worlds.forEach { it.close() }
+}
+
 @OptIn(ExperimentalPathApi::class)
-internal fun cleanUp(dir: Path) {
-    dir.deleteRecursively()
+private suspend fun deleteWithRetry(dir: Path) {
+    var lastFailure: Exception? = null
+    repeat(retryPauses.size + 1) { attempt ->
+        try {
+            dir.deleteRecursively()
+            return
+        } catch (failure: Exception) {
+            lastFailure = failure
+            retryPauses.getOrNull(attempt)?.let { delay(it) }
+        }
+    }
+    throw lastFailure!!
 }
 
 internal data class FacadeSettings(
@@ -60,10 +99,21 @@ internal class FacadeWorld(
 ) {
     val tempDir: Path = Files.createTempDirectory(rootDir, "case")
 
-    private val witness = CoroutineScope(Dispatchers.Unconfined)
+    private val witness = CoroutineScope(Dispatchers.Unconfined + Job())
     private val observed = mutableMapOf<TaskId, MutableList<DownloadStatus>>()
     private val latest = mutableMapOf<TaskId, DownloadState>()
     private var targets = 0
+
+    suspend fun close() {
+        stop(parentScope)
+        stop(witness)
+    }
+
+    private suspend fun stop(scope: CoroutineScope) {
+        val job = scope.coroutineContext[Job] ?: return
+        job.cancel()
+        withTimeoutOrNull(stopBudget) { job.join() }
+    }
 
     fun enqueue(ref: MediaRef, target: Path): DownloadHandle {
         val handle = facade.enqueue(ref, Arb.qualities().next(), target)
@@ -106,7 +156,9 @@ internal fun facadeWorld(
     val config = MutableStateFlow(settings.initialConfig)
     val queue = DownloadQueue(scope, dispatcher, workContext, config)
     val facade = CoreFacade(settings.adapters, queue, settings.taskIdGenerator, settings.clock)
-    return FacadeWorld(tempDir, settings.adapters, config, scope, queue, facade)
+    val world = FacadeWorld(tempDir, settings.adapters, config, scope, queue, facade)
+    synchronized(worldsByDir) { worldsByDir.getOrPut(world.tempDir) { mutableListOf() } += world }
+    return world
 }
 
 internal fun leftoverFilesIn(dir: Path, expected: Path): List<Path> =
