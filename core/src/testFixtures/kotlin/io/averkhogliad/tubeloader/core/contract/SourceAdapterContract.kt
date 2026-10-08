@@ -13,11 +13,14 @@ import io.kotest.core.spec.style.freeSpec
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.coroutines.delay
 import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.readBytes
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Contract suite every adapter must pass, driven by golden fixtures: the recording of the source
@@ -43,8 +46,7 @@ fun sourceAdapterContract(
         val tempDir = Files.createTempDirectory("contract-$adapterName")
 
         afterSpec {
-            @OptIn(ExperimentalPathApi::class)
-            tempDir.deleteRecursively()
+            deleteWithRetry(tempDir)
         }
 
         "find" - {
@@ -182,3 +184,19 @@ fun sourceAdapterContract(
             }
         }
     }
+
+@OptIn(ExperimentalPathApi::class)
+private suspend fun deleteWithRetry(dir: Path) {
+    val pauses = listOf(20, 40, 80, 160).map { it.milliseconds }
+    var lastFailure: Exception? = null
+    repeat(pauses.size + 1) { attempt ->
+        try {
+            dir.deleteRecursively()
+            return
+        } catch (failure: Exception) {
+            lastFailure = failure
+            pauses.getOrNull(attempt)?.let { delay(it) }
+        }
+    }
+    throw lastFailure!!
+}
