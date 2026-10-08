@@ -23,7 +23,7 @@ import io.averkhogliad.tubeloader.retry.continueIf
 import io.averkhogliad.tubeloader.retry.exponentialBackoff
 import io.averkhogliad.tubeloader.retry.retry
 import io.averkhogliad.tubeloader.retry.stopAtAttempts
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
 import java.io.IOException
 import java.io.OutputStream
@@ -240,8 +240,10 @@ class RutubeSourceAdapter(
 
 /**
  * Opens [url], repeating a hiccup of the source while the policy built from [settings] allows it. One
- * attempt may not outlive [HttpToolConfig.perAttemptTimeout]: the wrapper turns an attempt that does
- * into an [AttemptTimedOut] the policy retries, while a cancelled caller still leaves as a throw.
+ * attempt may not outlive [HttpToolConfig.perAttemptTimeout]: the budget is detected by
+ * `withTimeoutOrNull`, which answers null only for a budget it owns, so a ran-out budget becomes an
+ * [AttemptTimedOut] the policy retries while a deadline of the caller keeps travelling as the
+ * cancellation that it is.
  *
  * Only a transient status is a hiccup, so it comes back as a response for the caller to classify: the
  * context judges the status of the attempt and closes a body it turns down, so no bad status is
@@ -263,7 +265,11 @@ private suspend fun openWithRetry(http: HttpTool, url: String, settings: HttpToo
             },
         ),
     ) {
-        withTimeout(settings.perAttemptTimeout) { http.open(url, REFERER_HEADERS) }
+        // a budget that ran out is a failure of the attempt, not of the caller: withTimeoutOrNull
+        // answers null only for its own budget, so a deadline of the caller keeps travelling as the
+        // cancellation that it is
+        withTimeoutOrNull(settings.perAttemptTimeout) { http.open(url, REFERER_HEADERS) }
+            ?: Result.failure(AttemptTimedOut)
     }
 
 /**

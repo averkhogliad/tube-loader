@@ -98,7 +98,7 @@ Result<HttpResponse>`. `Result.failure` — для транспортных сб
 
 **Cancellation.** Отмена корутины, в которой вызван `open`, прерывает сетевую операцию. Это
 **контракт**: реализация, которая игнорирует cancellation, нарушает спеку. Конкретный таймаут
-(`perAttemptTimeout` через `withTimeout`) — **вне контракта порта**: его ставит адаптер в своей
+(`perAttemptTimeout` через `withTimeoutOrNull`) — **вне контракта порта**: его ставит адаптер в своей
 retry-обёртке; порт ограничивать попытку не обязан и retry-движок тоже. Тикет #68 в `ADR-0004`,
 реализация — `ADR-0007`.
 
@@ -108,7 +108,7 @@ retry-обёртке; порт ограничивать попытку не об
 `retryRandomizationFactor`, `retryRetriableStatuses`. Дефолты живут в `HttpToolConfig` и
 нигде больше — кроме `perAttemptTimeout`, единственного поля без дефолта: его обязан задать
 конфиг (ключ `per-attempt-timeout-ms`). Читает его **адаптер** (`RutubeSourceAdapter.openWithRetry`
-оборачивает `HttpTool.open` в `withTimeout(settings.perAttemptTimeout)`) — с #68 потребитель у поля
+оборачивает `HttpTool.open` в `withTimeoutOrNull(settings.perAttemptTimeout)`) — с #68 потребитель у поля
 появился. `connectTimeout`/`requestTimeout`
 применяются вызывающим, который собирает `HttpClient`
 (`HttpClient { install(HttpTimeout) { ... } }`), а не кодом ядра. Тесты обвязки порта — в
@@ -179,10 +179,11 @@ unit-тестах ядра запрещена (`docs/features/core/spec.md`).
   ответственность HTTP-клиента (`HttpTimeout` в `HttpClient`, который собирает вызывающий).
   Значение — из обязательного ключа `per-attempt-timeout-ms` (`HttpToolConfig.perAttemptTimeout`).
   **Реализован** (`ADR-0007`): `openWithRetry` оборачивает попытку в
-  `withTimeout(settings.perAttemptTimeout) { http.open(url, REFERER_HEADERS) }`; истёкший таймаут
-  ловит драйвер `:common:retry` и отдаёт политике маркер `AttemptTimedOut`, а `policyOf` принимает
-  его как ретраябельный рядом с `IOException` и `RetryExhausted`. Истёкшие попытки заканчиваются
-  `NetworkTransient`, а не терминальным отказом; отмена вызывающего остаётся отменой.
+  `withTimeoutOrNull(settings.perAttemptTimeout) { http.open(url, REFERER_HEADERS) }`; `null` от
+  своего бюджета адаптер сам превращает в маркер `AttemptTimedOut`, а `policyOf` принимает его как
+  ретраябельный рядом с `IOException` и `RetryExhausted`. Истёкшие попытки заканчиваются
+  `NetworkTransient`, а не терминальным отказом; дедлайн самого вызывающего `withTimeoutOrNull`
+  не трогает — он уходит наверх отменой.
 - **#77 — production-сборка `HttpClient`** — **закрыт 07.10.2026 как `wontfix`**: сборка клиента
   (timeouts из `HttpToolConfig` + `install(ContentEncoding) { gzip() }`) делается после выбора DI
   и реализации самого приложения. Реализация порта клиент не строит: `KtorHttpTool` берёт его

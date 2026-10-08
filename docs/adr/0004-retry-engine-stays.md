@@ -106,16 +106,17 @@ DSL-блок `retryConfig { … }` (Kresil/kmp-resilient) — **отвергну
 - **`perAttemptTimeout` (#68) решён 07.10.2026 — ответственность адаптера.** Три таймаута
   разведены: `connectTimeout` и `requestTimeout` — HTTP-клиента (`HttpTimeout` в том
   `HttpClient`, который собирает вызывающий), `perAttemptTimeout` — адаптера, который оборачивает
-  `HttpTool.open` в `withTimeout` внутри своей retry-обёртки. Порт таймаут попытки не ставит и
+  `HttpTool.open` в `withTimeoutOrNull` внутри своей retry-обёртки. Порт таймаут попытки не ставит и
   retry-движок его не ставит. Значение приходит из обязательного ключа `per-attempt-timeout-ms`
   (`per-attempt-timeout` — только у kmp-resilient среди исследованных движков; у Failsafe/Polly
   это отдельный `Timeout`). Был отложен 07.10.2026 как «нечего ограничивать» — обоснование снято:
   production-реализация `HttpTool` влита (PR #76), ключ в дефолт-конфиге уже стоит.
   **Реализован** (тикет #68, `ADR-0007`): `openWithRetry` оборачивает попытку в
-  `withTimeout(settings.perAttemptTimeout)`, драйвер `retry` ловит `TimeoutCancellationException`
-  вокруг `block()` и отдаёт политике маркер `AttemptTimedOut`, а `policyOf` принимает его рядом с
+  `withTimeoutOrNull(settings.perAttemptTimeout)`; `null` за собственный бюджет адаптер сам отдаёт
+  политике маркером `AttemptTimedOut`, а `policyOf` принимает его рядом с
   `IOException` и `RetryExhausted`; на исчерпании попыток истёкшие таймауты дают `NetworkTransient`,
-  отмена вызывающего остаётся отменой.
+  а дедлайн самого вызывающего `withTimeoutOrNull` пропускает наверх отменой — драйвер её
+  перебрасывает, как и любую отмену.
 
 ## Consequences
 
@@ -135,7 +136,7 @@ DSL-блок `retryConfig { … }` (Kresil/kmp-resilient) — **отвергну
    have constructors»).
 4. #67 — `[download.http-tool]` плоский блок + `HttpToolConfig` в `AppConfig` + интеграция
    в адаптер. ~50 LoC + 30 LoC тестов. Заблокирован тикетом #66.
-5. #68 — `perAttemptTimeout` через `withTimeout` вокруг `HttpTool.open` в retry-обёртке
+5. #68 — `perAttemptTimeout` через `withTimeoutOrNull` вокруг `HttpTool.open` в retry-обёртке
    адаптера (долг из памяти `Retry_engine_in_common_retry-37360798096e.md`). **Разблокирован
    07.10.2026:** production-реализация `HttpTool` влита (PR #76), блокировка «нужны
    `connectTimeout`/`requestTimeout`» снята — ключ `per-attempt-timeout-ms` добавлен в

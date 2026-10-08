@@ -1,7 +1,5 @@
 package io.averkhogliad.tubeloader.retry
 
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.withTimeout
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
@@ -27,10 +25,10 @@ internal class Attempts(private val failures: Int) {
 }
 
 /**
- * A block whose own [withTimeout] fires on the first [timeouts] calls and answers [value] after that.
+ * A block that answers [AttemptTimedOut] for the first [timeouts] calls and [value] after that.
  *
- * The timeout is produced by the real [withTimeout] rather than constructed: kotlinx-coroutines keeps
- * the constructor of `TimeoutCancellationException` internal, so there is no way to build one by hand.
+ * The marker comes in as a value rather than from a real timeout: the budget is detected by whoever
+ * bounds the attempt, not by the driver.
  */
 internal class TimedOutAttempts(private val timeouts: Int) {
 
@@ -38,10 +36,9 @@ internal class TimedOutAttempts(private val timeouts: Int) {
 
     val calls: Int get() = used.get()
 
-    suspend fun <T> answer(value: T, budget: Duration = 1.milliseconds): Result<T> {
+    fun <T> answer(value: T): Result<T> {
         used.incrementAndGet()
-        if (calls <= timeouts) withTimeout(budget) { awaitCancellation() }
-        return Result.success(value)
+        return if (calls <= timeouts) Result.failure(AttemptTimedOut) else Result.success(value)
     }
 }
 

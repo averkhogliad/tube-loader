@@ -16,6 +16,7 @@ import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -253,6 +254,30 @@ class RutubeRetryTest :
 
                     // then
                     thrown.shouldBeInstanceOf<CancellationException>()
+                    http.opened.size shouldBe 1
+                }
+            }
+
+            "keeps an outer deadline of the caller out of the retry" {
+                runTest {
+                    // given a source slow enough that the budget of the attempt never fires before the
+                    // caller stops waiting, and a single attempt, so the retry has nothing to repeat
+                    val http = FakeHttpTool().always(HttpStub.Slow(after = 30.seconds, answer = SERVER_ERROR_STUB))
+                    val settings = HttpToolConfig(perAttemptTimeout = 30.seconds, retryMaxAttempts = 1)
+
+                    // when
+                    var answered: LoadMetaResult? = null
+                    val thrown =
+                        runCatching {
+                            withTimeout(1.seconds) {
+                                adapter(http, settings).loadMeta(MEDIA_ID).also { answered = it }
+                            }
+                        }.exceptionOrNull()
+
+                    // then the deadline of the caller is a cancellation, not a hiccup of the attempt:
+                    // it never comes back to the caller as a transient failure of the source
+                    thrown.shouldBeInstanceOf<TimeoutCancellationException>()
+                    answered shouldBe null
                     http.opened.size shouldBe 1
                 }
             }

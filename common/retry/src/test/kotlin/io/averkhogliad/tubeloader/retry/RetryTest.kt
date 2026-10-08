@@ -4,7 +4,6 @@ import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.test.runTest
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
@@ -179,26 +178,8 @@ class RetryTest :
                     val actual = retry(policy) { attempts.answer("payload") }
 
                     // then
-                    val marker = actual.exceptionOrNull().shouldBeInstanceOf<AttemptTimedOut>()
-                    marker.cause.shouldBeInstanceOf<TimeoutCancellationException>()
+                    actual shouldBe Result.failure(AttemptTimedOut)
                     attempts.calls shouldBe 2
-                }
-            }
-
-            "asks the policy about the timeout instead of rethrowing it" {
-                runTest {
-                    // given a policy that records why it was asked for another attempt
-                    val attempts = TimedOutAttempts(timeouts = 1)
-                    val recording = RecordingPolicy { ContinueRetrying }
-                    val policy = RetryPolicy.stopAtAttempts(2).then(recording)
-
-                    // when
-                    retry(policy) { attempts.answer("payload") }
-
-                    // then the first attempt reached the policy as the marker, not as a cancellation the
-                    // driver would have rethrown
-                    val reason = recording.seen.single().failure
-                    reason.shouldBeInstanceOf<AttemptTimedOut>()
                 }
             }
         }
