@@ -137,6 +137,12 @@ number, previousDelay, cumulativeDelay, elapsed)` предикат `continueIf` 
   (`{ Result.success(it) }`). Источники: kmp-resilient (`RetryableResultException` наружу не
   выходит — отдаётся последнее значение), resilience4j (`failAfterMaxAttempts = false` по
   умолчанию), Failsafe (last result as is). На исчерпании по исключению не зовётся.
+- `AttemptTimedOut` — маркер таймаута попытки (`ADR-0007`, тикет #68). Ставит его тот, кто знает
+  бюджет, — адаптер: `withTimeoutOrNull` вокруг `HttpTool.open` отвечает `null` только за свой
+  бюджет, и этот `null` становится маркером, обычной неудачей попытки для политики. Дедлайн
+  вызывающего `withTimeoutOrNull` не съест и пропустит наверх отменой, а драйвер её перебросит как
+  прежде — так внешний `withTimeout` не превращает временный сбой в терминальный отказ. Маркер — не
+  `CancellationException` именно поэтому.
 
 **TOML — плоский под-блок.** `[download.http-tool]`: `connect-timeout-ms`, `request-timeout-ms`,
 `per-attempt-timeout-ms`, `max-attempts`, `base-delay-ms`, `randomization-factor`, `retriable-statuses`. Конфиг резолвится
@@ -204,10 +210,12 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
 - **`Retry-After` от сервера.** Порт `HttpTool` отдаёт заголовки ответа с #75 (`HttpResponse.headers`),
   но потребителя у них нет: движок судит по `judging(status)`, а не по header. В этом — экспонента как
   дешёвая замена; ждать паузу из `Retry-After` — отдельный тикет.
-- **`perAttemptTimeout` через `withTimeout` (задача #68).** Таймаут одной попытки — отдельный шов
-  `HttpTool`, не retry-движка. Решён 07.10.2026: обёртка живёт в **адаптере** (`withTimeout` вокруг
-  `HttpTool.open` в retry-обёртке), значение — из обязательного `per-attempt-timeout-ms`;
-  `connectTimeout`/`requestTimeout` — у HTTP-клиента. Блокировка снята: порт реализован (PR #76).
+- **`perAttemptTimeout` через `withTimeoutOrNull` (задача #68).** Таймаут одной попытки — отдельный шов
+  `HttpTool`, не retry-движка. Решён 07.10.2026 и реализован: обёртка живёт в **адаптере**
+  (`withTimeoutOrNull` вокруг `HttpTool.open` в retry-обёртке), значение — из обязательного
+  `per-attempt-timeout-ms`; `connectTimeout`/`requestTimeout` — у HTTP-клиента. `null` от
+  `withTimeoutOrNull` становится маркером `AttemptTimedOut` и доходит до политики обычной неудачей
+  попытки; дедлайн самого вызывающего проходит наверх отменой, как и раньше. Решение — `ADR-0007`.
 - **Decorrelated jitter (AWS).** `randomizationFactor` ±N% достаточно для текущего профиля
   (сегменты последовательные).
 - **DSL-блок `retryConfig { … }`.** Ломает Compose-форму #63. Отдельный гриль при появлении
@@ -234,11 +242,10 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
 
 **Открытые тикеты (по состоянию на 2026-10-07).**
 - Issue #63: Compose-DSL — форма влита задачей #69 (коммит `3ed5437`).
-- Issues #64–#69: родитель и пять подзадач этого решения. В работе одним PR: #65, #69, #66, #67;
-  #68 отложен.
+- Issues #64–#69: родитель и пять подзадач этого решения. Влиты #65, #69, #66, #67; #68 в работе.
 
 **Соответствие подзадач Weeek и тикетов GitHub.** 166 = #65, 168 = #69, 167 = #66,
-169 = #67, 170 = #68 (отложена).
+169 = #67, 170 = #68.
 
 ## Tickets
 
@@ -250,7 +257,7 @@ GitHub: родитель #64, подзадачи #65–#69 (нативная с�
 | #66 | суд по значению (`retryOnResult`) без синтетических исключений | — |
 | #69 | Compose-DSL политики без аннотаций `<Throwable>` | — |
 | #67 | параметры повтора в TOML (`[download.http-tool]`) | #66 |
-| #68 | таймаут одной попытки в `HttpTool` — **отложен** вместе с первой production-реализацией `HttpTool`/`MediaTool` | #67 |
+| #68 | таймаут одной попытки — бюджет держит адаптер (`withTimeoutOrNull`), маркер `AttemptTimedOut` | #67 |
 
 Weeek (бизнес-представление, доска проекта 2, колонка 4): родитель **165** «Устойчивое скачивание
 при временных сбоях сети»; этапы **166** (описание), **167** (повтор при временных сбоях),

@@ -1,20 +1,29 @@
 package io.averkhogliad.tubeloader.core.port
 
+import kotlinx.coroutines.delay
 import java.io.ByteArrayInputStream
 import java.io.InputStream
+import kotlin.time.Duration
 
 data class OpenCall(val url: String, val headers: Map<String, String>)
 
 private const val HTTP_OK = 200
 
 /**
- * One prepared answer of a stubbed route: either a response or a transport failure.
+ * One prepared answer of a stubbed route: either a response, a transport failure, or a source slow
+ * enough to outlive the budget of the attempt that asked it.
  */
 sealed interface HttpStub {
 
     data class Respond(val body: HttpResponse) : HttpStub
 
     data class Fail(val error: Throwable) : HttpStub
+
+    /**
+     * Answers [after] with [answer] — a source that takes its time, so that a caller bounding the
+     * attempt with `withTimeoutOrNull` can be observed timing it out.
+     */
+    data class Slow(val after: Duration, val answer: HttpStub) : HttpStub
 }
 
 fun httpBody(
@@ -162,8 +171,18 @@ class FakeHttpTool : HttpTool {
     companion object {
         private suspend fun serve(url: String, stub: HttpStub): Result<HttpResponse> =
             when (stub) {
-                is HttpStub.Respond -> Result.success(stub.body)
-                is HttpStub.Fail -> Result.failure(stub.error)
+                is HttpStub.Respond -> {
+                    Result.success(stub.body)
+                }
+
+                is HttpStub.Fail -> {
+                    Result.failure(stub.error)
+                }
+
+                is HttpStub.Slow -> {
+                    delay(stub.after)
+                    serve(url, stub.answer)
+                }
             }
 
         fun resourceText(resource: String): String =

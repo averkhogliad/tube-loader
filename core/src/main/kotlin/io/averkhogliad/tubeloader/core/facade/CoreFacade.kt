@@ -177,12 +177,17 @@ private fun SourceProgress.toProgress(): Progress =
         }
 
         is SourceProgress.Absolute -> {
-            if (total > 0 && processed in 0..total) Progress.Determinate(processed, total) else Progress.Indeterminate
+            if (fraction() != null) {
+                Progress.Determinate(processed, total)
+            } else {
+                Progress.Indeterminate
+            }
         }
 
         is SourceProgress.Fraction -> {
-            if (ratio.isFinite() && ratio in 0.0..1.0) {
-                Progress.Determinate((ratio * FRACTION_SCALE).toLong(), FRACTION_SCALE)
+            val share = fraction()
+            if (share != null) {
+                Progress.Determinate((share * FRACTION_SCALE).toLong(), FRACTION_SCALE)
             } else {
                 Progress.Indeterminate
             }

@@ -15,7 +15,10 @@ import kotlin.time.TimeSource
  * [RetryExhausted] carrying that value. The driver stops as soon as the policy says so and answers the
  * last outcome: a failure as it came in, and a refused value through [RetryContext.onExhausted], which
  * turns it into [RetryExhausted] unless the caller asks for something else. Cancellation is rethrown
- * rather than retried: a cancelled caller is not waiting for another attempt.
+ * rather than retried: a cancelled caller is not waiting for another attempt. A per-attempt budget
+ * that ran out is not cancellation either: it reaches the driver as an ordinary failure of the
+ * attempt, put there by whoever holds that budget, so a caller that bounds one attempt repeats
+ * nothing of the driver's work.
  *
  * [timeSource] is what [FailedAttempt.elapsed] is measured against; a test hands in its own so that a
  * budget can be checked without waiting for real time to pass.

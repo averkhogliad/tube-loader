@@ -15,6 +15,7 @@ import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.HttpResponse
 import io.averkhogliad.tubeloader.core.port.HttpTool
 import io.averkhogliad.tubeloader.core.port.MediaTool
+import io.averkhogliad.tubeloader.retry.AttemptTimedOut
 import io.averkhogliad.tubeloader.retry.RetryContext
 import io.averkhogliad.tubeloader.retry.RetryExhausted
 import io.averkhogliad.tubeloader.retry.RetryPolicy
@@ -22,6 +23,7 @@ import io.averkhogliad.tubeloader.retry.continueIf
 import io.averkhogliad.tubeloader.retry.exponentialBackoff
 import io.averkhogliad.tubeloader.retry.retry
 import io.averkhogliad.tubeloader.retry.stopAtAttempts
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
 import java.io.IOException
 import java.io.OutputStream
@@ -206,7 +208,7 @@ class RutubeSourceAdapter(
                 }
                 sink.write(accepted.content { it.readBytes() })
                 done += 1
-                onProgress(SourceProgress.Fraction(done.toDouble() / segments.size))
+                onProgress(SourceProgress.Absolute(done.toLong(), segments.size.toLong()))
             }
         } finally {
             sink?.close()
@@ -237,8 +239,13 @@ class RutubeSourceAdapter(
 }
 
 /**
- * Opens [url], repeating a hiccup of the source while the policy built from [settings] allows it. Only
- * a transient status is a hiccup, so it comes back as a response for the caller to classify: the
+ * Opens [url], repeating a hiccup of the source while the policy built from [settings] allows it. One
+ * attempt may not outlive [HttpToolConfig.perAttemptTimeout]: the budget is detected by
+ * `withTimeoutOrNull`, which answers null only for a budget it owns, so a ran-out budget becomes an
+ * [AttemptTimedOut] the policy retries while a deadline of the caller keeps travelling as the
+ * cancellation that it is.
+ *
+ * Only a transient status is a hiccup, so it comes back as a response for the caller to classify: the
  * context judges the status of the attempt and closes a body it turns down, so no bad status is
  * thrown as an exception and no body outlives its attempt.
  */
@@ -258,7 +265,11 @@ private suspend fun openWithRetry(http: HttpTool, url: String, settings: HttpToo
             },
         ),
     ) {
-        http.open(url, REFERER_HEADERS)
+        // a budget that ran out is a failure of the attempt, not of the caller: withTimeoutOrNull
+        // answers null only for its own budget, so a deadline of the caller keeps travelling as the
+        // cancellation that it is
+        withTimeoutOrNull(settings.perAttemptTimeout) { http.open(url, REFERER_HEADERS) }
+            ?: Result.failure(AttemptTimedOut)
     }
 
 /**
@@ -286,14 +297,15 @@ private fun refusalOf(body: HttpResponse?): DownloadResult? =
 /**
  * Repeats a hiccup of the source rather than its verdict: a status the caller is asked to come back
  * on is retried with a growing pause until the attempts run out. A response the loop turns down
- * reaches the policy as the reason of the attempt — a transport failure, or [RetryExhausted] once the
- * attempts ran out on it — so both are accepted here. The values come from the configuration, so an
- * adapter holds no retry constant of its own.
+ * reaches the policy as the reason of the attempt — a transport failure, [AttemptTimedOut] when the
+ * attempt outlived its budget, or [RetryExhausted] once the attempts ran out on it — so all three are
+ * accepted here. The values come from the configuration, so an adapter holds no retry constant of its
+ * own.
  */
 private fun policyOf(settings: HttpToolConfig): RetryPolicy =
     RetryPolicy
         .stopAtAttempts(settings.retryMaxAttempts)
-        .continueIf { failure is IOException || failure is RetryExhausted }
+        .continueIf { failure is IOException || failure is AttemptTimedOut || failure is RetryExhausted }
         .exponentialBackoff(settings.retryBaseDelay, randomizationFactor = settings.retryRandomizationFactor)
 
 private suspend fun classifyMeta(id: String, body: HttpResponse): LoadMetaResult {

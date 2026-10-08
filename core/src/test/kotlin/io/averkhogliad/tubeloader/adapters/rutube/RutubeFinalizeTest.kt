@@ -53,7 +53,7 @@ class RutubeFinalizeTest :
                 Files.exists(dir.resolve("clip.mp4.tmp")) shouldBe false
             }
 
-            "closes the progress with the size of the file it produced" {
+            "closes the progress with the completed share it produced" {
                 // given
                 val target = clip("finalize")
                 val progress = mutableListOf<SourceProgress>()
@@ -62,7 +62,8 @@ class RutubeFinalizeTest :
                 adapter(streaming()).download(MEDIA_ID, VIDEO_1080, target) { progress += it }
 
                 // then
-                val written = target.readBytes().size.toLong()
+                progress.last().fraction() shouldBe 1.0
+                val written = Files.size(target)
                 progress.last() shouldBe SourceProgress.Absolute(written, written)
             }
 
@@ -74,7 +75,7 @@ class RutubeFinalizeTest :
                 adapter(streaming()).download(MEDIA_ID, VIDEO_1080, clip("finalize")) { progress += it }
 
                 // then
-                progress.takeLast(2).first() shouldBe SourceProgress.Indeterminate
+                progress.takeLast(2).first().fraction() shouldBe null
             }
 
             "returns ExtractorBroken when the container rewrite fails" {

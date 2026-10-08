@@ -15,6 +15,11 @@ import io.averkhogliad.tubeloader.retry.stopAtAttempts
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import java.io.IOException
 import java.nio.file.Files
@@ -22,6 +27,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RutubeRetryTest :
     FreeSpec({
 
@@ -199,6 +205,82 @@ class RutubeRetryTest :
                 // then
                 http.opened.size shouldBe 2
             }
+
+            "repeats an attempt that outlives the per-attempt budget" {
+                runTest {
+                    // given a source that is too slow on the first attempt and answers on the second
+                    val http =
+                        FakeHttpTool().route(
+                            OPTIONS_URL,
+                            HttpStub.Slow(5.seconds, recordedStub(RECORDING_OPTIONS)),
+                            recordedStub(RECORDING_OPTIONS),
+                        )
+                    val settings = HttpToolConfig(perAttemptTimeout = 1.seconds)
+
+                    // when
+                    val actual = adapter(http, settings).loadMeta(MEDIA_ID)
+
+                    // then
+                    actual.shouldBeInstanceOf<LoadMetaResult.Found>()
+                    http.opened.size shouldBe 2
+                }
+            }
+
+            "gives up on an attempt that keeps outliving the per-attempt budget and answers transient" {
+                runTest {
+                    // given a source that never answers within the budget the configuration gives it
+                    val http = FakeHttpTool().always(HttpStub.Slow(after = 5.seconds, answer = SERVER_ERROR_STUB))
+                    val settings = HttpToolConfig(perAttemptTimeout = 1.seconds, retryMaxAttempts = 2)
+
+                    // when
+                    val actual = adapter(http, settings).loadMeta(MEDIA_ID)
+
+                    // then a timed-out attempt is a hiccup, not the verdict of the source
+                    actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
+                    http.opened.size shouldBe 2
+                }
+            }
+
+            "keeps a caller that gives up during an attempt cancelled" {
+                runTest {
+                    // given a source slow enough to still be in flight when the caller stops waiting
+                    val http = FakeHttpTool().always(HttpStub.Slow(after = 5.seconds, answer = SERVER_ERROR_STUB))
+
+                    // when
+                    val attempt = async { adapter(http).loadMeta(MEDIA_ID) }
+                    runCurrent()
+                    attempt.cancel()
+                    val thrown = runCatching { attempt.await() }.exceptionOrNull()
+
+                    // then
+                    thrown.shouldBeInstanceOf<CancellationException>()
+                    http.opened.size shouldBe 1
+                }
+            }
+
+            "keeps an outer deadline of the caller out of the retry" {
+                runTest {
+                    // given a source slow enough that the budget of the attempt never fires before the
+                    // caller stops waiting, and a single attempt, so the retry has nothing to repeat
+                    val http = FakeHttpTool().always(HttpStub.Slow(after = 30.seconds, answer = SERVER_ERROR_STUB))
+                    val settings = HttpToolConfig(perAttemptTimeout = 30.seconds, retryMaxAttempts = 1)
+
+                    // when
+                    var answered: LoadMetaResult? = null
+                    val thrown =
+                        runCatching {
+                            withTimeout(1.seconds) {
+                                adapter(http, settings).loadMeta(MEDIA_ID).also { answered = it }
+                            }
+                        }.exceptionOrNull()
+
+                    // then the deadline of the caller is a cancellation, not a hiccup of the attempt:
+                    // it never comes back to the caller as a transient failure of the source
+                    thrown.shouldBeInstanceOf<TimeoutCancellationException>()
+                    answered shouldBe null
+                    http.opened.size shouldBe 1
+                }
+            }
         }
 
         "download" - {
@@ -241,6 +323,22 @@ class RutubeRetryTest :
 
                 // then
                 actual shouldBe DownloadResult.Success
+            }
+
+            "gives up on a segment whose attempts keep outliving the per-attempt budget" {
+                runTest {
+                    // given a segment that never answers within the budget its attempt is given
+                    val slow = HttpStub.Slow(after = 5.seconds, answer = SERVER_ERROR_STUB)
+                    val http = streaming().route(SEGMENT_2, slow)
+                    val settings = HttpToolConfig(perAttemptTimeout = 1.seconds, retryMaxAttempts = 2)
+
+                    // when
+                    val actual = adapter(http, settings).download(MEDIA_ID, VIDEO_1080, clip("timeout")) {}
+
+                    // then
+                    actual shouldBe DownloadResult.Failed(DownloadError.NetworkTransient)
+                    http.opened.count { it.url == SEGMENT_2 } shouldBe 2
+                }
             }
 
             "breaks the retry wait as soon as the task is cancelled" {

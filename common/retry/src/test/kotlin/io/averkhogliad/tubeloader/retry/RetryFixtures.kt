@@ -25,6 +25,24 @@ internal class Attempts(private val failures: Int) {
 }
 
 /**
+ * A block that answers [AttemptTimedOut] for the first [timeouts] calls and [value] after that.
+ *
+ * The marker comes in as a value rather than from a real timeout: the budget is detected by whoever
+ * bounds the attempt, not by the driver.
+ */
+internal class TimedOutAttempts(private val timeouts: Int) {
+
+    private val used = AtomicInteger()
+
+    val calls: Int get() = used.get()
+
+    fun <T> answer(value: T): Result<T> {
+        used.incrementAndGet()
+        return if (calls <= timeouts) Result.failure(AttemptTimedOut) else Result.success(value)
+    }
+}
+
+/**
  * A stage that keeps what it was told and leaves the decision to [decide].
  */
 internal class RecordingPolicy(private val answer: (FailedAttempt) -> RetryInstruction) : Stage {

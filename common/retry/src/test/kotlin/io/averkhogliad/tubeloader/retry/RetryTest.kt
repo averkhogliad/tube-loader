@@ -152,6 +152,36 @@ class RetryTest :
                 recording.seen shouldBe emptyList()
                 judged shouldBe 0
             }
+
+            "repeats an attempt that outlived the budget it was given" {
+                runTest {
+                    // given a block that times itself out twice before it answers
+                    val attempts = TimedOutAttempts(timeouts = 2)
+                    val policy = RetryPolicy.stopAtAttempts(5).continueIf { failure is AttemptTimedOut }
+
+                    // when
+                    val actual = retry(policy) { attempts.answer("payload") }
+
+                    // then
+                    actual shouldBe Result.success("payload")
+                    attempts.calls shouldBe 3
+                }
+            }
+
+            "answers the per-attempt timeout as the marker once the policy stops" {
+                runTest {
+                    // given a block that never answers within its budget
+                    val attempts = TimedOutAttempts(timeouts = 5)
+                    val policy = RetryPolicy.stopAtAttempts(2).continueIf { failure is AttemptTimedOut }
+
+                    // when
+                    val actual = retry(policy) { attempts.answer("payload") }
+
+                    // then
+                    actual shouldBe Result.failure(AttemptTimedOut)
+                    attempts.calls shouldBe 2
+                }
+            }
         }
 
         "judging" - {
