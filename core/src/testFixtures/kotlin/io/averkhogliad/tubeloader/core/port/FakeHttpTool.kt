@@ -21,7 +21,7 @@ sealed interface HttpStub {
 
     /**
      * Answers [after] with [answer] — a source that takes its time, so that a caller bounding the
-     * attempt with `withTimeout` can be observed timing it out.
+     * attempt with `withTimeoutOrNull` can be observed timing it out.
      */
     data class Slow(val after: Duration, val answer: HttpStub) : HttpStub
 }

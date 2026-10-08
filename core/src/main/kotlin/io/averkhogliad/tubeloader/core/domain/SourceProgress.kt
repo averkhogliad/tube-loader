@@ -14,8 +14,16 @@ sealed interface SourceProgress {
      */
     fun fraction(): Double? =
         when (this) {
-            Indeterminate -> null
-            is Absolute -> if (total > 0 && processed in 0..total) processed.toDouble() / total else null
-            is Fraction -> ratio.takeIf { it.isFinite() && it in 0.0..1.0 }
+            Indeterminate -> {
+                null
+            }
+
+            is Absolute -> {
+                if (total > 0 && processed in 0..total) processed.toDouble() / total else null
+            }
+
+            is Fraction -> {
+                ratio.takeIf { it.isFinite() && it in 0.0..1.0 }
+            }
         }
 }

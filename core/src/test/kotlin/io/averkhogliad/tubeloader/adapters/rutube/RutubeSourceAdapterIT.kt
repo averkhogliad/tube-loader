@@ -106,6 +106,8 @@ class RutubeSourceAdapterIT :
 
                 // then
                 progress.last().fraction() shouldBe 1.0
+                val size = Files.size(target)
+                progress.last() shouldBe SourceProgress.Absolute(size, size)
                 target.exists() shouldBe true
                 dir.resolve("clip.mp4.tmp").exists() shouldBe false
             }

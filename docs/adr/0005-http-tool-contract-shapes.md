@@ -11,7 +11,7 @@
 KDoc плюс сигнатура `suspend fun open(url, headers): HttpResponse`. Используется только в
 `RutubeSourceAdapter` и через фейк `FakeHttpTool` — в его сьютах. Пробелы задокументированы в
 `ADR-0004` и `docs/features/common-retry/spec.md` (строки 200–234): `Content-Encoding`-декодирование
-не зафиксировано, `Retry-After` не отдаётся, `perAttemptTimeout` отложен, headers ответа
+не зафиксировано, `Retry-After` не отдаётся, `perAttemptTimeout` реализован (#68), headers ответа
 сознательно вне контракта. Цель грила — зафиксировать форму контракта до того, как появится
 production-реализация: следующий движок будет писаться под зафиксированный шов, а не под
 «как сейчас вышло».

@@ -63,6 +63,8 @@ class RutubeFinalizeTest :
 
                 // then
                 progress.last().fraction() shouldBe 1.0
+                val written = Files.size(target)
+                progress.last() shouldBe SourceProgress.Absolute(written, written)
             }
 
             "reports an indeterminate stage while the container is rewritten" {

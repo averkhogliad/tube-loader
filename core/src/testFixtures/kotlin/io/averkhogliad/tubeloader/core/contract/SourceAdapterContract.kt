@@ -156,11 +156,15 @@ fun sourceAdapterContract(
 
                 // then
                 progress.shouldNotBeEmpty()
-                withClue("progress must stay within its own measure") {
-                    progress.forEach { update -> update.fraction()?.let { (it in 0.0..1.0) shouldBe true } }
-                }
                 withClue("progress must reach completion") {
                     progress.last().fraction() shouldBe 1.0
+                }
+                // the share must be the work itself, not a decoration: a fraction that stands still
+                // while the file grows, or runs backwards, is not progress
+                val shares = progress.mapNotNull { it.fraction() }
+                shares shouldBe shares.sorted()
+                withClue("a completed download must report the whole file") {
+                    progress.last() shouldBe SourceProgress.Absolute(Files.size(target), Files.size(target))
                 }
             }
 
