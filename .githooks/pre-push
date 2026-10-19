@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "pre-push: ./gradlew check --rerun-tasks (bypass: git push --no-verify)"
+./gradlew check --rerun-tasks

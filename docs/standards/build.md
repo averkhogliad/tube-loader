@@ -20,6 +20,10 @@
   означает, что демон исключён из процесса и результат прогона недостоверен.
 - Стратегия компиляции задана в `gradle.properties` (`kotlin.compiler.execution.strategy`),
   поэтому в команде флага `-D…` нет.
+- CI (`.github/workflows/check.yml`) гонит `./gradlew check` без `--rerun-tasks`: свежий воркер
+  без устаревшего `build/`, причина флага — stale-классы локального Kotlin-демона на машине
+  разработчика. Паритет команд соблюдён по задаче (`check`), флаг — локальная гарантия
+  свежести, которая CI не нужна.
 
 ## Читать результат по XML, а не по панели
 
@@ -52,3 +56,14 @@ Remove-Item -Recurse -Force core/build/test-results
 `Caused by: java.io.UncheckedIOException: java.io.EOFException`, кадр
 `org.gradle.api.tasks.testing.Test.getPreviousFailedTestClasses(Test.java:752)`); удаление
 каталога и повторный прогон — `BUILD SUCCESSFUL`, тесты проходят, 0 failures.
+
+## Локальный pre-push хук
+
+Хук в `.githooks/pre-push` гонит каноничную `./gradlew check --rerun-tasks` перед каждым push;
+fail блокирует push. Один раз после клона включить:
+
+```
+git config core.hooksPath .githooks
+```
+
+Обход — `git push --no-verify` (WIP-push, осознанно).
