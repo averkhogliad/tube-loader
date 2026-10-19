@@ -3,7 +3,8 @@ package io.averkhogliad.tubeloader.adapters.rutube
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.domain.DownloadError
-import io.averkhogliad.tubeloader.core.domain.SourceProgress
+import io.averkhogliad.tubeloader.core.domain.Progress
+import io.averkhogliad.tubeloader.core.domain.fraction
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.kotest.core.spec.style.FreeSpec
@@ -56,7 +57,7 @@ class RutubeFinalizeTest :
             "closes the progress with the completed share it produced" {
                 // given
                 val target = clip("finalize")
-                val progress = mutableListOf<SourceProgress>()
+                val progress = mutableListOf<Progress>()
 
                 // when
                 adapter(streaming()).download(MEDIA_ID, VIDEO_1080, target) { progress += it }
@@ -64,12 +65,12 @@ class RutubeFinalizeTest :
                 // then
                 progress.last().fraction() shouldBe 1.0
                 val written = Files.size(target)
-                progress.last() shouldBe SourceProgress.Absolute(written, written)
+                progress.last() shouldBe Progress.Absolute(written, written)
             }
 
             "reports an indeterminate stage while the container is rewritten" {
                 // given
-                val progress = mutableListOf<SourceProgress>()
+                val progress = mutableListOf<Progress>()
 
                 // when
                 adapter(streaming()).download(MEDIA_ID, VIDEO_1080, clip("finalize")) { progress += it }

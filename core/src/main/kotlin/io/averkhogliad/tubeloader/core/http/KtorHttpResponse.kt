@@ -15,14 +15,7 @@ internal class KtorHttpResponse(
 
     override fun content(): InputStream = body.toInputStream()
 
-    override suspend fun <R> content(block: (InputStream) -> R): R {
-        val stream = content()
-        return try {
-            block(stream)
-        } finally {
-            stream.close()
-        }
-    }
+    override suspend fun <R> content(block: (InputStream) -> R): R = content().use(block)
 
     override fun close() {
         body.cancel(null)

@@ -7,8 +7,8 @@ import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
+import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
-import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import java.io.IOException
 import java.nio.file.Files
@@ -32,7 +32,7 @@ class ReferenceSourceAdapter(private val fixtures: SourceAdapterFixtures) : Sour
 
     override val displayName: String = "reference"
 
-    val progress: MutableList<SourceProgress> = mutableListOf()
+    val progress: MutableList<Progress> = mutableListOf()
 
     override suspend fun find(input: String): FindResult {
         val url = runCatching { java.net.URI(input) }.getOrNull() ?: return FindResult.Unsupported
@@ -62,7 +62,7 @@ class ReferenceSourceAdapter(private val fixtures: SourceAdapterFixtures) : Sour
         mediaId: String,
         quality: Quality,
         targetPath: Path,
-        onProgress: (SourceProgress) -> Unit,
+        onProgress: (Progress) -> Unit,
     ): DownloadResult {
         val bytes =
             try {
@@ -73,13 +73,13 @@ class ReferenceSourceAdapter(private val fixtures: SourceAdapterFixtures) : Sour
                 return DownloadResult.Failed(DownloadError.NotFound)
             }
         val total = bytes.size.toLong()
-        emit(SourceProgress.Absolute(0, total), onProgress)
+        emit(Progress.Absolute(0, total), onProgress)
         Files.newOutputStream(targetPath).use { it.write(bytes) }
-        emit(SourceProgress.Absolute(total, total), onProgress)
+        emit(Progress.Absolute(total, total), onProgress)
         return DownloadResult.Success
     }
 
-    private fun emit(update: SourceProgress, onProgress: (SourceProgress) -> Unit) {
+    private fun emit(update: Progress, onProgress: (Progress) -> Unit) {
         progress += update
         onProgress(update)
     }

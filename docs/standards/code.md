@@ -25,7 +25,7 @@ suspend fun download(
     mediaId: String,
     quality: Quality,
     targetPath: Path,
-    onProgress: (SourceProgress) -> Unit,
+    onProgress: (Progress) -> Unit,
 ): DownloadResult
 ```
 

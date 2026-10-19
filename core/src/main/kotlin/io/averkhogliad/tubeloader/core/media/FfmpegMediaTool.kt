@@ -47,6 +47,8 @@ class FfmpegMediaTool(private val config: MediaToolConfig, private val runner: P
                     LOG_LEVEL,
                     ERROR,
                     HIDE_BANNER,
+                    FORMAT,
+                    config.containerFormat,
                     output.toString(),
                 )
             },
@@ -66,6 +68,8 @@ class FfmpegMediaTool(private val config: MediaToolConfig, private val runner: P
                     LOG_LEVEL,
                     ERROR,
                     HIDE_BANNER,
+                    FORMAT,
+                    config.containerFormat,
                     output.toString(),
                 )
             },
@@ -98,6 +102,7 @@ class FfmpegMediaTool(private val config: MediaToolConfig, private val runner: P
         const val LOG_LEVEL = "-loglevel"
         const val ERROR = "error"
         const val HIDE_BANNER = "-hide_banner"
+        const val FORMAT = "-f"
         const val LOG_PREFIX = "FfmpegMediaTool:"
     }
 }

@@ -10,7 +10,6 @@ import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
-import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.HttpResponse
 import io.averkhogliad.tubeloader.core.port.HttpTool
@@ -102,7 +101,7 @@ class RutubeSourceAdapter(
         mediaId: String,
         quality: Quality,
         targetPath: Path,
-        onProgress: (SourceProgress) -> Unit,
+        onProgress: (Progress) -> Unit,
     ): DownloadResult {
         val tmpPath = targetPath.resolveSibling("${targetPath.fileName}.tmp")
         return try {
@@ -126,7 +125,7 @@ class RutubeSourceAdapter(
         quality: Quality,
         tmpPath: Path,
         targetPath: Path,
-        onProgress: (SourceProgress) -> Unit,
+        onProgress: (Progress) -> Unit,
     ): DownloadResult {
         val segments = segmentsOf(mediaId, quality, onProgress)
         val found = segments.getOrNull()
@@ -144,15 +143,15 @@ class RutubeSourceAdapter(
     private suspend fun segmentsOf(
         mediaId: String,
         quality: Quality,
-        onProgress: (SourceProgress) -> Unit,
+        onProgress: (Progress) -> Unit,
     ): Result<List<String>> {
-        onProgress(SourceProgress.Indeterminate)
+        onProgress(Progress.Indeterminate)
         val variant = variantOf(mediaId, quality)
         val playlist = variant.getOrNull()
         return if (playlist.isNullOrEmpty()) {
             variant.map { emptyList() }
         } else {
-            onProgress(SourceProgress.Indeterminate)
+            onProgress(Progress.Indeterminate)
             // a leaf playlist names its segments relative to its own location
             openText(playlist).map { leaf -> HlsPlaylist.segments(leaf, playlist) }
         }
@@ -188,7 +187,7 @@ class RutubeSourceAdapter(
     private suspend fun transfer(
         segments: List<String>,
         tmpPath: Path,
-        onProgress: (SourceProgress) -> Unit,
+        onProgress: (Progress) -> Unit,
     ): DownloadResult {
         var done = 0
         var sink: OutputStream? = null
@@ -208,7 +207,7 @@ class RutubeSourceAdapter(
                 }
                 sink.write(accepted.content { it.readBytes() })
                 done += 1
-                onProgress(SourceProgress.Absolute(done.toLong(), segments.size.toLong()))
+                onProgress(Progress.Absolute(done.toLong(), segments.size.toLong()))
             }
         } finally {
             sink?.close()
@@ -220,19 +219,19 @@ class RutubeSourceAdapter(
         transferred: DownloadResult,
         tmpPath: Path,
         targetPath: Path,
-        onProgress: (SourceProgress) -> Unit,
+        onProgress: (Progress) -> Unit,
     ): DownloadResult {
         // the duration of a container rewrite is unpredictable, even for a stream copy
         if (transferred !is DownloadResult.Success) return transferred
-        onProgress(SourceProgress.Indeterminate)
-        val remuxed = mediaTool.remux(tmpPath, targetPath) { progress -> onProgress(progress.toSourceProgress()) }
+        onProgress(Progress.Indeterminate)
+        val remuxed = mediaTool.remux(tmpPath, targetPath, onProgress)
         return if (remuxed.isFailure) {
             DownloadResult.Failed(DownloadError.ExtractorBroken)
         } else {
             Files.deleteIfExists(tmpPath)
             val size = Files.size(targetPath)
             // the core reads the completion of a download as an absolute update, not a fraction
-            onProgress(SourceProgress.Absolute(size, size))
+            onProgress(Progress.Absolute(size, size))
             DownloadResult.Success
         }
     }
@@ -355,18 +354,3 @@ private fun mediaIdOf(path: String?): String? {
     val match = VIDEO_PATH.matchEntire(route) ?: EMBED_PATH.matchEntire(route)
     return match?.groupValues?.get(1)
 }
-
-/**
- * A container rewrite reports its own progress; the adapter speaks a different vocabulary, so the
- * update is translated at the seam.
- */
-private fun Progress.toSourceProgress(): SourceProgress =
-    when (this) {
-        is Progress.Indeterminate -> {
-            SourceProgress.Indeterminate
-        }
-
-        is Progress.Determinate -> {
-            if (total <= 0) SourceProgress.Indeterminate else SourceProgress.Fraction(current.toDouble() / total)
-        }
-    }

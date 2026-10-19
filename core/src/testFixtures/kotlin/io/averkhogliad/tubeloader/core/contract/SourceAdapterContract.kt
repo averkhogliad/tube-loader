@@ -5,8 +5,9 @@ import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
+import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
-import io.averkhogliad.tubeloader.core.domain.SourceProgress
+import io.averkhogliad.tubeloader.core.domain.fraction
 import io.kotest.assertions.withClue
 import io.kotest.core.factory.TestFactory
 import io.kotest.core.spec.style.freeSpec
@@ -130,7 +131,7 @@ fun sourceAdapterContract(
                     // given
                     val adapter = create()
                     val target = downloadTargetOf(tempDir, adapterName, case).also { it.deleteIfExists() }
-                    val progress = mutableListOf<SourceProgress>()
+                    val progress = mutableListOf<Progress>()
 
                     // when
                     val actual = adapter.download(case.id, case.quality, target) { progress += it }
@@ -151,7 +152,7 @@ fun sourceAdapterContract(
                 val adapter = create()
                 val case = fixtures.download.first { it.expected is DownloadResult.Success }
                 val target = downloadTargetOf(tempDir, adapterName, case).also { it.deleteIfExists() }
-                val progress = mutableListOf<SourceProgress>()
+                val progress = mutableListOf<Progress>()
 
                 // when
                 adapter.download(case.id, case.quality, target) { progress += it }
@@ -166,7 +167,7 @@ fun sourceAdapterContract(
                 val shares = progress.mapNotNull { it.fraction() }
                 shares shouldBe shares.sorted()
                 withClue("a completed download must report the whole file") {
-                    progress.last() shouldBe SourceProgress.Absolute(Files.size(target), Files.size(target))
+                    progress.last() shouldBe Progress.Absolute(Files.size(target), Files.size(target))
                 }
             }
 

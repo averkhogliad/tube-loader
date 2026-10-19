@@ -47,7 +47,7 @@
 - **`port`** — интерфейсы портов `MediaTool` и `HttpTool` (и `HttpResponse`). Ядро диктует контракт;
   реализации (FFmpeg-обёртка, HTTP-клиент) — инфра.
 - **`domain`** — value-типы: `MediaMeta`, `MediaRef`, `Progress`, `Quality`, `TrackKind`, `Source`,
-  `SourceId`, `SourceProgress`, `TaskId`, `DownloadError`.
+  `SourceId`, `TaskId`, `DownloadError`.
 - **`download`** — жизненный цикл и исполнение: `DownloadHandle`, `DownloadQueue`, `DownloadState`,
   `DownloadStatus`, `TaskIdGenerator`, `TaskRegistry`.
 - **`facade`** — `CoreFacade`.

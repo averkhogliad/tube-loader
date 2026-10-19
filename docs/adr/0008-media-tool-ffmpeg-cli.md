@@ -54,9 +54,10 @@ Linux, `evermeet.cx` для macOS), проверяет SHA-256 из соседн
 сетевой поверхностью ядра. Если у реализации появятся дополнительные сетевые
 сценарии, переход на `HttpTool` рассматривается отдельно.
 
-`MediaToolConfig` — новый объект в `core.config`: `homeDir: Path` (обязательное) и
-`binaryPath: Path? = null` (опциональный escape hatch для CI и тестов). Никаких
-других полей: версия, URL, хеши — внутреннее.
+`MediaToolConfig` — новый объект в `core.config`: `homeDir: Path` (обязательное),
+`binaryPath: Path? = null` (опциональный escape hatch для CI и тестов) и
+`containerFormat: String = "mp4"` (контейнер для `-f`; ключ `download.container-format`).
+Прочие поля — версия, URL, хеши — внутреннее.
 
 ## Consequences
 
@@ -72,7 +73,7 @@ Linux, `evermeet.cx` для macOS), проверяет SHA-256 из соседн
 - `ProcessHandle.destroyTree()` — это именно то, что обещает контракт
   («гасит дерево процессов запущенного инструмента целиком, осиротевших
   дочерних процессов не остаётся»), без сюрпризов в реализации.
-- `MediaToolConfig` с `homeDir` + `binaryPath` снимает нагрузку с тестов:
+- `MediaToolConfig` с `homeDir` + `binaryPath` + `containerFormat` снимает нагрузку с тестов:
   подмена пути в конфиге — не подмена системного свойства.
 
 **Отрицательные.**
