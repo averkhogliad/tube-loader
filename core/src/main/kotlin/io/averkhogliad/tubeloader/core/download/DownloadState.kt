@@ -14,6 +14,7 @@ data class DownloadState(
 )
 
 sealed interface DownloadStatus {
+
     data object Queued : DownloadStatus
 
     data object LoadingMeta : DownloadStatus

@@ -2,8 +2,8 @@ package io.averkhogliad.tubeloader.core.adapter
 
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
+import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
-import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import java.nio.file.Path
 
 enum class DownloadCapability {
@@ -44,6 +44,6 @@ interface SourceAdapter {
         mediaId: String,
         quality: Quality,
         targetPath: Path,
-        onProgress: (SourceProgress) -> Unit,
+        onProgress: (Progress) -> Unit,
     ): DownloadResult
 }

@@ -8,5 +8,8 @@ class DownloadHandle(
     val state: Flow<DownloadState>,
     private val onCancel: () -> Unit,
 ) {
-    fun cancel() = onCancel()
+
+    fun cancel() {
+        onCancel()
+    }
 }

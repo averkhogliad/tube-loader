@@ -7,11 +7,9 @@ import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaRef
-import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.Source
 import io.averkhogliad.tubeloader.core.domain.SourceId
-import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import io.averkhogliad.tubeloader.core.domain.TaskId
 import io.averkhogliad.tubeloader.core.download.DownloadHandle
 import io.averkhogliad.tubeloader.core.download.DownloadQueue
@@ -121,7 +119,7 @@ class CoreFacade(
             registry.transition(taskId, DownloadStatus.Downloading)
             val outcome =
                 adapter.download(mediaId, quality, part) { source ->
-                    registry.updateProgress(taskId, source.toProgress())
+                    registry.updateProgress(taskId, source)
                 }
             if (outcome is DownloadResult.Failed) {
                 deleteQuietly(part)
@@ -167,29 +165,3 @@ class CoreFacade(
         }
     }
 }
-
-private const val FRACTION_SCALE = 1000L
-
-private fun SourceProgress.toProgress(): Progress =
-    when (this) {
-        SourceProgress.Indeterminate -> {
-            Progress.Indeterminate
-        }
-
-        is SourceProgress.Absolute -> {
-            if (fraction() != null) {
-                Progress.Determinate(processed, total)
-            } else {
-                Progress.Indeterminate
-            }
-        }
-
-        is SourceProgress.Fraction -> {
-            val share = fraction()
-            if (share != null) {
-                Progress.Determinate((share * FRACTION_SCALE).toLong(), FRACTION_SCALE)
-            } else {
-                Progress.Indeterminate
-            }
-        }
-    }

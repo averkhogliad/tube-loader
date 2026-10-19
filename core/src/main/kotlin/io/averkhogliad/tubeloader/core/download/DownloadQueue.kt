@@ -37,6 +37,7 @@ class DownloadQueue(
     private val workContext: CoroutineContext,
     private val config: StateFlow<AppConfig>,
 ) {
+
     private val job = SupervisorJob(parentScope.coroutineContext[Job])
     private val scope = CoroutineScope(parentScope.coroutineContext + job + dispatcher)
     private val waiting = ArrayDeque<Waiter>()

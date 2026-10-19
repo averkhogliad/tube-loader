@@ -2,7 +2,8 @@ package io.averkhogliad.tubeloader.adapters.rutube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.domain.DownloadError
-import io.averkhogliad.tubeloader.core.domain.SourceProgress
+import io.averkhogliad.tubeloader.core.domain.Progress
+import io.averkhogliad.tubeloader.core.domain.fraction
 import io.averkhogliad.tubeloader.core.port.HttpStub
 import io.averkhogliad.tubeloader.core.port.httpBody
 import io.kotest.core.spec.style.FreeSpec
@@ -30,7 +31,7 @@ class RutubeSegmentTest :
 
             "reports the share of the downloaded segments after each of them" {
                 // given
-                val progress = mutableListOf<SourceProgress>()
+                val progress = mutableListOf<Progress>()
 
                 // when
                 adapter(streaming()).download(MEDIA_ID, VIDEO_1080, clip("segments")) { progress += it }

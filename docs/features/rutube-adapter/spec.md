@@ -164,20 +164,19 @@ API. Адаптер читает его (через `HttpTool.open`), фильт
 Триггер пересмотра — появление адаптера, у которого сегменты нельзя склеить байтовой
 копией (fMP4, init-сегменты, переменные длины).
 
-**Прогресс.** Источник шлёт `SourceProgress` через колбек `onProgress`:
+**Прогресс.** Источник шлёт `Progress` через колбек `onProgress`:
 
-- `SourceProgress.Indeterminate` — на разборе плейлистов и на этапе `remux`
+- `Progress.Indeterminate` — на разборе плейлистов и на этапе `remux`
   (длительность перекодирования/контейнеризации даже при `-c copy` непредсказуема).
-- `SourceProgress.Absolute(done, total)` — на скачивании сегментов, в единицах сегментов:
-  сколько сегментов скачано к их общему числу. Ядро нормализует в `Progress.Determinate`
-  или `Indeterminate` (см. спеку ядра, `Progress`), а долю пересчитывает
-  `SourceProgress.fraction()`.
-- `SourceProgress.Absolute(size, size)` — финальное событие после успешного
+- `Progress.Absolute(done, total)` — на скачивании сегментов, в единицах сегментов:
+  сколько сегментов скачано к их общему числу; ядро передаёт его дальше как есть,
+  а долю пересчитывает `Progress.fraction()`.
+- `Progress.Absolute(size, size)` — финальное событие после успешного
   `remux`: ядро читает завершение загрузки как абсолютное обновление размера в байтах,
-  а не как долю; `SourceProgress.fraction()` даёт по нему `1.0`.
+  а не как долю; `Progress.fraction()` даёт по нему `1.0`.
 
 После завершения скачивания сегментов (файл `.tmp` готов) и до завершения `remux`
-адаптер шлёт `Indeterminate`; ядро нормализует в `Progress.Indeterminate`.
+адаптер шлёт `Indeterminate`.
 
 **Финализация.** Когда `.tmp` готов, адаптер вызывает
 `mediaTool.remux(tmpPath, targetPath, onProgress)` через переданный в адаптер
@@ -247,7 +246,7 @@ API. Адаптер читает его (через `HttpTool.open`), фильт
 
 **Сериализация.** Парсинг JSON — `kotlinx.serialization`. Модели данных адаптера
 приватны для пакета. На уровне контракта наружу уходят только sealed-исходы
-`SourceAdapter`, `MediaMeta`, `Quality`, `SourceProgress`, `DownloadResult`,
+`MediaMeta`, `MediaRef`, `Quality`, `Progress`, `DownloadResult`,
 `DownloadError`.
 
 ## Testing Decisions

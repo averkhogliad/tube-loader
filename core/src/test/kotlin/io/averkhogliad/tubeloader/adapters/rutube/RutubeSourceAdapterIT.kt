@@ -2,9 +2,10 @@ package io.averkhogliad.tubeloader.adapters.rutube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.config.HttpToolConfig
+import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
-import io.averkhogliad.tubeloader.core.domain.SourceProgress
 import io.averkhogliad.tubeloader.core.domain.TrackKind
+import io.averkhogliad.tubeloader.core.domain.fraction
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.kotest.core.annotation.Tags
@@ -99,7 +100,7 @@ class RutubeSourceAdapterIT :
                     )
                 val dir = Files.createTempDirectory("rutube-it")
                 val target = dir.resolve("clip.mp4")
-                val progress = mutableListOf<SourceProgress>()
+                val progress = mutableListOf<Progress>()
 
                 // when
                 adapter.download(LIVE_MEDIA_ID, LIVE_VIDEO_1080, target) { progress += it }
@@ -107,7 +108,7 @@ class RutubeSourceAdapterIT :
                 // then
                 progress.last().fraction() shouldBe 1.0
                 val size = Files.size(target)
-                progress.last() shouldBe SourceProgress.Absolute(size, size)
+                progress.last() shouldBe Progress.Absolute(size, size)
                 target.exists() shouldBe true
                 dir.resolve("clip.mp4.tmp").exists() shouldBe false
             }

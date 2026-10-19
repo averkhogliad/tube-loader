@@ -26,8 +26,8 @@ internal class FfmpegProcessRunner(
     private val graceTimeoutMillis: Long = GRACE_TIMEOUT_MILLIS,
 ) : ProcessRunner {
 
-    override suspend fun run(command: List<String>): Result<Unit> =
-        withContext(Dispatchers.IO) {
+    override suspend fun run(command: List<String>): Result<Unit> {
+        return withContext(Dispatchers.IO) {
             val process =
                 try {
                     start(command)
@@ -44,6 +44,7 @@ internal class FfmpegProcessRunner(
                 throw cancellation
             }
         }
+    }
 
     private suspend fun stopTree(process: Process) {
         withContext(NonCancellable) {

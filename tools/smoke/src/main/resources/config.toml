@@ -1,0 +1,13 @@
+[download]
+default-target-dir = "c:\\tmp\\rutube"
+max-parallel-downloads = 3
+container-format = "mp4"
+
+[download.http-tool]
+per-attempt-timeout-ms = 60000
+connect-timeout-ms = 5000
+request-timeout-ms = 30000
+max-attempts = 5
+base-delay-ms = 250
+randomization-factor = 0.0
+retriable-statuses = [408, 429, 502, 503, 504]

@@ -83,6 +83,8 @@ class FfmpegMediaToolTest :
                         "-loglevel",
                         "error",
                         "-hide_banner",
+                        "-f",
+                        "mp4",
                         OUTPUT.toString(),
                     )
             }
@@ -134,6 +136,8 @@ class FfmpegMediaToolTest :
                         "-loglevel",
                         "error",
                         "-hide_banner",
+                        "-f",
+                        "mp4",
                         OUTPUT.toString(),
                     )
             }
@@ -148,6 +152,39 @@ class FfmpegMediaToolTest :
 
                 // then
                 actual.exceptionOrNull() shouldBe failure
+            }
+        }
+
+        "container format" - {
+            "takes the format from the config instead of the extension of the output" {
+                // given
+                val runner = RecordingRunner()
+                val binary = temp.binary()
+                val tool =
+                    FfmpegMediaTool(
+                        MediaToolConfig(homeDir = temp.home(), binaryPath = binary, containerFormat = "mkv"),
+                        runner,
+                    )
+
+                // when
+                tool.remux(VIDEO, OUTPUT) {}
+
+                // then
+                val command = runner.commands.single()
+                command[command.lastIndexOf("-f") + 1] shouldBe "mkv"
+            }
+
+            "defaults to mp4" {
+                // given
+                val runner = RecordingRunner()
+                val underTest = MediaToolUnderTest(temp, runner)
+
+                // when
+                underTest.tool.remux(VIDEO, OUTPUT) {}
+
+                // then
+                val command = runner.commands.single()
+                command[command.lastIndexOf("-f") + 1] shouldBe "mp4"
             }
         }
 

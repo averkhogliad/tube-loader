@@ -4,12 +4,11 @@ import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.Progress
-import io.averkhogliad.tubeloader.core.domain.SourceProgress
+import io.averkhogliad.tubeloader.core.domain.fraction
 import io.averkhogliad.tubeloader.core.download.DownloadStatus
 import io.averkhogliad.tubeloader.core.download.absoluteProgresses
 import io.averkhogliad.tubeloader.core.download.fractions
 import io.kotest.core.spec.style.FreeSpec
-import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
@@ -96,7 +95,7 @@ class CoreFacadeEnqueueStagingTest :
             }
 
             "progress" - {
-                "reports Determinate for absolute source progress" {
+                "reports absolute source progress as it is" {
                     runTest {
                         // given
                         val mediaId = mediaIds.next()
@@ -120,12 +119,12 @@ class CoreFacadeEnqueueStagingTest :
                         // then
                         val state = world.state(handle.taskId)
                         state.status shouldBe DownloadStatus.Downloading
-                        state.progress shouldBe Progress.Determinate(absolute.processed, absolute.total)
+                        state.progress shouldBe absolute
                         release.complete(Unit)
                     }
                 }
 
-                "reports Determinate for fractional source progress" {
+                "passes fractional source progress through as it is" {
                     runTest {
                         // given
                         val mediaId = mediaIds.next()
@@ -149,43 +148,8 @@ class CoreFacadeEnqueueStagingTest :
                         // then
                         val state = world.state(handle.taskId)
                         state.status shouldBe DownloadStatus.Downloading
-                        val determinate = state.progress as Progress.Determinate
-                        (determinate.current.toDouble() / determinate.total) shouldBe
-                            (fraction.ratio plusOrMinus 0.001)
+                        state.progress shouldBe fraction
                         release.complete(Unit)
-                    }
-                }
-
-                listOf(
-                    SourceProgress.Indeterminate,
-                    SourceProgress.Absolute(1L, total = 0L),
-                    SourceProgress.Fraction(Double.POSITIVE_INFINITY),
-                    SourceProgress.Fraction(5.0),
-                ).forEach { source ->
-                    "falls back to Indeterminate for $source" {
-                        runTest {
-                            // given
-                            val mediaId = mediaIds.next()
-                            val world = facadeWorld(tempDir)
-                            world.adapters.single().onFind = { FindResult.Found(mediaId) }
-                            val ref = world.resolve(mediaId)
-                            val reported = CompletableDeferred<Unit>()
-                            val release = CompletableDeferred<Unit>()
-                            world.adapters.single().onDownload = { _, onProgress ->
-                                onProgress(source)
-                                reported.complete(Unit)
-                                release.await()
-                                DownloadResult.Success
-                            }
-
-                            // when
-                            val handle = world.enqueue(ref)
-                            reported.await()
-
-                            // then
-                            world.state(handle.taskId).progress shouldBe Progress.Indeterminate
-                            release.complete(Unit)
-                        }
                     }
                 }
 
@@ -197,7 +161,7 @@ class CoreFacadeEnqueueStagingTest :
                         world.adapters.single().onFind = { FindResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         val absolute = Arb.absoluteProgresses().next()
-                        lateinit var lateProgress: (SourceProgress) -> Unit
+                        lateinit var lateProgress: (Progress) -> Unit
                         val reported = CompletableDeferred<Unit>()
                         val release = CompletableDeferred<Unit>()
                         world.adapters.single().onDownload = { _, onProgress ->
@@ -211,12 +175,12 @@ class CoreFacadeEnqueueStagingTest :
                         reported.await()
 
                         // when
-                        lateProgress(SourceProgress.Fraction(0.5))
+                        lateProgress(Progress.Fraction(0.5))
 
                         // then
                         val state = world.state(handle.taskId)
                         state.status shouldBe DownloadStatus.Downloading
-                        state.progress shouldBe Progress.Determinate(500L, 1000L)
+                        state.progress shouldBe Progress.Fraction(0.5)
                         release.complete(Unit)
                     }
                 }
@@ -229,7 +193,7 @@ class CoreFacadeEnqueueStagingTest :
                         world.adapters.single().onFind = { FindResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         val absolute = Arb.absoluteProgresses().next()
-                        lateinit var lateProgress: (SourceProgress) -> Unit
+                        lateinit var lateProgress: (Progress) -> Unit
                         val reported = CompletableDeferred<Unit>()
                         val release = CompletableDeferred<Unit>()
                         world.adapters.single().onDownload = { _, onProgress ->
@@ -245,12 +209,12 @@ class CoreFacadeEnqueueStagingTest :
                         world.awaitState(handle.taskId) { it.status == DownloadStatus.Completed }
 
                         // when
-                        lateProgress(SourceProgress.Fraction(0.5))
+                        lateProgress(Progress.Fraction(0.5))
 
                         // then
                         val state = world.state(handle.taskId)
                         state.status shouldBe DownloadStatus.Completed
-                        state.progress shouldBe Progress.Determinate(absolute.processed, absolute.total)
+                        state.progress shouldBe absolute
                     }
                 }
 
@@ -262,7 +226,7 @@ class CoreFacadeEnqueueStagingTest :
                         world.adapters.single().onFind = { FindResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         val absolute = Arb.absoluteProgresses().next()
-                        lateinit var lateProgress: (SourceProgress) -> Unit
+                        lateinit var lateProgress: (Progress) -> Unit
                         val reported = CompletableDeferred<Unit>()
                         world.adapters.single().onDownload = { _, onProgress ->
                             lateProgress = onProgress
@@ -277,12 +241,12 @@ class CoreFacadeEnqueueStagingTest :
                         world.awaitState(handle.taskId) { it.status == DownloadStatus.Cancelled }
 
                         // when
-                        lateProgress(SourceProgress.Fraction(0.5))
+                        lateProgress(Progress.Fraction(0.5))
 
                         // then
                         val state = world.state(handle.taskId)
                         state.status shouldBe DownloadStatus.Cancelled
-                        state.progress shouldBe Progress.Determinate(absolute.processed, absolute.total)
+                        state.progress shouldBe absolute
                     }
                 }
 
@@ -294,7 +258,7 @@ class CoreFacadeEnqueueStagingTest :
                         world.adapters.single().onFind = { FindResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         val absolute = Arb.absoluteProgresses().next()
-                        lateinit var lateProgress: (SourceProgress) -> Unit
+                        lateinit var lateProgress: (Progress) -> Unit
                         world.adapters.single().onDownload = { _, onProgress ->
                             lateProgress = onProgress
                             onProgress(absolute)
@@ -304,12 +268,12 @@ class CoreFacadeEnqueueStagingTest :
                         world.awaitState(handle.taskId) { it.status is DownloadStatus.Failed }
 
                         // when
-                        lateProgress(SourceProgress.Fraction(0.5))
+                        lateProgress(Progress.Fraction(0.5))
 
                         // then
                         val state = world.state(handle.taskId)
                         state.status.shouldBeInstanceOf<DownloadStatus.Failed>()
-                        state.progress shouldBe Progress.Determinate(absolute.processed, absolute.total)
+                        state.progress shouldBe absolute
                     }
                 }
             }
