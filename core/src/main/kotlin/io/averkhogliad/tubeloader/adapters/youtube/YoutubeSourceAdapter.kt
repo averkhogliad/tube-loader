@@ -69,7 +69,16 @@ class YoutubeSourceAdapter internal constructor(
         quality: Quality,
         targetPath: Path,
         onProgress: (Progress) -> Unit,
-    ): DownloadResult = DownloadResult.Failed(DownloadError.ExtractorBroken) // stub, filled by #93
+    ): DownloadResult {
+        val settings = config()
+        val selector = formatSelectorOf(quality) ?: return DownloadResult.Failed(DownloadError.ExtractorBroken)
+        val staging = stagingDirectoryOf(settings, mediaId)
+        return try {
+            transfer(runner, downloadCommand(settings, mediaId, selector, staging), targetPath, onProgress)
+        } finally {
+            staging.removeTree()
+        }
+    }
 
     private fun resolveCommand(settings: YtDlpConfig, id: String): List<String> =
         listOf(binaryOf(settings), RESOLVE, SKIP_DOWNLOAD, watchUrlOf(id))

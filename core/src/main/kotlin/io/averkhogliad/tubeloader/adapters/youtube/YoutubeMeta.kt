@@ -14,6 +14,8 @@ private const val CHANNEL = "channel"
 private const val FORMATS = "formats"
 private const val MILLIS_PER_SECOND = 1_000
 
+private val QUALITY_HEIGHT = Regex("""^(\d{3,4})p$""")
+
 /**
  * The payload names the media it resolved, so a payload of another media is a broken read rather
  * than the meta of the one asked for. A payload that names no video quality is broken as well: the
@@ -41,6 +43,14 @@ internal fun qualityOf(height: Long): Quality {
     val label = "${height}p"
     return Quality(label, TrackKind.Video, label)
 }
+
+/** The height a quality names, or null when the id speaks of something else. */
+internal fun heightOf(qualityId: String): Long? =
+    QUALITY_HEIGHT
+        .matchEntire(qualityId)
+        ?.groupValues
+        ?.get(1)
+        ?.toLongOrNull()
 
 private fun qualitiesOf(payload: JsonObject): List<Quality> =
     (payload[FORMATS] as? JsonArray)
