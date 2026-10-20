@@ -28,7 +28,7 @@ internal const val PROGRESS_MARK = "dl:@P "
 internal const val FILEPATH_MARK = "fp="
 
 private const val PROGRESS_TEMPLATE_VALUE = PROGRESS_MARK + "%(progress.downloaded_bytes)s %(progress.total_bytes)s"
-private const val FILEPATH_TEMPLATE_VALUE = "after_move:%(filepath)s"
+private const val FILEPATH_TEMPLATE_VALUE = "after_move:" + FILEPATH_MARK + "%(filepath)s"
 private const val STAGING_TEMPLATE = "%(id)s.%(ext)s"
 
 internal fun binaryOf(settings: YtDlpConfig): String = (settings.binaryPath ?: DEFAULT_BINARY).toString()

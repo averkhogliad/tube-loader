@@ -187,7 +187,7 @@ fun sourceAdapterContract(
     }
 
 @OptIn(ExperimentalPathApi::class)
-private suspend fun deleteWithRetry(dir: Path) {
+internal suspend fun deleteWithRetry(dir: Path) {
     val pauses = listOf(20, 40, 80, 160).map { it.milliseconds }
     var lastFailure: Exception? = null
     repeat(pauses.size + 1) { attempt ->

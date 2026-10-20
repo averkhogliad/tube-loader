@@ -2,6 +2,7 @@ package io.averkhogliad.tubeloader.adapters.youtube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.config.YtDlpConfig
+import io.averkhogliad.tubeloader.core.contract.deleteWithRetry
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
@@ -25,12 +26,17 @@ private val QUALITY = Quality("720p", TrackKind.Video, "720p")
 
 class YoutubeDownloadTest :
     FreeSpec({
+        val roots = mutableListOf<Path>()
+
+        afterSpec {
+            roots.forEach { deleteWithRetry(it) }
+        }
 
         "download" - {
 
             "puts the file the tool produced into the part path of the core" {
                 // given
-                val world = DownloadWorld().withProducedFile()
+                val world = DownloadWorld(roots).withProducedFile()
                 val adapter = world.adapter(ToolReply(output = world.transferOutput()))
 
                 // when
@@ -44,7 +50,7 @@ class YoutubeDownloadTest :
 
             "emits a progress that reaches completion and never goes back" {
                 // given
-                val world = DownloadWorld().withProducedFile()
+                val world = DownloadWorld(roots).withProducedFile()
                 val adapter = world.adapter(ToolReply(output = world.transferOutput()))
                 val steps = mutableListOf<Progress>()
 
@@ -60,7 +66,7 @@ class YoutubeDownloadTest :
 
             "reports an amount the tool cannot name as indeterminate" {
                 // given
-                val world = DownloadWorld().withProducedFile()
+                val world = DownloadWorld(roots).withProducedFile()
                 val output = world.transferOutput(progress = listOf("dl:@P 100 NA", "dl:@P 200 200"))
                 val adapter = world.adapter(ToolReply(output = output))
                 val steps = mutableListOf<Progress>()
@@ -79,7 +85,7 @@ class YoutubeDownloadTest :
 
             "picks the format of the chosen quality and points the tool at the bundled ffmpeg" {
                 // given
-                val world = DownloadWorld().withProducedFile()
+                val world = DownloadWorld(roots).withProducedFile()
                 val launches = mutableListOf<YtDlpLaunch>()
                 val adapter = world.adapter(ToolReply(output = world.transferOutput()), launches = launches)
 
@@ -97,7 +103,7 @@ class YoutubeDownloadTest :
 
             "cleans the staging of the tool after the file is placed" {
                 // given
-                val world = DownloadWorld().withProducedFile()
+                val world = DownloadWorld(roots).withProducedFile()
                 val adapter = world.adapter(ToolReply(output = world.transferOutput()))
 
                 // when
@@ -109,7 +115,7 @@ class YoutubeDownloadTest :
 
             "cleans the staging of the tool when the tool fails" {
                 // given
-                val world = DownloadWorld()
+                val world = DownloadWorld(roots)
                 val adapter = world.adapter(ToolReply(exitedWith = 1, error = "ERROR: Video unavailable"))
 
                 // when
@@ -122,7 +128,7 @@ class YoutubeDownloadTest :
 
             "cleans the staging of the tool when the call is cancelled" {
                 // given
-                val world = DownloadWorld()
+                val world = DownloadWorld(roots)
                 val adapter = world.adapter(ToolReply(exits = false))
 
                 // when
@@ -138,7 +144,7 @@ class YoutubeDownloadTest :
 
             "fails with ExtractorBroken when the tool names no file it produced" {
                 // given
-                val world = DownloadWorld()
+                val world = DownloadWorld(roots)
                 val adapter = world.adapter(ToolReply(output = "dl:@P 200 200"))
 
                 // when
@@ -151,9 +157,9 @@ class YoutubeDownloadTest :
     })
 
 /** A home directory of its own, a produced file of its own and the part path the core would hand in. */
-private class DownloadWorld {
+private class DownloadWorld(roots: MutableList<Path>) {
 
-    private val root: Path = Files.createTempDirectory("youtube-download")
+    private val root: Path = Files.createTempDirectory("youtube-download").also { roots.add(it) }
 
     val produced: Path = root.resolve("out").resolve("video.mp4")
 

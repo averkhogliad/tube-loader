@@ -83,8 +83,8 @@ internal data class YtDlpRun(val output: List<String>)
  */
 internal class YtDlpProcessRunner(
     private val workingDirectory: Path,
-    private val start: (YtDlpLaunch) -> Process = YtDlpLaunch::toProcess,
     private val graceTimeoutMillis: Long = GRACE_TIMEOUT_MILLIS,
+    private val start: (YtDlpLaunch) -> Process = YtDlpLaunch::toProcess,
 ) {
 
     suspend fun run(

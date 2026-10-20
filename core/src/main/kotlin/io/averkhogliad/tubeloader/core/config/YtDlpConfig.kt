@@ -23,6 +23,9 @@ data class YtDlpConfig(
     val binaryPath: Path? = null,
     val resolveTimeout: Duration = DEFAULT_RESOLVE_TIMEOUT,
     val concurrentFragments: Int = DEFAULT_CONCURRENT_FRAGMENTS,
+    val retryMaxAttempts: Int = DEFAULT_RETRY_MAX_ATTEMPTS,
+    val retryBaseDelay: Duration = DEFAULT_RETRY_BASE_DELAY,
+    val retryRandomizationFactor: Double = DEFAULT_RETRY_RANDOMIZATION_FACTOR,
 ) {
 
     init {
@@ -30,14 +33,22 @@ data class YtDlpConfig(
         require(concurrentFragments >= 1) {
             "concurrentFragments must be at least 1, got $concurrentFragments"
         }
+        require(retryMaxAttempts >= 1) { "retryMaxAttempts must be at least 1, got $retryMaxAttempts" }
+        require(retryBaseDelay >= Duration.ZERO) { "retryBaseDelay must not be negative, got $retryBaseDelay" }
+        require(retryRandomizationFactor in 0.0..1.0) {
+            "retryRandomizationFactor must be within 0.0..1.0, got $retryRandomizationFactor"
+        }
     }
 
     companion object {
 
         const val DEFAULT_TABLE = "download.youtube"
         const val DEFAULT_CONCURRENT_FRAGMENTS = 1
+        const val DEFAULT_RETRY_MAX_ATTEMPTS = 5
+        const val DEFAULT_RETRY_RANDOMIZATION_FACTOR = 0.0
 
         val DEFAULT_RESOLVE_TIMEOUT = 60.seconds
+        val DEFAULT_RETRY_BASE_DELAY = 250.milliseconds
 
         /**
          * Reads the flat `[download.youtube]` sub-block. A missing table and a missing key both answer
@@ -51,6 +62,10 @@ data class YtDlpConfig(
                 binaryPath = binaryPathAt(table, tablePath),
                 resolveTimeout = resolveTimeoutAt(table, tablePath),
                 concurrentFragments = fragmentsAt(table, tablePath),
+                retryMaxAttempts = attemptsAt(table, tablePath),
+                retryBaseDelay =
+                    millisecondsAt(table, tablePath, "base-delay-ms", DEFAULT_RETRY_BASE_DELAY, allowZero = true),
+                retryRandomizationFactor = factorAt(table, tablePath),
             )
         }
 
@@ -79,6 +94,36 @@ data class YtDlpConfig(
             val at = name(tablePath, "concurrent-fragments")
             val value = wholeNumber(raw, at)
             require(value >= 1) { "$at must be a whole number of at least 1, got $raw" }
+            return value
+        }
+
+        private fun attemptsAt(table: Map<String, Any>, tablePath: String): Int {
+            val raw = table["max-attempts"] ?: return DEFAULT_RETRY_MAX_ATTEMPTS
+            val at = name(tablePath, "max-attempts")
+            val value = wholeNumber(raw, at)
+            require(value >= 1) { "$at must be a whole number of at least 1, got $raw" }
+            return value
+        }
+
+        private fun millisecondsAt(
+            table: Map<String, Any>,
+            tablePath: String,
+            key: String,
+            default: Duration,
+            allowZero: Boolean = false,
+        ): Duration {
+            val raw = table[key] ?: return default
+            val at = name(tablePath, key)
+            val value = wholeNumber(raw, at)
+            require(allowZero || value > 0) { "$at must be positive, got $raw" }
+            return value.milliseconds
+        }
+
+        private fun factorAt(table: Map<String, Any>, tablePath: String): Double {
+            val raw = table["randomization-factor"] ?: return DEFAULT_RETRY_RANDOMIZATION_FACTOR
+            val at = name(tablePath, "randomization-factor")
+            val value = raw.toString().trim().toDoubleOrNull()
+            require(value != null && value in 0.0..1.0) { "$at must be within 0.0..1.0, got $raw" }
             return value
         }
 

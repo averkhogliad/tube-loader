@@ -10,4 +10,8 @@ class YoutubeAdapterTest :
     FreeSpec({
         val golden = youtubeFixtures()
         include(sourceAdapterContract("youtube", golden.cases, golden.adapter))
+
+        afterSpec {
+            golden.cleanup()
+        }
     })

@@ -68,8 +68,10 @@ internal fun downloadErrorOf(failure: Throwable): DownloadError =
     when (failure) {
         is YtDlpFailed -> errorOf(failure.toolMessage)
 
-        // a call that ended without a word from the tool never reached the source
-        else -> DownloadError.NetworkTransient
+        is YtDlpTimedOut -> DownloadError.NetworkTransient
+
+        // a call that never reached the tool — the binary is missing or the process would not start
+        else -> DownloadError.ExtractorBroken
     }
 
 private fun errorOf(message: String): DownloadError =

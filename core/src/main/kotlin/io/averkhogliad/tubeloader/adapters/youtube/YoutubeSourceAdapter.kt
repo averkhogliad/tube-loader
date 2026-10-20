@@ -9,6 +9,11 @@ import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
+import io.averkhogliad.tubeloader.retry.RetryPolicy
+import io.averkhogliad.tubeloader.retry.continueIf
+import io.averkhogliad.tubeloader.retry.exponentialBackoff
+import io.averkhogliad.tubeloader.retry.retry
+import io.averkhogliad.tubeloader.retry.stopAtAttempts
 import java.net.URI
 import java.nio.file.Path
 
@@ -56,12 +61,18 @@ class YoutubeSourceAdapter internal constructor(
 
     override suspend fun loadMeta(id: String): LoadMetaResult {
         val settings = config()
+        val result =
+            retry(policyOf(settings)) {
+                runner.run(resolveCommand(settings, id), timeout = settings.resolveTimeout)
+            }
         val run =
-            runner.run(resolveCommand(settings, id), timeout = settings.resolveTimeout).getOrElse { failure ->
+            result.getOrElse { failure ->
                 return LoadMetaResult.Failed(downloadErrorOf(failure))
             }
-        val meta = ytDlpPayload(run.output.joinToString("\n"))?.let { payload -> mediaMetaOf(payload, id) }
-        return meta?.let(LoadMetaResult::Found) ?: LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+        val meta =
+            ytDlpPayload(run.output.joinToString("\n"))?.let { payload -> mediaMetaOf(payload, id) }
+        return meta?.let(LoadMetaResult::Found)
+            ?: LoadMetaResult.Failed(DownloadError.ExtractorBroken)
     }
 
     override suspend fun download(
@@ -74,9 +85,9 @@ class YoutubeSourceAdapter internal constructor(
         val selector = formatSelectorOf(quality) ?: return DownloadResult.Failed(DownloadError.ExtractorBroken)
         val staging = stagingDirectoryOf(settings, mediaId)
         return try {
-            transfer(runner, downloadCommand(settings, mediaId, selector, staging), targetPath, onProgress)
+            transfer(runner, downloadCommand(settings, mediaId, selector, staging), settings, targetPath, onProgress)
         } finally {
-            staging.removeTree()
+            runCatching { staging.removeTree() }
         }
     }
 
@@ -106,3 +117,11 @@ class YoutubeSourceAdapter internal constructor(
 }
 
 private fun workingDirectoryOf(settings: YtDlpConfig): Path = settings.ffmpegLocation.parent ?: settings.ffmpegLocation
+
+private val RETRIABLE = setOf(DownloadError.NetworkTransient, DownloadError.UrlExpired)
+
+internal fun policyOf(settings: YtDlpConfig): RetryPolicy =
+    RetryPolicy
+        .stopAtAttempts(settings.retryMaxAttempts)
+        .continueIf { downloadErrorOf(failure) in RETRIABLE }
+        .exponentialBackoff(settings.retryBaseDelay, randomizationFactor = settings.retryRandomizationFactor)

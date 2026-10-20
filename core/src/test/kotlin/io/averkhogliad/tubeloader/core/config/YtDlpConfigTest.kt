@@ -32,6 +32,9 @@ class YtDlpConfigTest :
                 actual.binaryPath shouldBe null
                 actual.resolveTimeout shouldBe 60.seconds
                 actual.concurrentFragments shouldBe 1
+                actual.retryMaxAttempts shouldBe 5
+                actual.retryBaseDelay shouldBe 250.milliseconds
+                actual.retryRandomizationFactor shouldBe 0.0
             }
 
             "reads every key of the block" {
@@ -43,6 +46,9 @@ class YtDlpConfigTest :
                         binary-path = "opt/yt-dlp"
                         resolve-timeout-ms = 15000
                         concurrent-fragments = 4
+                        max-attempts = 3
+                        base-delay-ms = 500
+                        randomization-factor = 0.2
                         """,
                     )
 
@@ -53,6 +59,9 @@ class YtDlpConfigTest :
                 actual.binaryPath shouldBe Path.of("opt", "yt-dlp")
                 actual.resolveTimeout shouldBe 15000.milliseconds
                 actual.concurrentFragments shouldBe 4
+                actual.retryMaxAttempts shouldBe 3
+                actual.retryBaseDelay shouldBe 500.milliseconds
+                actual.retryRandomizationFactor shouldBe 0.2
                 actual.ffmpegLocation shouldBe Path.of("home", "ffmpeg")
             }
 
@@ -138,7 +147,7 @@ class YtDlpConfigTest :
             }
         }
 
-        "validate" - {
+        "YtDlpConfig" - {
             "rejects a non-positive resolve timeout" {
                 shouldThrow<IllegalArgumentException> {
                     YtDlpConfig(ffmpegLocation = HOME, resolveTimeout = 0.milliseconds)
@@ -148,6 +157,24 @@ class YtDlpConfigTest :
             "rejects fewer than one fragment" {
                 shouldThrow<IllegalArgumentException> {
                     YtDlpConfig(ffmpegLocation = HOME, concurrentFragments = 0)
+                }
+            }
+
+            "rejects fewer than one retry attempt" {
+                shouldThrow<IllegalArgumentException> {
+                    YtDlpConfig(ffmpegLocation = HOME, retryMaxAttempts = 0)
+                }
+            }
+
+            "rejects a negative retry base delay" {
+                shouldThrow<IllegalArgumentException> {
+                    YtDlpConfig(ffmpegLocation = HOME, retryBaseDelay = (-1).milliseconds)
+                }
+            }
+
+            "rejects a retry randomization factor out of range" {
+                shouldThrow<IllegalArgumentException> {
+                    YtDlpConfig(ffmpegLocation = HOME, retryRandomizationFactor = 1.5)
                 }
             }
         }

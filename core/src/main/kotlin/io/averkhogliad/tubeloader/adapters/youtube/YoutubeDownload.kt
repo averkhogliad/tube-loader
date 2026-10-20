@@ -4,6 +4,7 @@ import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.Progress
+import io.averkhogliad.tubeloader.retry.retry
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -101,19 +102,21 @@ internal class ProgressFeed(private val sink: (Progress) -> Unit) {
 internal suspend fun transfer(
     runner: YtDlpProcessRunner,
     command: List<String>,
+    settings: YtDlpConfig,
     targetPath: Path,
     onProgress: (Progress) -> Unit,
 ): DownloadResult {
     val feed = ProgressFeed(onProgress)
     feed.feed(Progress.Indeterminate)
-    val run = runner.run(command) { line -> progressOf(line)?.let(feed::feed) }
-    val failure = run.exceptionOrNull()
-    val produced =
-        run
-            .getOrNull()
-            ?.output
-            ?.asReversed()
-            ?.firstNotNullOfOrNull(::producedPathOf)
+    var produced: Path? = null
+    val result =
+        retry(policyOf(settings)) {
+            runner.run(command) { line ->
+                producedPathOf(line)?.let { produced = it }
+                progressOf(line)?.let(feed::feed)
+            }
+        }
+    val failure = result.exceptionOrNull()
     return when {
         failure != null -> DownloadResult.Failed(downloadErrorOf(failure))
         produced == null || !Files.isRegularFile(produced) -> DownloadResult.Failed(DownloadError.ExtractorBroken)

@@ -3,11 +3,13 @@ package io.averkhogliad.tubeloader.adapters.youtube
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.config.YtDlpConfig
+import io.averkhogliad.tubeloader.core.contract.deleteWithRetry
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -45,6 +47,11 @@ private fun failingAdapter(
 
 class YoutubeErrorTaxonomyTest :
     FreeSpec({
+        val roots = mutableListOf<Path>()
+
+        afterSpec {
+            roots.forEach { deleteWithRetry(it) }
+        }
 
         "loadMeta" - {
             TAXONOMY.forEach { case ->
@@ -81,13 +88,35 @@ class YoutubeErrorTaxonomyTest :
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
             }
+
+            "reads a start that never reached the tool as a broken extractor" {
+                // given
+                val adapter = adapterOver(YOUTUBE_SETTINGS) { _ -> throw IOException("binary not found") }
+
+                // when
+                val actual = adapter.loadMeta(MEDIA_ID)
+
+                // then
+                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+            }
+
+            "reads a start that never reached the tool as a broken extractor" {
+                // given
+                val adapter = adapterOver(YOUTUBE_SETTINGS) { _ -> throw IOException("binary not found") }
+
+                // when
+                val actual = adapter.loadMeta(MEDIA_ID)
+
+                // then
+                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+            }
         }
 
         "download" - {
             TAXONOMY.forEach { case ->
                 "reads ${case.fixture} as ${case.expected}" {
                     // given
-                    val world = TaxonomyWorld()
+                    val world = TaxonomyWorld(roots)
                     val adapter = failingAdapter(case.fixture, settings = world.settings)
 
                     // when
@@ -100,7 +129,7 @@ class YoutubeErrorTaxonomyTest :
 
             "keeps the class the same as the resolve names for the same recording" {
                 // given
-                val world = TaxonomyWorld()
+                val world = TaxonomyWorld(roots)
 
                 // when
                 val transferred =
@@ -116,9 +145,9 @@ class YoutubeErrorTaxonomyTest :
     })
 
 /** A home directory of its own, so nothing of the tool lands in the directory the build runs from. */
-private class TaxonomyWorld {
+private class TaxonomyWorld(roots: MutableList<Path>) {
 
-    private val root: Path = Files.createTempDirectory("youtube-taxonomy")
+    private val root: Path = Files.createTempDirectory("youtube-taxonomy").also { roots.add(it) }
 
     val settings = YtDlpConfig(ffmpegLocation = root.resolve("ffmpeg"), binaryPath = Path.of("yt-dlp"))
 
