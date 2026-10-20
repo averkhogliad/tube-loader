@@ -1,0 +1,1 @@
+ERROR: [youtube] dQw4w9WgXcQ: Unable to download webpage: HTTP Error 410: Gone
