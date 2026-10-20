@@ -131,9 +131,8 @@ stderr/JSON:
 пока маппятся в `ExtractorBroken`.
 
 **`YtDlpProcessRunner` — внутренний шов.** Зеркало `FfmpegProcessRunner` (`core.media`):
-инжектируемый `start: (List<String>) -> Process`, grace-timeout, tree-kill по
-`CancellationException` (`ProcessHandle.destroyTree()`, на Windows — Job Object
-`KILL_ON_JOB_CLOSE`). Отличие от `FfmpegProcessRunner`: стримит stdout построчно (progress-линии
+инжектируемый `start`, tree-kill по `CancellationException` (механизм и остаточный
+риск — ADR-0010). Отличие от `FfmpegProcessRunner`: стримит stdout построчно (progress-линии
 + финальный `filepath`) и классифицирует ошибки из stderr/JSON, а не только по exit-коду. Тесты
 передают фейк-раннер. Консолидация с `FfmpegProcessRunner` в общий `ProcessRunner` (rep ort §9.1)
 — вне scope.
