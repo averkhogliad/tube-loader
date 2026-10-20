@@ -123,10 +123,9 @@ internal class FfmpegDistribution(private val homeDir: Path) {
         }
     }
 
-    private fun binaryDir(): Path = homeDir.resolve(BINARY_DIR)
+    private fun binaryDir(): Path = ffmpegDirectory(homeDir)
 
     private companion object {
-        const val BINARY_DIR = "ffmpeg"
         const val CHECKSUM_SUFFIX = ".sha256"
         const val HTTP_OK = 200
         val WHITESPACE = Regex("\\s+")
@@ -204,6 +203,11 @@ private class ChecksumMismatch(expected: String, actual: String) :
 private class NoBinaryInArchive(name: String) : DistributionFailure("the archive holds no $name")
 
 private class UnavailableOn(os: Os) : DistributionFailure("no ffmpeg build is configured for $os")
+
+/** The directory the distribution keeps the tool in, shared with the tools pointed at it. */
+internal fun ffmpegDirectory(homeDir: Path): Path = homeDir.resolve(BINARY_DIR)
+
+private const val BINARY_DIR = "ffmpeg"
 
 /** The only platform difference the implementation makes: how the executable of the tool is named. */
 internal fun ffmpegExecutableName(osName: String = System.getProperty("os.name")): String =
