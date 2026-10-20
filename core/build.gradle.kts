@@ -56,3 +56,12 @@ val integrationTest by tasks.registering(Test::class) {
     // same backstop as `test`: a live tool may block a thread past kotest's own timeout
     timeout.set(Duration.ofMinutes(5))
 }
+
+kover {
+    currentProject {
+        instrumentation {
+            // koverVerify waits for every instrumented Test task, so the live suite would land in `check`
+            disabledForTestTasks.add("integrationTest")
+        }
+    }
+}
