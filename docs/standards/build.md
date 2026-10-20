@@ -57,6 +57,20 @@ Remove-Item -Recurse -Force core/build/test-results
 `org.gradle.api.tasks.testing.Test.getPreviousFailedTestClasses(Test.java:752)`); удаление
 каталога и повторный прогон — `BUILD SUCCESSFUL`, тесты проходят, 0 failures.
 
+## Интеграционные тесты — отдельной задачей
+
+```
+./gradlew :core:integrationTest --rerun-tasks
+```
+
+Живые спеки (`*SourceAdapterIT`) в `check` не входят: они требуют реальных инструментов и сети.
+Тег фильтрует сам kotest через `kotest.tags.include` / `kotest.tags.exclude`: JUnit-платформа
+тег kotest-спеки не видит, поэтому `includeTags` в `useJUnitPlatform` не работает (проверено —
+с ним задача прогоняет весь сьют).
+
+Без живого инструмента спека не падает, а скипается: `skipped=1` в её `TEST-*.xml` — норма,
+`No tests found` — нет (значит фильтр не нашёл класс).
+
 ## Локальный pre-push хук
 
 Хук в `.githooks/pre-push` гонит каноничную `./gradlew check --rerun-tasks` перед каждым push;

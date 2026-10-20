@@ -38,16 +38,30 @@ dependencies {
 }
 
 tasks.test {
-    useJUnitPlatform {
-        // the integration spec replays recordings through the seams: it stays opt-in
-        excludeTags("integration")
-    }
-    // kotest 6 does not surface a spec tag to the JUnit platform filter, so the integration spec is
-    // kept out of the main run by its name as well
-    filter {
-        excludeTestsMatching("*SourceAdapterIT")
-    }
+    useJUnitPlatform()
+    // the JUnit platform never sees a kotest spec tag, so the tag filter is kotest's own
+    systemProperty("kotest.tags.exclude", "integration")
     // last-resort backstop: a test blocked on its own thread is not interrupted by kotest's own
     // timeout unless it opts into blockingTest, so this kills the task instead of hanging CI
     timeout.set(Duration.ofMinutes(5))
+}
+
+val integrationTest by tasks.registering(Test::class) {
+    description = "Runs the live integration specs (real tools, opt-in)."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform()
+    systemProperty("kotest.tags.include", "integration")
+    // same backstop as `test`: a live tool may block a thread past kotest's own timeout
+    timeout.set(Duration.ofMinutes(5))
+}
+
+kover {
+    currentProject {
+        instrumentation {
+            // koverVerify waits for every instrumented Test task, so the live suite would land in `check`
+            disabledForTestTasks.add("integrationTest")
+        }
+    }
 }

@@ -1,5 +1,6 @@
 package io.averkhogliad.tubeloader.core.media
 
+import io.averkhogliad.tubeloader.core.config.ToolPaths
 import java.io.IOException
 import java.net.URI
 import java.net.http.HttpClient
@@ -21,7 +22,7 @@ import kotlin.io.path.outputStream
  * The network client is deliberately not [io.averkhogliad.tubeloader.core.port.HttpTool]: one GET on a
  * cold start, no progress, no retries, and a failure is an [IOException] of the operation itself.
  */
-internal class FfmpegDistribution(private val homeDir: Path) {
+internal class FfmpegDistribution(private val paths: ToolPaths) {
 
     /**
      * @param override a path the config gives instead of the managed one: used as is, nothing is
@@ -29,7 +30,7 @@ internal class FfmpegDistribution(private val homeDir: Path) {
      * @return the binary to run, or the reason it could not be obtained.
      */
     fun ensureBinary(override: Path?): Result<Path> {
-        val managed = binaryDir().resolve(ffmpegExecutableName())
+        val managed = paths.ffmpegBinary
         val reusable = override ?: managed.takeIf { binary -> Files.isExecutable(binary) }
         return reusable?.let { binary -> Result.success(binary) } ?: runCatching { fetch(managed) }
     }
@@ -43,7 +44,7 @@ internal class FfmpegDistribution(private val homeDir: Path) {
             val checksum = client.checksumOf(source.archive)
             download(client, source.archive, archive)
             verifyChecksum(archive, checksum)
-            binaryDir().createDirectories()
+            paths.ffmpegBinary.parent?.createDirectories()
             extract(archive, binary)
             markExecutable(binary)
         } finally {
@@ -123,10 +124,7 @@ internal class FfmpegDistribution(private val homeDir: Path) {
         }
     }
 
-    private fun binaryDir(): Path = homeDir.resolve(BINARY_DIR)
-
     private companion object {
-        const val BINARY_DIR = "ffmpeg"
         const val CHECKSUM_SUFFIX = ".sha256"
         const val HTTP_OK = 200
         val WHITESPACE = Regex("\\s+")
@@ -204,7 +202,3 @@ private class ChecksumMismatch(expected: String, actual: String) :
 private class NoBinaryInArchive(name: String) : DistributionFailure("the archive holds no $name")
 
 private class UnavailableOn(os: Os) : DistributionFailure("no ffmpeg build is configured for $os")
-
-/** The only platform difference the implementation makes: how the executable of the tool is named. */
-internal fun ffmpegExecutableName(osName: String = System.getProperty("os.name")): String =
-    if (osName.lowercase().contains("win")) "ffmpeg.exe" else "ffmpeg"

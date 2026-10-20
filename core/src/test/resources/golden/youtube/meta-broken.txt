@@ -1,0 +1,4 @@
+[debug] Encodings: locale cp1251, fs utf-8, pref cp1251, utf-8, no
+[debug] yt-dlp version stable@2026.09.05
+[debug] Proxy map: {}
+WARNING: unable to extract the payload

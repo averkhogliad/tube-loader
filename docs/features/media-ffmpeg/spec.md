@@ -29,14 +29,16 @@ ffmpeg не тащится нативная либа и не пакуется б
 
 - `MediaTool` (порт) — единственная публичная поверхность реализации. Фейк в
   `core/testFixtures` остаётся без изменений, адаптеры и ядро не правятся.
-- `MediaToolConfig` в `core.config` — DI-шов: реализация получает `homeDir`, опциональный
-  `binaryPath` и `containerFormat`. Никаких статических путей в реализации.
+- `MediaToolConfig` в `core.config` — DI-шов: реализация получает `paths` (компонент `ToolPaths`
+  с путём к бинарнику ffmpeg), опциональный `binaryPath` и `containerFormat`. Никаких статических
+  путей в реализации.
 - `~/.tubeloader` (`common/config/DefaultSources.kt::defaultSources(homeDir = …)`) — общий
   каталог пользовательских данных, уже закреплён в глоссарии. Артефакты ffmpeg живут
   рядом с пользовательским `config.toml`, не в произвольных местах.
 
-Процессная изоляция, обещанная контрактом, реализуется через `ProcessHandle.destroyTree()`
-по `CancellationException` корутины. Долгоживущего процесса нет, `close()` —
+Процессная изоляция, обещанная контрактом, реализуется через tree-kill по
+`CancellationException` корутины (механизм и остаточный риск — ADR-0010).
+Долгоживущего процесса нет, `close()` —
 no-op (идемпотентность приходит от `java.io.Closeable`). Прогресс `remux`/`mux` отдаётся
 как `Progress.Indeterminate` — спека адаптера Rutube это фиксирует, и общее правило в
 `core/spec.md` («длительность перекодирования даже при `-c copy` непредсказуема»)
@@ -146,13 +148,9 @@ const` внутри реализации; версия — тоже `private con
 `out_time_ms` из `-progress pipe:2` отложен; если позже понадобится `Determinate` —
 это правка реализации и публикация ADR на смену формы прогресса.
 
-**Отмена.** ffmpeg запускается через `ProcessBuilder.start()`. `ProcessHandle`
-дочернего процесса хранится в реализации. По `CancellationException` из корутины
-(ловим через `ensureActive()` или `suspendCancellableCoroutine`) — `processHandle.destroyTree()`.
-Это буквально то, что обещает контракт: «реализация гасит дерево процессов целиком,
-осиротевших дочерних процессов не остаётся». После `destroyTree()` ждём завершения
-(`onExit().await()` с таймаутом — graceful, затем `destroyForcibly()`). Никаких
-`Thread.interrupt()` — `ProcessHandle` сам делает kill на уровне ОС.
+**Отмена.** По `CancellationException` корутины реализация гасит дерево процессов
+ffmpeg целиком. Механизм kill и остаточный риск — ADR-0010. Никаких
+`Thread.interrupt()` — kill на уровне ОС.
 
 **Закрытие.** `close()` — no-op (`override fun close() {}`). Идемпотентность приходит
 от `java.io.Closeable` (повторный вызов — `Unit`, не исключение). Ресурсов вне корутины

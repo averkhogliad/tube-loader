@@ -8,5 +8,7 @@ sealed interface DownloadError {
 
     data object UrlExpired : DownloadError
 
+    data object AntiBotBlocked : DownloadError
+
     data object ExtractorBroken : DownloadError
 }
