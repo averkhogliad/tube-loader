@@ -1,0 +1,19 @@
+{
+  "id": "sparse-1",
+  "title": "Sparse clip",
+  "unexpected": {
+    "nested": [
+      1,
+      2,
+      3
+    ]
+  },
+  "formats": [
+    {
+      "format_id": "18",
+      "vcodec": "avc1.42001E",
+      "height": 360,
+      "unknown": true
+    }
+  ]
+}

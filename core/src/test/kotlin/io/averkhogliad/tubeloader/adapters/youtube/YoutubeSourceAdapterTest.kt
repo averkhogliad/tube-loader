@@ -7,7 +7,7 @@ import io.kotest.matchers.shouldBe
 
 private const val MEDIA_ID = "dQw4w9WgXcQ"
 
-private fun adapter() = YoutubeSourceAdapter()
+private fun adapter() = youtubeAdapter()
 
 class YoutubeSourceAdapterTest :
     FreeSpec({
