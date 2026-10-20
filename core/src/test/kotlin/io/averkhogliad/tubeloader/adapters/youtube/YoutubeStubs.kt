@@ -25,6 +25,10 @@ internal fun goldenText(name: String): String {
     return stream.use { it.readBytes() }.decodeToString()
 }
 
+internal fun goldenBytes(name: String): ByteArray = goldenText(name).toByteArray()
+
+internal fun goldenLines(name: String): List<String> = goldenText(name).lines().filter(String::isNotBlank)
+
 /**
  * What the tool of a test answers: [exits] false means it never leaves on its own, which is what a
  * call faces when its budget runs out.
@@ -41,23 +45,25 @@ internal fun youtubeAdapter(
     settings: YtDlpConfig = YOUTUBE_SETTINGS,
     launches: MutableList<YtDlpLaunch> = mutableListOf(),
     reply: ToolReply = ToolReply(),
-): YoutubeSourceAdapter {
-    val process = toolProcess(reply)
-    return YoutubeSourceAdapter(
+): YoutubeSourceAdapter =
+    adapterOver(settings) { launch ->
+        launches += launch
+        toolProcess(reply)
+    }
+
+/** The adapter over a tool of its own: [start] answers every call with a process of that call. */
+internal fun adapterOver(settings: YtDlpConfig, start: (YtDlpLaunch) -> Process): YoutubeSourceAdapter =
+    YoutubeSourceAdapter(
         runner =
             YtDlpProcessRunner(
                 workingDirectory = Path.of("work"),
-                start = { launch ->
-                    launches += launch
-                    process
-                },
+                start = start,
                 graceTimeoutMillis = GRACE,
             ),
         config = { settings },
     )
-}
 
-private fun toolProcess(reply: ToolReply): Process {
+internal fun toolProcess(reply: ToolReply): Process {
     val process = mockk<Process>(relaxed = true)
     val finished = mutableListOf<CompletableFuture<Process>>()
     var killed = false
