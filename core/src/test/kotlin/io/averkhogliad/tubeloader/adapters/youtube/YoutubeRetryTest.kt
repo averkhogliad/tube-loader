@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.adapters.youtube
 
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.config.ToolPaths
 import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.kotest.core.spec.style.FreeSpec
@@ -13,7 +14,7 @@ private const val MEDIA_ID = "dQw4w9WgXcQ"
 
 private fun fastSettings(retries: Int = 3): YtDlpConfig =
     YtDlpConfig(
-        ffmpegLocation = Path.of("home", "ffmpeg"),
+        paths = ToolPaths.of(Path.of("home"), "Linux"),
         binaryPath = Path.of("yt-dlp"),
         retryMaxAttempts = retries,
         retryBaseDelay = 1.milliseconds,

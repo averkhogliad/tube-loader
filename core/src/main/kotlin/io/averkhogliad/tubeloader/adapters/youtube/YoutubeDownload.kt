@@ -11,8 +11,6 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.Comparator
 
-private const val STAGING_DIR = "yt-dlp"
-
 private val WHITESPACE = Regex("""\s+""")
 
 /** A progress line of the template, or `Indeterminate` while the tool cannot name the amount of the work. */
@@ -40,8 +38,7 @@ internal fun producedPathOf(line: String): Path? =
  * in the directory the application runs from nor next to the file the user asked for.
  */
 internal fun stagingDirectoryOf(settings: YtDlpConfig, mediaId: String): Path {
-    val home = settings.ffmpegLocation.parent ?: settings.ffmpegLocation
-    val root = home.resolve(STAGING_DIR)
+    val root = settings.workDirectory
     Files.createDirectories(root)
     return Files.createTempDirectory(root, "$mediaId-")
 }

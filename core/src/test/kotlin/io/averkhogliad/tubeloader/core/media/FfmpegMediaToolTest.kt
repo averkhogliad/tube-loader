@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.core.media
 
 import io.averkhogliad.tubeloader.core.config.MediaToolConfig
+import io.averkhogliad.tubeloader.core.config.ToolPaths
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.port.MediaTool
 import io.kotest.core.spec.style.FreeSpec
@@ -34,7 +35,7 @@ private class TempHome : AutoCloseable {
 
     /** The path the config injects: the tool must run it and never fetch anything. */
     fun binary(): Path =
-        Files.createTempFile(root, "ffmpeg", ffmpegExecutableName().removePrefix("ffmpeg")).also {
+        Files.createTempFile(root, "ffmpeg", ".stub").also {
             it.writeText("stub")
         }
 
@@ -47,7 +48,8 @@ private class TempHome : AutoCloseable {
 private class MediaToolUnderTest(temp: TempHome, runner: ProcessRunner) {
 
     val binary: Path = temp.binary()
-    val tool: MediaTool = FfmpegMediaTool(MediaToolConfig(homeDir = temp.home(), binaryPath = binary), runner)
+    val config = MediaToolConfig(paths = ToolPaths.of(temp.home()), binaryPath = binary)
+    val tool: MediaTool = FfmpegMediaTool(config, runner)
 }
 
 class FfmpegMediaToolTest :
@@ -160,11 +162,13 @@ class FfmpegMediaToolTest :
                 // given
                 val runner = RecordingRunner()
                 val binary = temp.binary()
-                val tool =
-                    FfmpegMediaTool(
-                        MediaToolConfig(homeDir = temp.home(), binaryPath = binary, containerFormat = "mkv"),
-                        runner,
+                val config =
+                    MediaToolConfig(
+                        paths = ToolPaths.of(temp.home()),
+                        binaryPath = binary,
+                        containerFormat = "mkv",
                     )
+                val tool = FfmpegMediaTool(config, runner)
 
                 // when
                 tool.remux(VIDEO, OUTPUT) {}
@@ -194,33 +198,27 @@ class FfmpegMediaToolTest :
                 val runner = RecordingRunner()
                 val home = temp.home()
                 val injected = temp.binary()
-                val tool = FfmpegMediaTool(MediaToolConfig(homeDir = home, binaryPath = injected), runner)
+                val tool = FfmpegMediaTool(MediaToolConfig(paths = ToolPaths.of(home), binaryPath = injected), runner)
 
                 // when
                 tool.remux(VIDEO, OUTPUT) {}
 
                 // then
                 runner.commands.single().first() shouldBe injected.toString()
-                home.resolve("ffmpeg").exists() shouldBe false
-            }
-
-            "names the executable of the managed build with the extension only on Windows" {
-                // given / when / then
-                ffmpegExecutableName("Windows 11") shouldBe "ffmpeg.exe"
-                ffmpegExecutableName("Linux") shouldBe "ffmpeg"
-                ffmpegExecutableName("Mac OS X") shouldBe "ffmpeg"
+                home.resolve(ToolPaths.FFMPEG_DIR).exists() shouldBe false
             }
 
             "reuses the tool already unpacked in the home directory and downloads nothing" {
                 // given
                 val runner = RecordingRunner()
-                val home = temp.home()
+                val paths = ToolPaths.of(temp.home())
                 val managed =
-                    home.resolve("ffmpeg").toFile().apply { mkdirs() }.resolve(ffmpegExecutableName()).apply {
+                    paths.ffmpegBinary.apply {
+                        parent.toFile().mkdirs()
                         writeText("stub")
-                        setExecutable(true, false)
+                        toFile().setExecutable(true, false)
                     }
-                val tool = FfmpegMediaTool(MediaToolConfig(homeDir = home), runner)
+                val tool = FfmpegMediaTool(MediaToolConfig(paths = paths), runner)
 
                 // when
                 tool.remux(VIDEO, OUTPUT) {}

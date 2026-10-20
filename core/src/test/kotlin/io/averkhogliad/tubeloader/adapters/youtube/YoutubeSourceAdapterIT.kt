@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.adapters.youtube
 
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.config.ToolPaths
 import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.kotest.core.annotation.Tags
@@ -37,7 +38,7 @@ class YoutubeSourceAdapterIT :
                 // given
                 val adapter =
                     YoutubeSourceAdapter {
-                        YtDlpConfig(ffmpegLocation = HOME.resolve("ffmpeg"), resolveTimeout = 60.seconds)
+                        YtDlpConfig(paths = ToolPaths.of(HOME), resolveTimeout = 60.seconds)
                     }
 
                 // when

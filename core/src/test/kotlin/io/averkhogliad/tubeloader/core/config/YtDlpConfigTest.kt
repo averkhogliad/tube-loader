@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.core.config
 
 import io.averkhogliad.tubeloader.config.TomlConfig
+import io.averkhogliad.tubeloader.core.config.ToolPaths
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
@@ -14,7 +15,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 private fun toml(body: String) = TomlConfig.fromString(body.trimIndent())
 
-private val HOME = Path.of("home")
+private val PATHS = ToolPaths.of(Path.of("home"), "Linux")
 
 class YtDlpConfigTest :
     FreeSpec({
@@ -25,10 +26,10 @@ class YtDlpConfigTest :
                 val config = toml("[download]\nmax-parallel-downloads = 2")
 
                 // when
-                val actual = YtDlpConfig.fromConfig(config, HOME)
+                val actual = YtDlpConfig.fromConfig(config, PATHS)
 
                 // then
-                actual.ffmpegLocation shouldBe Path.of("home", "ffmpeg")
+                actual.paths shouldBe PATHS
                 actual.binaryPath shouldBe null
                 actual.resolveTimeout shouldBe 60.seconds
                 actual.concurrentFragments shouldBe 1
@@ -53,7 +54,7 @@ class YtDlpConfigTest :
                     )
 
                 // when
-                val actual = YtDlpConfig.fromConfig(config, HOME)
+                val actual = YtDlpConfig.fromConfig(config, PATHS)
 
                 // then
                 actual.binaryPath shouldBe Path.of("opt", "yt-dlp")
@@ -62,7 +63,7 @@ class YtDlpConfigTest :
                 actual.retryMaxAttempts shouldBe 3
                 actual.retryBaseDelay shouldBe 500.milliseconds
                 actual.retryRandomizationFactor shouldBe 0.2
-                actual.ffmpegLocation shouldBe Path.of("home", "ffmpeg")
+                actual.paths shouldBe PATHS
             }
 
             "keeps an unrelated block out of the reading" {
@@ -77,7 +78,7 @@ class YtDlpConfigTest :
                     )
 
                 // when
-                val actual = YtDlpConfig.fromConfig(config, HOME)
+                val actual = YtDlpConfig.fromConfig(config, PATHS)
 
                 // then
                 actual.resolveTimeout shouldBe 60.seconds
@@ -95,7 +96,7 @@ class YtDlpConfigTest :
                     )
 
                 // when
-                val actual = YtDlpConfig.fromConfig(config, HOME, "other.youtube")
+                val actual = YtDlpConfig.fromConfig(config, PATHS, "other.youtube")
 
                 // then
                 actual.concurrentFragments shouldBe 2
@@ -106,7 +107,7 @@ class YtDlpConfigTest :
                 val config = toml("[download.youtube]\nbinary-path = \"  \"")
 
                 // when
-                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromConfig(config, HOME) }
+                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromConfig(config, PATHS) }
 
                 // then
                 thrown.message shouldBe "download.youtube.binary-path must be a path, got an empty value"
@@ -117,7 +118,7 @@ class YtDlpConfigTest :
                 val config = toml("[download.youtube]\nresolve-timeout-ms = 0")
 
                 // when
-                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromConfig(config, HOME) }
+                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromConfig(config, PATHS) }
 
                 // then
                 thrown.message shouldBe "download.youtube.resolve-timeout-ms must be positive, got 0"
@@ -128,7 +129,7 @@ class YtDlpConfigTest :
                 val config = toml("[download.youtube]\nresolve-timeout-ms = \"soon\"")
 
                 // when
-                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromConfig(config, HOME) }
+                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromConfig(config, PATHS) }
 
                 // then
                 thrown.message shouldBe "download.youtube.resolve-timeout-ms must be a whole number, got soon"
@@ -139,7 +140,7 @@ class YtDlpConfigTest :
                 val config = toml("[download.youtube]\nconcurrent-fragments = 0")
 
                 // when
-                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromConfig(config, HOME) }
+                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromConfig(config, PATHS) }
 
                 // then
                 thrown.message shouldBe
@@ -150,31 +151,31 @@ class YtDlpConfigTest :
         "YtDlpConfig" - {
             "rejects a non-positive resolve timeout" {
                 shouldThrow<IllegalArgumentException> {
-                    YtDlpConfig(ffmpegLocation = HOME, resolveTimeout = 0.milliseconds)
+                    YtDlpConfig(paths = PATHS, resolveTimeout = 0.milliseconds)
                 }
             }
 
             "rejects fewer than one fragment" {
                 shouldThrow<IllegalArgumentException> {
-                    YtDlpConfig(ffmpegLocation = HOME, concurrentFragments = 0)
+                    YtDlpConfig(paths = PATHS, concurrentFragments = 0)
                 }
             }
 
             "rejects fewer than one retry attempt" {
                 shouldThrow<IllegalArgumentException> {
-                    YtDlpConfig(ffmpegLocation = HOME, retryMaxAttempts = 0)
+                    YtDlpConfig(paths = PATHS, retryMaxAttempts = 0)
                 }
             }
 
             "rejects a negative retry base delay" {
                 shouldThrow<IllegalArgumentException> {
-                    YtDlpConfig(ffmpegLocation = HOME, retryBaseDelay = (-1).milliseconds)
+                    YtDlpConfig(paths = PATHS, retryBaseDelay = (-1).milliseconds)
                 }
             }
 
             "rejects a retry randomization factor out of range" {
                 shouldThrow<IllegalArgumentException> {
-                    YtDlpConfig(ffmpegLocation = HOME, retryRandomizationFactor = 1.5)
+                    YtDlpConfig(paths = PATHS, retryRandomizationFactor = 1.5)
                 }
             }
         }

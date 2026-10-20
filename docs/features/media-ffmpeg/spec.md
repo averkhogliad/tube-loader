@@ -29,8 +29,9 @@ ffmpeg не тащится нативная либа и не пакуется б
 
 - `MediaTool` (порт) — единственная публичная поверхность реализации. Фейк в
   `core/testFixtures` остаётся без изменений, адаптеры и ядро не правятся.
-- `MediaToolConfig` в `core.config` — DI-шов: реализация получает `homeDir`, опциональный
-  `binaryPath` и `containerFormat`. Никаких статических путей в реализации.
+- `MediaToolConfig` в `core.config` — DI-шов: реализация получает `paths` (компонент `ToolPaths`
+  с путём к бинарнику ffmpeg), опциональный `binaryPath` и `containerFormat`. Никаких статических
+  путей в реализации.
 - `~/.tubeloader` (`common/config/DefaultSources.kt::defaultSources(homeDir = …)`) — общий
   каталог пользовательских данных, уже закреплён в глоссарии. Артефакты ffmpeg живут
   рядом с пользовательским `config.toml`, не в произвольных местах.

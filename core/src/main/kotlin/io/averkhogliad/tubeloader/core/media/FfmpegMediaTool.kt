@@ -22,7 +22,7 @@ interface ProcessRunner {
  */
 class FfmpegMediaTool(private val config: MediaToolConfig, private val runner: ProcessRunner) : MediaTool {
 
-    private val distribution = FfmpegDistribution(config.homeDir)
+    private val distribution = FfmpegDistribution(config.paths)
 
     override fun close() = Unit
 

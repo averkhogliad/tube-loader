@@ -2,7 +2,6 @@ package io.averkhogliad.tubeloader.adapters.youtube
 
 import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.averkhogliad.tubeloader.core.domain.Quality
-import io.averkhogliad.tubeloader.core.media.ffmpegExecutableName
 import java.nio.file.Path
 
 private const val WATCH_URL = "https://www.youtube.com/watch?v="
@@ -55,7 +54,7 @@ internal fun downloadCommand(settings: YtDlpConfig, mediaId: String, selector: S
         OUTPUT,
         staging.resolve(STAGING_TEMPLATE).toString(),
         FFMPEG_LOCATION,
-        settings.ffmpegLocation.resolve(ffmpegExecutableName()).toString(),
+        settings.paths.ffmpegBinary.toString(),
         CONCURRENT_FRAGMENTS,
         settings.concurrentFragments.toString(),
         watchUrlOf(mediaId),

@@ -145,11 +145,16 @@ stderr/JSON:
 
 **`YtDlpConfig`.** Новый объект в `core.config` (рядом с `HttpToolConfig`, `MediaToolConfig`):
 `binaryPath: Path?` (optional escape hatch для CI/тестов с уже установленным yt-dlp),
-`ffmpegLocation: Path` (из `MediaToolConfig.homeDir/ffmpeg`), `resolveTimeout`,
-`concurrentFragments: Int`. Ключи под `[download.youtube]`. Версия/URL/SHA-256 бинарника —
-`private const` реализации, не пользовательский конфиг (политика дистрибутива — ADR по упаковке,
-M2). Никаких новых библиотечных зависимостей: `java.lang.ProcessBuilder`,
-`ProcessHandle`, `kotlinx.coroutines`, `kotlinx.serialization` (уже в `:core` для JSON).
+`paths: ToolPaths` (общий компонент путей инструментов — даёт путь к бинарнику ffmpeg и home-каталог),
+`workDirectory: Path`, `resolveTimeout`, `concurrentFragments: Int`. Ключи под `[download.youtube]`.
+Версия/URL/SHA-256 бинарника — `private const` реализации, не пользовательский конфиг (политика
+дистрибутива — ADR по упаковке, M2). Никаких новых библиотечных зависимостей:
+`java.lang.ProcessBuilder`, `ProcessHandle`, `kotlinx.coroutines`, `kotlinx.serialization`
+(уже в `:core` для JSON).
+
+**Пути инструментов.** Где лежит ffmpeg, адаптер не вычисляет и ничего о медиа-пакете не знает:
+пути резолвит общий `ToolPaths`, преднастраиваемый при сборке графа объектов, и оба потребителя
+(медиа-инструмент и YouTube-адаптер) получают его параметром конструктора.
 
 **Зависимости адаптера.** Конструктор принимает `YtDlpProcessRunner` (или фабрику) и
 `() -> YtDlpConfig`. `HttpTool` и `MediaTool` адаптеру не нужны — yt-dlp сам делает сеть и

@@ -8,6 +8,7 @@ import io.averkhogliad.tubeloader.core.ResolveResult
 import io.averkhogliad.tubeloader.core.config.AppConfig
 import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.config.MediaToolConfig
+import io.averkhogliad.tubeloader.core.config.ToolPaths
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.download.DownloadHandle
@@ -86,9 +87,10 @@ private fun runScript(pairs: List<Pair<String, String>>, targetDir: Path, parall
         }
 
     val httpTool = LoggingHttpTool(HttpTools.create(client), dashboard::note)
+    val paths = ToolPaths.of(homeDir)
     val mediaTool =
         FfmpegMediaTool(
-            MediaToolConfig(homeDir = homeDir, containerFormat = containerFormat),
+            MediaToolConfig(paths = paths, containerFormat = containerFormat),
             LocalProcessRunner(),
         )
     val adapter = RutubeSourceAdapter(httpTool, mediaTool) { httpToolConfig }

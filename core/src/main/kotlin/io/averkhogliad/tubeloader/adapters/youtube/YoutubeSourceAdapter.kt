@@ -116,7 +116,7 @@ class YoutubeSourceAdapter internal constructor(
         if (input.contains(SCHEME_SEPARATOR)) input else DEFAULT_SCHEME + input.trimStart('/')
 }
 
-private fun workingDirectoryOf(settings: YtDlpConfig): Path = settings.ffmpegLocation.parent ?: settings.ffmpegLocation
+private fun workingDirectoryOf(settings: YtDlpConfig): Path = settings.paths.homeDir
 
 private val RETRIABLE = setOf(DownloadError.NetworkTransient, DownloadError.UrlExpired)
 

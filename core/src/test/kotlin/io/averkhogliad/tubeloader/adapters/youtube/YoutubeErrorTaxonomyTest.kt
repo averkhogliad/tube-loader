@@ -2,6 +2,7 @@ package io.averkhogliad.tubeloader.adapters.youtube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.config.ToolPaths
 import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.averkhogliad.tubeloader.core.contract.deleteWithRetry
 import io.averkhogliad.tubeloader.core.domain.DownloadError
@@ -149,7 +150,7 @@ private class TaxonomyWorld(roots: MutableList<Path>) {
 
     private val root: Path = Files.createTempDirectory("youtube-taxonomy").also { roots.add(it) }
 
-    val settings = YtDlpConfig(ffmpegLocation = root.resolve("ffmpeg"), binaryPath = Path.of("yt-dlp"))
+    val settings = YtDlpConfig(paths = ToolPaths.of(root, "Linux"), binaryPath = Path.of("yt-dlp"))
 
     val target: Path = Files.createFile(root.resolve("video.part-1"))
 }

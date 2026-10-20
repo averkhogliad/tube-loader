@@ -4,6 +4,7 @@ import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
+import io.averkhogliad.tubeloader.core.config.ToolPaths
 import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.averkhogliad.tubeloader.core.contract.DownloadCase
 import io.averkhogliad.tubeloader.core.contract.FindCase
@@ -214,7 +215,11 @@ private class YoutubeWorld(private val recording: YoutubeRecording) {
 
     internal val root: Path = Files.createTempDirectory("youtube-contract")
 
-    private val settings = YtDlpConfig(ffmpegLocation = root.resolve(HOMEDIR), binaryPath = Path.of(BINARY))
+    private val settings =
+        YtDlpConfig(
+            paths = ToolPaths.of(root.resolve(HOMEDIR), "Linux"),
+            binaryPath = Path.of(BINARY),
+        )
 
     fun adapter(): SourceAdapter = adapterOver(settings, ::processOf)
 
@@ -244,7 +249,7 @@ private fun idOfUrl(url: String): String = url.substringAfterLast('=')
 // --- Stubs and golden loaders ---
 
 internal val YOUTUBE_SETTINGS =
-    YtDlpConfig(ffmpegLocation = Path.of("home", "ffmpeg"), binaryPath = Path.of(BINARY))
+    YtDlpConfig(paths = ToolPaths.of(Path.of("home"), "Linux"), binaryPath = Path.of(BINARY))
 
 private object GoldenFixtures
 

@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.adapters.youtube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
+import io.averkhogliad.tubeloader.core.config.ToolPaths
 import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.averkhogliad.tubeloader.core.contract.deleteWithRetry
 import io.averkhogliad.tubeloader.core.domain.DownloadError
@@ -8,7 +9,6 @@ import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.domain.fraction
-import io.averkhogliad.tubeloader.core.media.ffmpegExecutableName
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
@@ -165,7 +165,7 @@ private class DownloadWorld(roots: MutableList<Path>) {
 
     val target: Path = Files.createFile(root.resolve("video.part-1"))
 
-    private val settings = YtDlpConfig(ffmpegLocation = root.resolve("ffmpeg"), binaryPath = Path.of("yt-dlp"))
+    private val settings = YtDlpConfig(paths = ToolPaths.of(root, "Linux"), binaryPath = Path.of("yt-dlp"))
 
     fun withProducedFile(): DownloadWorld {
         Files.createDirectories(produced.parent)
@@ -173,9 +173,9 @@ private class DownloadWorld(roots: MutableList<Path>) {
         return this
     }
 
-    fun bundledFfmpeg(): Path = settings.ffmpegLocation.resolve(ffmpegExecutableName())
+    fun bundledFfmpeg(): Path = settings.paths.ffmpegBinary
 
-    fun stagingRoot(): Path = settings.ffmpegLocation.parent.resolve("yt-dlp")
+    fun stagingRoot(): Path = settings.workDirectory
 
     fun stagingEntries(): List<Path> = Files.list(stagingRoot()).use { entries -> entries.toList() }
 

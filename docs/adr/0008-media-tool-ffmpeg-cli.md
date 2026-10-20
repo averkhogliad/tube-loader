@@ -146,5 +146,6 @@ Linux, `evermeet.cx` для macOS), проверяет SHA-256 из соседн
   запускаются в отдельном процессе; дерево процессов убивается целиком при
   отмене»).
 - Каталог `homeDir` — `common/config/.../DefaultSources.kt::defaultSources(homeDir = …)`.
+- Раскладка управляемой сборки ffmpeg — `core/config/ToolPaths.kt`.
 - Прототип — `docs/archive/prototype/rutube.kt`, `docs/archive/prototype/encode.kt`
   (JAVE-обёртка, референс формы `mux`/`remux`).
