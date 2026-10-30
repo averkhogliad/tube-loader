@@ -1,15 +1,10 @@
 package io.averkhogliad.tubeloader.core.usecase
 
-import io.averkhogliad.tubeloader.core.ResolveResult
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
-import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.download.DownloadStatus
-import io.averkhogliad.tubeloader.core.download.mediaMetas
 import io.averkhogliad.tubeloader.core.download.qualities
 import io.averkhogliad.tubeloader.core.facade.cleanUp
 import io.averkhogliad.tubeloader.core.facade.facadeWorld
-import io.averkhogliad.tubeloader.core.facade.inputs
 import io.averkhogliad.tubeloader.core.facade.mediaIds
 import io.averkhogliad.tubeloader.core.facade.partialsIn
 import io.averkhogliad.tubeloader.core.facade.scratchDir
@@ -17,13 +12,11 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.next
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
@@ -45,7 +38,7 @@ class UseCaseShutdownTest :
                 runTest {
                     // given
                     val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
-                    val shutdown = UseCaseShutdown(world.queue)
+                    val shutdown = UseCaseShutdown(world.queue::shutdown)
 
                     // when
                     val stopped = shutdown.shutdown(5.seconds)
@@ -69,7 +62,7 @@ class UseCaseShutdownTest :
                     testScheduler.advanceUntilIdle()
 
                     // when
-                    val stopped = UseCaseShutdown(world.queue).shutdown(50.milliseconds)
+                    val stopped = UseCaseShutdown(world.queue::shutdown).shutdown(50.milliseconds)
 
                     // then
                     stopped shouldBe false
@@ -94,7 +87,7 @@ class UseCaseShutdownTest :
                     testScheduler.advanceUntilIdle()
 
                     // when
-                    val stopped = UseCaseShutdown(world.queue).shutdown(5.seconds)
+                    val stopped = UseCaseShutdown(world.queue::shutdown).shutdown(5.seconds)
 
                     // then
                     stopped shouldBe true
@@ -110,7 +103,7 @@ class UseCaseShutdownTest :
                     // given
                     val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
                     val ref = world.resolve(mediaIds.next())
-                    UseCaseShutdown(world.queue).shutdown(5.seconds) shouldBe true
+                    UseCaseShutdown(world.queue::shutdown).shutdown(5.seconds) shouldBe true
 
                     // when
                     val failure =
@@ -120,65 +113,6 @@ class UseCaseShutdownTest :
 
                     // then
                     failure.message shouldContain "closed"
-                }
-            }
-        }
-
-        "layer" - {
-
-            "shows the cancelled download in the observed states" {
-                runTest {
-                    // given
-                    val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
-                    world.adapters.single().onDownload = { _, _ ->
-                        CompletableDeferred<Unit>().await()
-                        DownloadResult.Success
-                    }
-                    val ref = world.resolve(mediaIds.next())
-                    val tracker = DownloadTracker()
-                    val enqueue = EnqueueDownload(world.facade, tracker)
-                    val cancel = CancelDownload(tracker)
-                    val observe = ObserveDownloads(tracker)
-                    val handle = enqueue.enqueue(ref, Arb.qualities().next(), world.targetPath())
-                    testScheduler.advanceUntilIdle()
-
-                    // when
-                    val cancelled = cancel.cancel(handle.taskId)
-                    testScheduler.advanceUntilIdle()
-
-                    // then
-                    cancelled shouldBe true
-                    val states = observe.states().first { list -> list.any { it.status == DownloadStatus.Cancelled } }
-                    states.single().taskId shouldBe handle.taskId
-                    states.single().status shouldBe DownloadStatus.Cancelled
-                }
-            }
-
-            "carries a resolved download to the completed state" {
-                runTest {
-                    // given
-                    val mediaId = mediaIds.next()
-                    val meta = Arb.mediaMetas().next()
-                    val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
-                    world.adapters.single().onLoadMeta = { LoadMetaResult.Found(meta) }
-                    val tracker = DownloadTracker()
-                    val resolve = ResolveUrl(world.facade)
-                    val load = LoadMedia(world.facade)
-                    val enqueue = EnqueueDownload(world.facade, tracker)
-                    val observe = ObserveDownloads(tracker)
-
-                    // when
-                    val resolved = resolve.byUrl(inputs.next())
-                    val ref = resolved.shouldBeInstanceOf<ResolveResult.Resolved>().ref
-                    load.load(ref) shouldBe LoadMetaResult.Found(meta)
-                    val handle = enqueue.enqueue(ref, Arb.qualities().next(), world.targetPath())
-                    testScheduler.advanceUntilIdle()
-
-                    // then
-                    val states = observe.states().first { list -> list.any { it.status == DownloadStatus.Completed } }
-                    states.single().taskId shouldBe handle.taskId
-                    states.single().status shouldBe DownloadStatus.Completed
                 }
             }
         }

@@ -12,11 +12,11 @@ import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldStartWith
-import io.kotest.matchers.types.shouldBeSameInstanceAs
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.next
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.time.Duration.Companion.seconds
 
@@ -29,7 +29,7 @@ class EnqueueDownloadTest :
         afterSpec { cleanUp(tempDir) }
 
         "enqueue" - {
-            "registers the returned handle so it can be found by its task id" {
+            "registers the returned handle so the download can be observed and cancelled" {
                 runTest {
                     // given
                     val mediaId = mediaIds.next()
@@ -37,14 +37,16 @@ class EnqueueDownloadTest :
                     val ref = world.resolve(mediaId)
                     val tracker = DownloadTracker()
                     val enqueue = EnqueueDownload(world.facade, tracker)
+                    val observe = ObserveDownloads(tracker)
+                    val cancel = CancelDownload(tracker)
                     val quality: Quality = Arb.qualities().next()
 
                     // when
                     val handle = enqueue.enqueue(ref, quality, world.targetPath())
 
                     // then
-                    tracker.handle(handle.taskId) shouldBeSameInstanceAs handle
-                    tracker.handles.value shouldBe listOf(handle)
+                    observe.states().first().map { it.taskId } shouldBe listOf(handle.taskId)
+                    cancel.cancel(handle.taskId) shouldBe true
                 }
             }
 
@@ -75,24 +77,6 @@ class EnqueueDownloadTest :
                 }
             }
 
-            "keeps the handles in registration order" {
-                runTest {
-                    // given
-                    val mediaId = mediaIds.next()
-                    val world = facadeWorld(tempDir)
-                    val ref = world.resolve(mediaId)
-                    val tracker = DownloadTracker()
-                    val enqueue = EnqueueDownload(world.facade, tracker)
-
-                    // when
-                    val first = enqueue.enqueue(ref, Arb.qualities().next(), world.targetPath())
-                    val second = enqueue.enqueue(ref, Arb.qualities().next(), world.targetPath())
-
-                    // then
-                    tracker.handles.value shouldBe listOf(first, second)
-                }
-            }
-
             "registers nothing when the facade refuses the enqueue" {
                 runTest {
                     // given
@@ -101,6 +85,8 @@ class EnqueueDownloadTest :
                     val ref = world.resolve(mediaId)
                     val tracker = DownloadTracker()
                     val enqueue = EnqueueDownload(world.facade, tracker)
+                    val observe = ObserveDownloads(tracker)
+                    val cancel = CancelDownload(tracker)
                     world.queue.shutdown(5.seconds) shouldBe true
 
                     // when
@@ -111,22 +97,9 @@ class EnqueueDownloadTest :
 
                     // then
                     failure.message shouldContain "closed"
-                    tracker.handles.value shouldBe emptyList()
+                    observe.states().first() shouldBe emptyList()
+                    cancel.cancel(TaskId(Arb.int().next())) shouldBe false
                 }
-            }
-        }
-
-        "tracker" - {
-            "returns no handle for a task id that was never registered" {
-                // given
-                val tracker = DownloadTracker()
-                val unknown = TaskId(Arb.int().next())
-
-                // when
-                val handle = tracker.handle(unknown)
-
-                // then
-                handle shouldBe null
             }
         }
     })

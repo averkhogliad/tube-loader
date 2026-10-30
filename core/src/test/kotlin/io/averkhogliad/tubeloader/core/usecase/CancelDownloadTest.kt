@@ -3,6 +3,7 @@ package io.averkhogliad.tubeloader.core.usecase
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.domain.TaskId
 import io.averkhogliad.tubeloader.core.download.DownloadStatus
+import io.averkhogliad.tubeloader.core.download.qualities
 import io.averkhogliad.tubeloader.core.facade.cleanUp
 import io.averkhogliad.tubeloader.core.facade.facadeWorld
 import io.averkhogliad.tubeloader.core.facade.mediaIds
@@ -14,6 +15,8 @@ import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.next
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -63,6 +66,34 @@ class CancelDownloadTest :
 
                     // then
                     cancelled shouldBe false
+                }
+            }
+
+            "shows the cancelled download in the observed states" {
+                runTest {
+                    // given
+                    val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
+                    world.adapters.single().onDownload = { _, _ ->
+                        CompletableDeferred<Unit>().await()
+                        DownloadResult.Success
+                    }
+                    val ref = world.resolve(mediaIds.next())
+                    val tracker = DownloadTracker()
+                    val enqueue = EnqueueDownload(world.facade, tracker)
+                    val cancel = CancelDownload(tracker)
+                    val observe = ObserveDownloads(tracker)
+                    val handle = enqueue.enqueue(ref, Arb.qualities().next(), world.targetPath())
+                    testScheduler.advanceUntilIdle()
+
+                    // when
+                    val cancelled = cancel.cancel(handle.taskId)
+                    testScheduler.advanceUntilIdle()
+
+                    // then
+                    cancelled shouldBe true
+                    val states = observe.states().first { list -> list.any { it.status == DownloadStatus.Cancelled } }
+                    states.single().taskId shouldBe handle.taskId
+                    states.single().status shouldBe DownloadStatus.Cancelled
                 }
             }
         }

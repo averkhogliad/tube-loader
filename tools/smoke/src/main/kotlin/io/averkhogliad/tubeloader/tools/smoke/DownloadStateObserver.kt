@@ -3,6 +3,7 @@ package io.averkhogliad.tubeloader.tools.smoke
 import io.averkhogliad.tubeloader.core.domain.TaskId
 import io.averkhogliad.tubeloader.core.download.DownloadState
 import io.averkhogliad.tubeloader.core.download.DownloadStatus
+import io.averkhogliad.tubeloader.core.download.isTerminal
 import io.averkhogliad.tubeloader.core.usecase.ObserveDownloads
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -52,9 +53,6 @@ internal class DownloadStateObserver(
         }
     }
 }
-
-internal val DownloadStatus.isTerminal: Boolean
-    get() = this is DownloadStatus.Completed || this is DownloadStatus.Cancelled || this is DownloadStatus.Failed
 
 private fun label(status: DownloadStatus): String =
     when (status) {

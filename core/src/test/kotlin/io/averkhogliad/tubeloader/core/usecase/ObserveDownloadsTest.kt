@@ -1,19 +1,24 @@
 package io.averkhogliad.tubeloader.core.usecase
 
+import io.averkhogliad.tubeloader.core.ResolveResult
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.domain.TaskId
 import io.averkhogliad.tubeloader.core.download.DownloadState
 import io.averkhogliad.tubeloader.core.download.DownloadStatus
 import io.averkhogliad.tubeloader.core.download.TaskIdGenerator
+import io.averkhogliad.tubeloader.core.download.mediaMetas
 import io.averkhogliad.tubeloader.core.download.qualities
 import io.averkhogliad.tubeloader.core.facade.FacadeSettings
 import io.averkhogliad.tubeloader.core.facade.cleanUp
 import io.averkhogliad.tubeloader.core.facade.facadeWorld
+import io.averkhogliad.tubeloader.core.facade.inputs
 import io.averkhogliad.tubeloader.core.facade.mediaIds
 import io.averkhogliad.tubeloader.core.facade.scratchDir
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.next
 import kotlinx.coroutines.CompletableDeferred
@@ -195,6 +200,34 @@ class ObserveDownloadsTest :
                     actual.map { it.taskId } shouldBe listOf(first.taskId, second.taskId)
                     actual.map { it.status } shouldBe
                         listOf(DownloadStatus.Completed, DownloadStatus.Completed)
+                }
+            }
+
+            "carries a resolved download to the completed state" {
+                runTest {
+                    // given
+                    val mediaId = mediaIds.next()
+                    val meta = Arb.mediaMetas().next()
+                    val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
+                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onLoadMeta = { LoadMetaResult.Found(meta) }
+                    val tracker = DownloadTracker()
+                    val resolve = ResolveUrl(world.facade)
+                    val load = LoadMedia(world.facade)
+                    val enqueue = EnqueueDownload(world.facade, tracker)
+                    val observe = ObserveDownloads(tracker)
+
+                    // when
+                    val resolved = resolve.byUrl(inputs.next())
+                    val ref = resolved.shouldBeInstanceOf<ResolveResult.Resolved>().ref
+                    load.load(ref) shouldBe LoadMetaResult.Found(meta)
+                    val handle = enqueue.enqueue(ref, Arb.qualities().next(), world.targetPath())
+                    testScheduler.advanceUntilIdle()
+
+                    // then
+                    val states = observe.states().first { list -> list.any { it.status == DownloadStatus.Completed } }
+                    states.single().taskId shouldBe handle.taskId
+                    states.single().status shouldBe DownloadStatus.Completed
                 }
             }
         }

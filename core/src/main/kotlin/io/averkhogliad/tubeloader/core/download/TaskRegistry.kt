@@ -70,6 +70,3 @@ internal class TaskRegistry(
         }
     }
 }
-
-private val DownloadStatus.isTerminal: Boolean
-    get() = this is DownloadStatus.Completed || this is DownloadStatus.Cancelled || this is DownloadStatus.Failed
