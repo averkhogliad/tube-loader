@@ -1,8 +1,8 @@
 package io.averkhogliad.tubeloader.core.usecase
 
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
-import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.SourceId
+import io.averkhogliad.tubeloader.core.download.downloadErrors
 import io.averkhogliad.tubeloader.core.download.mediaMetas
 import io.averkhogliad.tubeloader.core.facade.cleanUp
 import io.averkhogliad.tubeloader.core.facade.facadeWorld
@@ -12,7 +12,6 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
-import io.kotest.property.arbitrary.element
 import io.kotest.property.arbitrary.next
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
@@ -22,15 +21,6 @@ class LoadMediaTest :
     FreeSpec({
 
         val tempDir = scratchDir()
-
-        val downloadErrors =
-            listOf(
-                DownloadError.NotFound,
-                DownloadError.NetworkTransient,
-                DownloadError.UrlExpired,
-                DownloadError.AntiBotBlocked,
-                DownloadError.ExtractorBroken,
-            )
 
         afterSpec { cleanUp(tempDir) }
 
@@ -69,7 +59,7 @@ class LoadMediaTest :
             "returns Failed with the error produced by the adapter" {
                 runTest {
                     // given
-                    val error = Arb.element(downloadErrors).next()
+                    val error = Arb.downloadErrors().next()
                     val world = facadeWorld(tempDir)
                     world.adapters.single().onLoadMeta = { LoadMetaResult.Failed(error) }
                     val ref = world.resolve(mediaIds.next())

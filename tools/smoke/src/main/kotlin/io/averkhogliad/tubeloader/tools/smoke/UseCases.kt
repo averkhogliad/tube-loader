@@ -1,7 +1,5 @@
 package io.averkhogliad.tubeloader.tools.smoke
 
-import io.averkhogliad.tubeloader.core.domain.TaskId
-import io.averkhogliad.tubeloader.core.download.DownloadQueue
 import io.averkhogliad.tubeloader.core.facade.CoreFacade
 import io.averkhogliad.tubeloader.core.usecase.CancelDownload
 import io.averkhogliad.tubeloader.core.usecase.DownloadTracker
@@ -11,16 +9,18 @@ import io.averkhogliad.tubeloader.core.usecase.ObserveDownloads
 import io.averkhogliad.tubeloader.core.usecase.ResolveUrl
 import io.averkhogliad.tubeloader.core.usecase.UseCaseShutdown
 import java.nio.file.Path
+import kotlin.time.Duration
 
-internal class UseCases(facade: CoreFacade, queue: DownloadQueue) {
+internal class UseCases(facade: CoreFacade, shutdownRequest: suspend (Duration) -> Boolean) {
 
-    val tracker = DownloadTracker()
+    private val tracker = DownloadTracker()
+
     val resolveUrl = ResolveUrl(facade)
     val loadMedia = LoadMedia(facade)
     val enqueueDownload = EnqueueDownload(facade, tracker)
     val cancelDownload = CancelDownload(tracker)
     val observeDownloads = ObserveDownloads(tracker)
-    val shutdown = UseCaseShutdown(queue)
+    val shutdown = UseCaseShutdown(shutdownRequest)
 }
 
 internal class SmokeSession(
@@ -28,4 +28,7 @@ internal class SmokeSession(
     val dashboard: ProgressDashboard,
     val useCases: UseCases,
     val observer: DownloadStateObserver,
-)
+) {
+
+    suspend fun shutdown(timeout: Duration): Boolean = useCases.shutdown.shutdown(timeout)
+}

@@ -1,5 +1,6 @@
 package io.averkhogliad.tubeloader.core.download
 
+import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
@@ -8,6 +9,7 @@ import io.kotest.property.Arb
 import io.kotest.property.Gen
 import io.kotest.property.arbitrary.bind
 import io.kotest.property.arbitrary.double
+import io.kotest.property.arbitrary.element
 import io.kotest.property.arbitrary.enum
 import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.long
@@ -38,3 +40,14 @@ fun Arb.Companion.absoluteProgresses(totals: Arb<Long> = Arb.long(1L..1_000_000L
 
 fun Arb.Companion.fractions(ratios: Arb<Double> = Arb.double(0.0..1.0)): Arb<Progress.Fraction> =
     ratios.map { Progress.Fraction(it) }
+
+fun Arb.Companion.downloadErrors(): Arb<DownloadError> =
+    Arb.element(
+        listOf(
+            DownloadError.NotFound,
+            DownloadError.NetworkTransient,
+            DownloadError.UrlExpired,
+            DownloadError.AntiBotBlocked,
+            DownloadError.ExtractorBroken,
+        ),
+    )
