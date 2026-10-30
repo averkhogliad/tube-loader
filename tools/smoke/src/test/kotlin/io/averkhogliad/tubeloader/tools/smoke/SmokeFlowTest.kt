@@ -28,29 +28,16 @@ class SmokeFlowTest :
                 // then
                 actual shouldBe "clip"
             }
-        }
 
-        "sanitize" - {
-            "replaces the characters a file name cannot hold" {
+            "falls back to the url while the source has not answered yet" {
                 // given
-                val name = "a/b:c"
+                val target = SmokeTarget("https://rutube.ru/video/abc/", null)
 
                 // when
-                val actual = sanitize(name)
+                val actual = targetName(target)
 
                 // then
-                actual shouldBe "a_b_c"
-            }
-
-            "falls back to a plain name when nothing is left" {
-                // given
-                val name = "   "
-
-                // when
-                val actual = sanitize(name)
-
-                // then
-                actual shouldBe "video"
+                actual shouldBe "https://rutube.ru/video/abc/"
             }
         }
     })

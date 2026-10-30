@@ -3,7 +3,7 @@ package io.averkhogliad.tubeloader.tools.smoke
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-internal const val DEFAULT_TARGET_DIR = "c:\\tmp\\rutube"
+internal const val DEFAULT_TARGET_DIR = "c:\\tmp\\smoke"
 internal const val DEFAULT_PARALLEL = 3
 internal const val EXIT_OK = 0
 
@@ -27,9 +27,9 @@ internal object CliUsage {
         """Usage: smoke [<url>]... [-id <id> -name <name>]... [-out <dir>] [-parallel <n>] [-cancel-after <s>]
 Options:
   <url>            Video url to download, of any source the tool knows. Can be given more than once.
-  -id <id>        Rutube video id (32-char hex). Pairs with the next -name.
+  -id <id>        Rutube video id (32-char hex), a shorthand for the rutube url. Pairs with the next -name.
   -name <name>    Target file name without extension.
-  -out <dir>      Target directory (default: c:\tmp\rutube).
+  -out <dir>      Target directory (default: c:\tmp\smoke).
   -parallel <n>   Max parallel downloads (default: 3).
   -cancel-after <s>  Cancel every running download <s> seconds after the first one starts.
 """

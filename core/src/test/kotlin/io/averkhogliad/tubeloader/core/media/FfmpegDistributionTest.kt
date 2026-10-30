@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.core.media
 
 import io.averkhogliad.tubeloader.core.config.ToolPaths
+import io.averkhogliad.tubeloader.core.deleteWithRetry
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import java.nio.file.Files
@@ -14,7 +15,7 @@ class FfmpegDistributionTest :
 
         beforeSpec { root = Files.createTempDirectory("ffmpeg-distribution") }
 
-        afterSpec { root.toFile().deleteRecursively() }
+        afterSpec { deleteWithRetry(root) }
 
         "ensureManagedFfmpeg" - {
             "hands back the binary already unpacked in the home directory and fetches nothing" {

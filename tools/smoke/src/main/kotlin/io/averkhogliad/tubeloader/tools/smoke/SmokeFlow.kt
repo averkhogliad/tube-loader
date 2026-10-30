@@ -9,14 +9,21 @@ import io.averkhogliad.tubeloader.core.domain.TrackKind
 
 private val QUALITY_1080P = Quality("1080p", TrackKind.Video, "1080p")
 
+/** The source whose adapter runs the tool of the machine: the tool has to be there before it is asked. */
+private const val YOUTUBE_SOURCE = "YouTube"
+
 internal data class DownloadPlan(val ref: MediaRef, val meta: MediaMeta)
 
 internal suspend fun runOne(session: SmokeSession, target: SmokeTarget) {
     val plan = planDownload(session, target) ?: return
+    val name = targetName(target, plan.ref.mediaId)
     // a delegate adapter hands the path of ffmpeg to the tool it delegates to, so the binary has to
     // be on the disk before that tool starts
-    session.tools.ensureFfmpeg()
-    val name = targetName(target, plan.ref.mediaId)
+    val ffmpeg = session.tools.ensureFfmpeg()
+    if (ffmpeg.isFailure) {
+        session.dashboard.note("$name: skipped, ffmpeg is not available")
+        return
+    }
     val safeName = sanitize(name)
     val path = session.targetDir.resolve("$safeName.mp4")
     val handle = session.useCases.enqueueDownload.enqueue(plan.ref, pickQuality(plan.meta), path)
@@ -25,12 +32,13 @@ internal suspend fun runOne(session: SmokeSession, target: SmokeTarget) {
 }
 
 /**
- * The name of the target: the one the command gave, or the media id the source answered with.
+ * The name of the target: the one the command gave, or the media id the source answered with, or
+ * the url itself while the source has not answered yet.
  *
  * The source knows its own ids, so the file is named after the media and not after the url — the id
  * of a video on YouTube is in the query of the link, not in its path.
  */
-internal fun targetName(target: SmokeTarget, mediaId: String): String = target.name ?: mediaId
+internal fun targetName(target: SmokeTarget, mediaId: String? = null): String = target.name ?: mediaId ?: target.url
 
 private suspend fun planDownload(session: SmokeSession, target: SmokeTarget): DownloadPlan? =
     when (val resolved = session.useCases.resolveUrl.byUrl(target.url)) {
@@ -39,18 +47,25 @@ private suspend fun planDownload(session: SmokeSession, target: SmokeTarget): Do
         }
 
         ResolveResult.NotFound -> {
-            session.dashboard.note("${labelOf(target)}: skipped, source says NotFound")
+            session.dashboard.note("${targetName(target)}: skipped, source says NotFound")
             null
         }
 
         ResolveResult.Unsupported -> {
-            session.dashboard.note("${labelOf(target)}: skipped, URL not supported by any adapter")
+            session.dashboard.note("${targetName(target)}: skipped, URL not supported by any adapter")
             null
         }
     }
 
-private suspend fun loadPlan(session: SmokeSession, target: SmokeTarget, ref: MediaRef): DownloadPlan? =
-    when (val loaded = session.useCases.loadMedia.load(ref)) {
+private suspend fun loadPlan(session: SmokeSession, target: SmokeTarget, ref: MediaRef): DownloadPlan? {
+    if (ref.source.displayName == YOUTUBE_SOURCE && !session.tools.ytDlpAvailable()) {
+        session.dashboard.note(
+            "${targetName(target, ref.mediaId)}: skipped, yt-dlp is not on the machine, " +
+                "set download.youtube.binary-path to the binary",
+        )
+        return null
+    }
+    return when (val loaded = session.useCases.loadMedia.load(ref)) {
         is LoadMetaResult.Found -> {
             DownloadPlan(ref, loaded.meta)
         }
@@ -65,17 +80,12 @@ private suspend fun loadPlan(session: SmokeSession, target: SmokeTarget, ref: Me
             null
         }
     }
-
-/**
- * The label of a target before its source answered: the name the command gave, or the url itself.
- * The media id is not known yet — only the source that owns it can tell it.
- */
-private fun labelOf(target: SmokeTarget): String = target.name ?: target.url
+}
 
 private fun pickQuality(meta: MediaMeta): Quality =
     meta.qualities.firstOrNull { it.kind == TrackKind.Video } ?: QUALITY_1080P
 
-internal fun sanitize(name: String): String =
+private fun sanitize(name: String): String =
     name
         .replace(Regex("[\\\\/:*?\"<>|]"), "_")
         .trim()

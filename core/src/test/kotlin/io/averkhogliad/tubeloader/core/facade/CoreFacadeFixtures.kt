@@ -3,6 +3,7 @@ package io.averkhogliad.tubeloader.core.facade
 import io.averkhogliad.tubeloader.core.adapter.FakeSourceAdapter
 import io.averkhogliad.tubeloader.core.config.AppConfig
 import io.averkhogliad.tubeloader.core.config.HttpToolConfig
+import io.averkhogliad.tubeloader.core.deleteWithRetry
 import io.averkhogliad.tubeloader.core.domain.MediaRef
 import io.averkhogliad.tubeloader.core.domain.TaskId
 import io.averkhogliad.tubeloader.core.download.DownloadHandle
@@ -20,7 +21,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -30,10 +30,7 @@ import kotlinx.coroutines.yield
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.coroutines.CoroutineContext
-import kotlin.io.path.ExperimentalPathApi
-import kotlin.io.path.deleteRecursively
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 internal val testHttpTool = HttpToolConfig(perAttemptTimeout = 30.seconds)
@@ -44,11 +41,8 @@ internal fun scratchDir(): Path = Files.createTempDirectory("tubeloader-test")
 
 private val worldsByDir = mutableMapOf<Path, MutableList<FacadeWorld>>()
 
-private val retryPauses = listOf(20, 40, 80, 160).map { it.milliseconds }
-
 // cancelling is immediate, but a scope on a test dispatcher cannot finish its cancelled children
-// once the test scheduler stops being advanced: the join has to be bounded, and the retry below
-// covers the deletion of a file a still-running writer held
+// once the test scheduler stops being advanced: the join has to be bounded
 private val stopBudget = 1.seconds
 
 internal suspend fun cleanUp(dir: Path) {
@@ -65,21 +59,6 @@ private suspend fun closeWorldsIn(dir: Path) {
             nested.mapNotNull { worldsByDir.remove(it) }.flatten()
         }
     worlds.forEach { it.close() }
-}
-
-@OptIn(ExperimentalPathApi::class)
-private suspend fun deleteWithRetry(dir: Path) {
-    var lastFailure: Exception? = null
-    repeat(retryPauses.size + 1) { attempt ->
-        try {
-            dir.deleteRecursively()
-            return
-        } catch (failure: Exception) {
-            lastFailure = failure
-            retryPauses.getOrNull(attempt)?.let { delay(it) }
-        }
-    }
-    throw lastFailure!!
 }
 
 internal data class FacadeSettings(

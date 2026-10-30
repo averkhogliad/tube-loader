@@ -5,6 +5,7 @@ import io.averkhogliad.tubeloader.adapters.youtube.YoutubeSourceAdapter
 import io.averkhogliad.tubeloader.config.Config
 import io.averkhogliad.tubeloader.config.ConfigProvider
 import io.averkhogliad.tubeloader.config.defaultSources
+import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
 import io.averkhogliad.tubeloader.core.config.AppConfig
 import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.config.MediaToolConfig
@@ -15,7 +16,8 @@ import io.averkhogliad.tubeloader.core.download.RandomTaskIdGenerator
 import io.averkhogliad.tubeloader.core.facade.CoreFacade
 import io.averkhogliad.tubeloader.core.http.HttpTools
 import io.averkhogliad.tubeloader.core.media.FfmpegMediaTool
-import io.averkhogliad.tubeloader.core.media.ensureManagedFfmpeg
+import io.averkhogliad.tubeloader.core.port.HttpTool
+import io.averkhogliad.tubeloader.core.port.MediaTool
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -126,21 +128,34 @@ private fun buildComposition(targetDir: Path, parallel: Int): SmokeComposition {
             LocalProcessRunner(),
         )
     val ytDlpConfig = YtDlpConfig.fromConfig(config, paths)
-    val adapters =
-        listOf(
-            RutubeSourceAdapter(httpTool, mediaTool) { httpToolConfig },
-            YoutubeSourceAdapter { ytDlpConfig },
-        )
+    val adapters = smokeSources(httpTool, mediaTool, httpToolConfig, ytDlpConfig)
     val parentJob = SupervisorJob()
     val scope = CoroutineScope(Dispatchers.IO + parentJob)
     val queue = DownloadQueue(scope, Dispatchers.IO, Dispatchers.IO, appConfig)
     val facade = CoreFacade(adapters, queue, RandomTaskIdGenerator, Clock.System)
     val useCases = UseCases(facade, queue::shutdown)
     val observer = DownloadStateObserver(useCases.observeDownloads, dashboard)
-    val tools = SmokeTools(paths, dashboard, ::ensureManagedFfmpeg)
+    val tools = SmokeTools(paths, ytDlpConfig, dashboard)
     val session = SmokeSession(targetDir, dashboard, useCases, observer, tools)
     return SmokeComposition(session, stderr, client, mediaTool, scope)
 }
+
+/**
+ * The sources the smoke routes to: every adapter the tool knows, built by hand.
+ *
+ * The graph of the application itself is a stage of its own — this tool only proves that the pieces
+ * fit together, so every dependency is named here instead of being injected.
+ */
+internal fun smokeSources(
+    httpTool: HttpTool,
+    mediaTool: MediaTool,
+    httpToolConfig: HttpToolConfig,
+    ytDlpConfig: YtDlpConfig,
+): List<SourceAdapter> =
+    listOf(
+        RutubeSourceAdapter(httpTool, mediaTool) { httpToolConfig },
+        YoutubeSourceAdapter { ytDlpConfig },
+    )
 
 private fun loadConfig(homeDir: Path): Config {
     val provider = ConfigProvider()

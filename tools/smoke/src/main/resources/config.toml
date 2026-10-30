@@ -1,5 +1,5 @@
 [download]
-default-target-dir = "c:\\tmp\\rutube"
+default-target-dir = "c:\\tmp\\smoke"
 max-parallel-downloads = 3
 container-format = "mp4"
 
