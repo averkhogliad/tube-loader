@@ -31,3 +31,6 @@ sealed interface DownloadStatus {
 
     data class Failed(val error: DownloadError, val cause: Throwable? = null) : DownloadStatus
 }
+
+val DownloadStatus.isTerminal: Boolean
+    get() = this is DownloadStatus.Completed || this is DownloadStatus.Cancelled || this is DownloadStatus.Failed
