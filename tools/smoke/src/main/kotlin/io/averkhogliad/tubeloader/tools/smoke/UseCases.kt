@@ -28,6 +28,7 @@ internal class SmokeSession(
     val dashboard: ProgressDashboard,
     val useCases: UseCases,
     val observer: DownloadStateObserver,
+    val tools: SmokeTools,
 ) {
 
     suspend fun shutdown(timeout: Duration): Boolean = useCases.shutdown.shutdown(timeout)

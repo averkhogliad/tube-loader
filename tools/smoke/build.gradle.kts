@@ -36,6 +36,6 @@ tasks.test {
 }
 
 application {
-    mainClass.set("io.averkhogliad.tubeloader.tools.smoke.RutubeSmokeKt")
+    mainClass.set("io.averkhogliad.tubeloader.tools.smoke.SmokeKt")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=false")
 }

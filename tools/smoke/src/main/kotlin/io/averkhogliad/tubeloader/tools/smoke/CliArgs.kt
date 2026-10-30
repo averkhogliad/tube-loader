@@ -7,7 +7,13 @@ internal const val DEFAULT_TARGET_DIR = "c:\\tmp\\rutube"
 internal const val DEFAULT_PARALLEL = 3
 internal const val EXIT_OK = 0
 
-internal data class SmokeTarget(val url: String, val name: String)
+/**
+ * A target of the run: the url to download and the name of the file it lands in.
+ *
+ * [name] is null when the command named no file: the name is then the media id the source answers
+ * with, so the file is named after the media and not after the url.
+ */
+internal data class SmokeTarget(val url: String, val name: String?)
 
 internal data class CliArgs(
     val targets: List<SmokeTarget>,
@@ -18,9 +24,9 @@ internal data class CliArgs(
 
 internal object CliUsage {
     const val USAGE =
-        """Usage: RutubeSmoke [<rutube-url>]... [-id <id> -name <name>]... [-out <dir>] [-parallel <n>] [-cancel-after <s>]
+        """Usage: smoke [<url>]... [-id <id> -name <name>]... [-out <dir>] [-parallel <n>] [-cancel-after <s>]
 Options:
-  <rutube-url>    Rutube video url to download. Can be given more than once.
+  <url>            Video url to download, of any source the tool knows. Can be given more than once.
   -id <id>        Rutube video id (32-char hex). Pairs with the next -name.
   -name <name>    Target file name without extension.
   -out <dir>      Target directory (default: c:\tmp\rutube).
@@ -91,17 +97,12 @@ private fun takeName(pendingId: String?, name: String): SmokeTarget {
 
 private fun takeUrl(raw: String): SmokeTarget {
     if (!raw.startsWith("http://") && !raw.startsWith("https://")) {
-        error("expected a rutube url, got '$raw'\n${CliUsage.USAGE}")
+        error("expected a url, got '$raw'\n${CliUsage.USAGE}")
     }
-    return SmokeTarget(url = raw, name = nameFor(raw))
+    return SmokeTarget(url = raw, name = null)
 }
 
 private fun urlFor(id: String): String = "https://rutube.ru/video/$id/"
-
-private fun nameFor(url: String): String {
-    val path = url.substringBefore('?').substringBefore('#').trimEnd('/')
-    return path.substringAfterLast('/').ifEmpty { "video" }
-}
 
 private fun takeParallel(raw: String): Int {
     val parsed = raw.toIntOrNull() ?: error("-parallel must be an integer, got '$raw'\n${CliUsage.USAGE}")
