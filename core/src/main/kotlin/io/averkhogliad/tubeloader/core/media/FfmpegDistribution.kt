@@ -144,6 +144,17 @@ internal class FfmpegDistribution(private val paths: ToolPaths) {
     }
 }
 
+/**
+ * Makes sure the managed build of the tool is on the disk and hands back the path to run.
+ *
+ * The media tool asks for the binary by itself, but a delegate adapter hands the path to another
+ * tool, and that tool starts before the binary is there. The composition root calls this once, so
+ * the path it passes on points at a file that exists.
+ *
+ * @return the binary to run, or the reason it could not be obtained.
+ */
+fun ensureManagedFfmpeg(paths: ToolPaths): Result<Path> = FfmpegDistribution(paths).ensureBinary(null)
+
 /** Where the official static build of the tool lives. The version is the policy of the build. */
 private class FfmpegSource(val archive: URI, val archiveSuffix: String) {
 

@@ -3,6 +3,7 @@ package io.averkhogliad.tubeloader.tools.smoke
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import kotlin.time.Duration.Companion.seconds
 
 class CliArgsTest :
@@ -42,7 +43,18 @@ class CliArgsTest :
                 val actual = parseCli(rawArgs)
 
                 // then
-                actual.targets shouldBe listOf(SmokeTarget("https://rutube.ru/video/abc123/", "abc123"))
+                actual.targets shouldBe listOf(SmokeTarget("https://rutube.ru/video/abc123/", null))
+            }
+
+            "reads a youtube url as a target" {
+                // given
+                val rawArgs = arrayOf("https://www.youtube.com/watch?v=abc123")
+
+                // when
+                val actual = parseCli(rawArgs)
+
+                // then
+                actual.targets shouldBe listOf(SmokeTarget("https://www.youtube.com/watch?v=abc123", null))
             }
 
             "reads several targets" {
@@ -55,7 +67,7 @@ class CliArgsTest :
                 // then
                 actual.targets shouldBe
                     listOf(
-                        SmokeTarget("https://rutube.ru/video/abc123/", "abc123"),
+                        SmokeTarget("https://rutube.ru/video/abc123/", null),
                         SmokeTarget("https://rutube.ru/video/def/", "clip"),
                     )
             }
@@ -89,6 +101,16 @@ class CliArgsTest :
                 shouldThrow<IllegalStateException> {
                     parseCli(rawArgs)
                 }
+            }
+        }
+
+        "usage" - {
+            "names the default target directory" {
+                // given
+                val usage = CliUsage.USAGE
+
+                // when + then
+                usage shouldContain DEFAULT_TARGET_DIR
             }
         }
     })

@@ -2,6 +2,7 @@ package io.averkhogliad.tubeloader.core.media
 
 import io.averkhogliad.tubeloader.core.config.MediaToolConfig
 import io.averkhogliad.tubeloader.core.config.ToolPaths
+import io.averkhogliad.tubeloader.core.deleteWithRetry
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.port.MediaTool
 import io.kotest.core.spec.style.FreeSpec
@@ -27,7 +28,7 @@ private class RecordingRunner(private val result: Result<Unit> = Result.success(
 }
 
 /** A random home directory per case, wiped once the spec ends. */
-private class TempHome : AutoCloseable {
+private class TempHome {
 
     private val root: Path = Files.createTempDirectory("ffmpeg-media-tool")
 
@@ -39,8 +40,8 @@ private class TempHome : AutoCloseable {
             it.writeText("stub")
         }
 
-    override fun close() {
-        root.toFile().deleteRecursively()
+    suspend fun close() {
+        deleteWithRetry(root)
     }
 }
 
