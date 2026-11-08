@@ -16,17 +16,19 @@ GUI и TUI (M2) требуют прикладной логики, которой
 ## Solution
 
 Use-case слой в пакете `core.usecase` (внутри `:core` в M1, ADR-0009), обёртка над `CoreFacade`.
-Пять use-cases: `ResolveUrl`, `LoadMedia`, `EnqueueDownload`, `CancelDownload`,
-`ObserveDownloads`. `ObserveDownloads` владеет map `taskId → DownloadHandle` и агрегирует
+Четыре use-cases: `ResolveMedia`, `EnqueueDownload`, `CancelDownload`, `ObserveDownloads`.
+`ResolveMedia` заменяет пару `ResolveUrl` + `LoadMedia`: разрешение медиаэлемента — одна операция
+ядра, отдающая и ссылку, и метаданные, поэтому слой не разводит её на два вызова.
+`ObserveDownloads` владеет map `taskId → DownloadHandle` и агрегирует
 `Flow<List<DownloadState>>`. `CoreFacade` остаётся lean — observe-all в него не идёт. Вынос в
 модуль `:usecases` + rename `CoreFacade` — M2, по триггеру «первый фронтенд».
 
 ## User Stories
 
-1. Как фронтенд, я хочу разрешить URL в `MediaRef` и список источников, чтобы показать
-   пользователю, что URL распознан и из какого источника.
-2. Как фронтенд, я хочу загрузить метаданные по `MediaRef`, чтобы показать заголовок, автора,
-   длительность, обложку и качества для выбора.
+1. Как фронтенд, я хочу разрешить URL и получить ссылку на медиаэлемент вместе с метаданными,
+   чтобы показать пользователю, что URL распознан, из какого источника и что за видео.
+2. Как фронтенд, я хочу назвать код источника и идентификатор видео вместо URL, чтобы начать
+   работу, когда ссылки под рукой нет.
 3. Как фронтенд, я хочу поставить загрузку (ref, качество, target path) и получить хэндл, чтобы
    отслеживать её прогресс.
 4. Как фронтенд, я хочу отменить загрузку по `taskId`, чтобы реализовать кнопку отмены без
@@ -43,7 +45,7 @@ Use-case слой в пакете `core.usecase` (внутри `:core` в M1, AD
    стабильным и покрытым существующими тестами.
 10. Как разработчик, я хочу, чтобы трекинг (`ObserveDownloads`) тестировался детерминированно
     на фейках ядра, без реальной сети и процессов.
-11. Как разработчик, я хочу, чтобы тонкие use-cases (`ResolveUrl`, `LoadMedia`) проверялись
+11. Как разработчик, я хочу, чтобы тонкие use-cases (`ResolveMedia`) проверялись
     через существующий шов `CoreFacade` (`FacadeWorld`), чтобы не плодить новые фейки.
 12. Как мейнтейнер, я хочу, чтобы слой жил в `:core` как пакет `core.usecase` только временно, с
     задокументированным триггером выноса в модуль, чтобы «временно» не стало «навсегда»
@@ -57,16 +59,16 @@ Use-case слой в пакете `core.usecase` (внутри `:core` в M1, AD
 Вынос в модуль `:usecases` + rename `CoreFacade` — M2, одним рефакторингом, по триггеру «первый
 фронтенд». До этого слой зовут `tools/smoke` и тесты, которые и так видят `:core`.
 
-**`CoreFacade` не трогается.** observe-all в фасад не добавляется. Трекинг живёт в use-cases.
-Контракт `CoreFacade` (`availableSources`, `findByUrl`, `findById`, `loadMeta`, `enqueue`,
-`DownloadHandle.cancel`/`state`) — как есть.
+**`CoreFacade` не растёт.** observe-all в фасад не добавляется. Трекинг живёт в use-cases.
+Контракт `CoreFacade` (`availableSources`, `findByUrl`, `findById(code, mediaId)`, `enqueue`,
+`DownloadHandle.cancel`/`state`) — как есть, кроме смены формы разрешения (ADR-0011): вместо
+`findByUrl`/`findById`/`loadMeta` фасад отдаёт `MediaResult` одной операцией.
 
-**`ResolveUrl`.** Обёртка над `CoreFacade.availableSources` + `findByUrl(input)` /
-`findById(sourceId, mediaId)`. Возвращает `ResolveResult` (`Resolved(MediaRef)` / `NotFound` /
-`Unsupported`) и/или список `Source` для выбора при `findById`. Без состояния.
-
-**`LoadMedia`.** Обёртка над `CoreFacade.loadMeta(ref)` → `LoadMetaResult` (`Found(MediaMeta)` /
-`NotFound` / `Failed`). Без состояния.
+**`ResolveMedia`.** Обёртка над `CoreFacade.availableSources` + `findByUrl(input)` /
+`findById(code, mediaId)`. Возвращает `MediaResult` (`Found(ref, meta)` / `NotFound` /
+`Unsupported` / `Failed(error)`) — ссылку на медиаэлемент вместе с метаданными, — и/или список
+`Source` для выбора источника по коду. Без состояния. Код источника приходит от вызывающего:
+неизвестный код — ошибка вызывающей стороны, а не исход с пустым результатом.
 
 **`EnqueueDownload`.** Обёртка над `CoreFacade.enqueue(ref, quality, targetPath)` →
 `DownloadHandle`. Регистрирует хэндл в трекере слоя (map `taskId → DownloadHandle`). `quality` и
@@ -85,9 +87,9 @@ Use-case слой в пакете `core.usecase` (внутри `:core` в M1, AD
 **Shutdown.** Слой делегирует штатную остановку на `CoreFacade`/`DownloadQueue.shutdown` (ADR-0003,
 конфайнмент). Слой не владеет очередью.
 
-**Нет новой domain-модели.** Слой оперирует существующими типами ядра (`MediaRef`, `MediaMeta`,
-`Quality`, `DownloadHandle`, `DownloadState`, `TaskId`, `ResolveResult`, `LoadMetaResult`).
-Новых sealed-исходов и полей в `Progress`/`DownloadError` — нет.
+**Нет новой domain-модели.** Слой оперирует типами ядра (`MediaRef`, `MediaMeta`,
+`Quality`, `DownloadHandle`, `DownloadState`, `TaskId`, `MediaResult`): `MediaResult` — тип ядра
+(ADR-0011), не модель слоя. Новых sealed-исходов и полей в `Progress`/`DownloadError` — нет.
 
 ## Testing Decisions
 
@@ -99,8 +101,8 @@ Use-case слой в пакете `core.usecase` (внутри `:core` в M1, AD
 `core/test/.../facade/CoreFacadeFixtures.kt` (`FacadeWorld`, `FakeSourceAdapter`, `resolve`,
 `enqueue`, `observedStatuses`, `state`). Новые фейки ядра не заводятся.
 
-**Тонкие use-cases** (`ResolveUrl`, `LoadMedia`):Focused-тест на делегирование — use-case зовёт
-фасад и возвращает маппинг; поведение равно `CoreFacadeFind`/`CoreFacadeEnqueue`. Prior art:
+**Тонкий use-case** (`ResolveMedia`): focused-тест на делегирование — use-case зовёт фасад и
+возвращает маппинг; поведение равно `CoreFacadeFind`/`CoreFacadeEnqueue`. Prior art:
 `CoreFacadeFindTest`, `CoreFacadeEnqueueTest`.
 
 **`ObserveDownloads` — детерминированный тест агрегации.** В `FacadeWorld` ставятся N загрузок
@@ -134,9 +136,11 @@ Use-case слой в пакете `core.usecase` (внутри `:core` в M1, AD
 ## Further Notes
 
 - ADR-0009 — решение «use-case слой над `CoreFacade`, обёртка, вынос в M2».
+- ADR-0011 — решение «код источника и контракт адаптера»: `ResolveMedia` снимает пару
+  `ResolveUrl` + `LoadMedia`, источник адресуется кодом.
 - `docs/features/core/spec.md` — контракт `CoreFacade`, capability-модель, staging.
 - `CONTEXT.md` — `Core`, `DownloadHandle`, `DownloadState`, `DownloadQueue`, `DownloadStatus`.
-- 4 из 5 use-cases — тонкие делегирования; реальную логику несёт `ObserveDownloads`. Слой ради
+- 3 из 4 use-cases — тонкие делегирования; реальную логику несёт `ObserveDownloads`. Слой ради
   сокрытия `:core` от фронтендов актуален с M2; в M1 pass-through обоснован подготовкой API и
   валидацией через `tools/smoke` (ADR-0009, Consequences).
 
@@ -152,3 +156,4 @@ Use-case слой в пакете `core.usecase` (внутри `:core` в M1, AD
 - 04 — usecases: `ObserveDownloads` (map `taskId→handle`, aggregate `Flow<List<DownloadState>>`) (blocked by #99) — #101
 - 05 — usecases: tests + shutdown delegation (blocked by #98, #99, #100, #101) — #102
 - 06 — usecases: smoke over use-cases layer (blocked by #99, #100, #101, #102) — #104
+- 07 — usecases: `ResolveMedia` вместо `ResolveUrl` + `LoadMedia` (blocked by #111) — #111

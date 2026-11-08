@@ -78,13 +78,13 @@ video+audio через bundled ffmpeg (`--ffmpeg-location`); адаптер **н
 (`core/spec.md`: «`Native` и `Delegate` для ядра неразличимы, ядро в обоих случаях зовёт
 `download`»); перечисление — ярлык реализации. `displayName = "YouTube"`.
 
-**`find` — нативный разбор URL, offline.** Без обращения к yt-dlp или сети. Распознаёт
+**`resolveId` — нативный разбор URL, offline.** Без обращения к yt-dlp или сети. Распознаёт
 `youtube.com/watch?v=<id>`, `youtu.be/<id>`, `youtube.com/shorts/<id>`, `youtube.com/embed/<id>`.
-Исход `FindResult`: `Found(mediaId)` / `Unsupported` (чужой хост) / `NotFound` (хост YouTube, но
-id пуст/отсутствует). Контракт `SourceAdapterContract` требует, чтобы `find` решал offline, не
+Исход `ResolveIdResult`: `Found(mediaId)` / `Unsupported` (чужой хост) / `NotFound` (хост YouTube, но
+id пуст/отсутствует). Контракт `SourceAdapterContract` требует, чтобы `resolveId` решал offline, не
 трогая запись источника.
 
-**`loadMeta` — yt-dlp Resolve.** `yt-dlp --no-config -J --skip-download <URL>` отдаёт JSON с
+**`findById` — yt-dlp Resolve.** `yt-dlp --no-config -J --skip-download <URL>` отдаёт JSON с
 метаданными и списком форматов. Адаптер разбирает JSON в `MediaMeta` и набор `Quality`.
 Маппинг defensive: неизвестные поля игнорируются (схема `-J` не версионирована, §5.5). Спека
 адаптера Rutube и `core/spec.md` фиксируют форму `MediaMeta` (`id`, `title`, `author`,
@@ -171,7 +171,7 @@ stderr/JSON:
 
 **Хороший тест** проверяет внешнее поведение через интерфейс `SourceAdapter` на golden-фикстурах,
 offline. Детали реализации (команда yt-dlp, парсинг JSON) не тестируются напрямую — только через
-исходы `find`/`loadMeta`/`download`, прогресс и байты файла. Реальный yt-dlp — только в IT вне
+исходы `resolveId`/`findById`/`download`, прогресс и байты файла. Реальный yt-dlp — только в IT вне
 `check`.
 
 **Contract--suite.** Переиспользуется `SourceAdapterContract` из `core/testFixtures/.../contract`.
@@ -185,7 +185,7 @@ class YoutubeAdapterTest : FreeSpec({
 
 Фейк `YtDlpProcessRunner` отвечает из записи: mediaId → JSON (meta), mediaId+quality →
 progress-линии + байты выходного файла (download). `SourceAdapterFixtures`
-(`FindCase`/`MetaCase`/`DownloadCase`) переиспользуются; `RecordedResponses` (URL→HTTP-body) для
+(`ResolveCase`/`MetaCase`/`DownloadCase`) переиспользуются; `RecordedResponses` (URL→HTTP-body) для
 YouTube не используется — запись живёт в YouTube-fixture-хелпере. Харнес `SourceAdapterContract`
 не меняется.
 
@@ -258,3 +258,4 @@ tagged IT вне `check`), `FfmpegProcessRunner` (injectable start, tree-kill). 
 - 06 — Youtube adapter: contract tests on golden fixtures (blocked by #90, #93, #94) — #95
 - 07 — Youtube adapter: IT with real yt-dlp (blocked by #95) — #96
 - 08 — Youtube adapter: smoke end-to-end wiring (blocked by #92, #93, #94, #95, #96) — #103
+- 09 — Youtube adapter: контракт `resolveId`/`findById` вместо `find`/`loadMeta` (blocked by #111) — #111

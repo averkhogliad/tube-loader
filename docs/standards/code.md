@@ -61,6 +61,6 @@ trailing lambda. Сначала идут параметры с дефолтам�
 
 ## Sealed-типы исходов — только возврат
 
-Sealed-типы исходов (`ResolveResult`, `LoadMetaResult`, `DownloadResult`) — только типы
+Sealed-типы исходов (`MediaResult`, `ResolveIdResult`, `LoadMetaResult`, `DownloadResult`) — только типы
 возврата метода. В качестве аргумента передаётся извлечённое значение (VO), не элемент
 sealed-результата. Результат описывает исход операции, а не вход в следующую.

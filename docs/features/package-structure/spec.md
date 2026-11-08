@@ -41,13 +41,13 @@
   `:infra`) заводятся вместе с первой реализацией. Пустых модулей-заглушек не создаётся.
 - **Раскладка `:core`** на шесть подпакетов по роли: `adapter`, `config`, `domain`, `download`,
   `facade`, `port`.
-- **`adapter`** — контракт расширения `SourceAdapter` и его sealed-типы исходов (`FindResult`,
+- **`adapter`** — контракт расширения `SourceAdapter` и его sealed-типы исходов (`ResolveIdResult`,
   `LoadMetaResult`), `DownloadCapability`, `DownloadResult`. Контракт объявляет ядро; реализации
   (`Rutube`, `yt-dlp`) живут в слое адаптеров вне ядра.
 - **`port`** — интерфейсы портов `MediaTool` и `HttpTool` (и `HttpResponse`). Ядро диктует контракт;
   реализации (FFmpeg-обёртка, HTTP-клиент) — инфра.
 - **`domain`** — value-типы: `MediaMeta`, `MediaRef`, `Progress`, `Quality`, `TrackKind`, `Source`,
-  `SourceId`, `TaskId`, `DownloadError`.
+  `TaskId`, `DownloadError`.
 - **`download`** — жизненный цикл и исполнение: `DownloadHandle`, `DownloadQueue`, `DownloadState`,
   `DownloadStatus`, `TaskIdGenerator`, `TaskRegistry`.
 - **`facade`** — `CoreFacade`.
