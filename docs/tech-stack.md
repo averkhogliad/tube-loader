@@ -20,9 +20,9 @@
 
 | Пакет | Содержимое |
 | --- | --- |
-| `core.adapter` | Контракт расширения: `SourceAdapter`, `FindResult`, `LoadMetaResult`, `DownloadCapability`, `DownloadResult` |
+| `core.adapter` | Контракт расширения: `SourceAdapter`, `ResolveIdResult`, `LoadMetaResult`, `DownloadCapability`, `DownloadResult` |
 | `core.config` | Типизированные настройки ядра: `AppConfig`, `HttpToolConfig` |
-| `core.domain` | Доменные типы: `MediaMeta`, `MediaRef`, `Progress`, `Quality`, `TrackKind`, `Source`, `SourceId`, `TaskId`, `DownloadError` |
+| `core.domain` | Доменные типы: `MediaMeta`, `MediaRef`, `Progress`, `Quality`, `TrackKind`, `Source`, `TaskId`, `DownloadError` |
 | `core.download` | Жизненный цикл и исполнение: `DownloadHandle`, `DownloadQueue`, `DownloadState`, `DownloadStatus`, `TaskIdGenerator`, `TaskRegistry` |
 | `core.facade` | Единственная точка входа команд: `CoreFacade` |
 | `core.port` | Порты ядра: `MediaTool`, `HttpTool`, `HttpResponse` (закрываемый ответ, несёт `status`) |

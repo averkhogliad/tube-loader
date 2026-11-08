@@ -6,8 +6,10 @@
 ## Language
 
 **Source (источник)**:
-Сайт или сервис, из которого скачивается контент: Rutube, YouTube. В коде — тип `Source(SourceId,
-displayName)`: часть `MediaRef`, ядро перечисляет их через `CoreFacade.availableSources`.
+Сайт или сервис, из которого скачивается контент: Rutube, YouTube. В коде — тип `Source(code,
+displayName)`: часть `MediaRef`, ядро перечисляет их через `CoreFacade.availableSources`. Код —
+постоянный идентификатор источника (`rutube`, `youtube`), он задаётся при регистрации и не зависит
+от порядка источников; подпись (`displayName`) — для человека и может меняться.
 _Avoid_: называть «источником» плагин или его код
 
 **SourceAdapter (адаптер источника)**:
@@ -95,9 +97,19 @@ _Avoid_: Stream, Format, Video, Media; называть дорожкой еди�
 над фасадом. Список загрузок для пользователя собирает слой презентации.
 _Avoid_: возвращать карту состояний наружу, адресовать отмену по `taskId` через фасад
 
-**Find (разбор URL, `ParseUrl`)**:
+**Resolve Id (разбор URL, `ParseUrl`)**:
 Операция контракта `SourceAdapter`: извлекает `mediaId` медиаэлемента из URL и определяет,
-принадлежит ли URL источнику. Исход `FindResult`: `Found(mediaId)` / `Unsupported` / `NotFound`.
+принадлежит ли URL источнику. Исход `ResolveIdResult`: `Found(mediaId)` / `Unsupported` /
+`NotFound`.
+
+**Find By Id (данные по идентификатору)**:
+Операция контракта `SourceAdapter`: данные о медиаэлементе по идентификатору, с обращением к
+источнику. Исход `LoadMetaResult`: `Found(MediaMeta)` / `NotFound` / `Failed(error)`.
+
+**Resolve Media (разрешение медиаэлемента)**:
+Операция ядра: по URL целиком или по «код источника + идентификатор» возвращает ссылку на
+медиаэлемент вместе с его метаданными. Исход `MediaResult`: `Found(ref, meta)` / `NotFound` /
+`Unsupported` / `Failed(error)`.
 
 **MediaFile (медиафайл)**:
 Артефакт на диске — результат финализации. То, что переезжает из staging в целевой каталог;

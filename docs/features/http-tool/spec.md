@@ -61,7 +61,7 @@ Result<HttpResponse>`. `Result.failure` — для транспортных сб
 Оборванное **тело** в этот набор не входит: `content(block)` отдаёт адаптеру `InputStream`, поэтому
 обрыв посреди чтения бросает исключение наружу из блока, а не приходит значением. Обёртка вокруг
 чтения — дело вызывающего: адаптер ловит `IOException` и переводит его в свой исход
-(`RutubeSourceAdapter.loadMeta`).
+(`RutubeSourceAdapter.findById`).
 
 **`HttpResponse`.** Интерфейс с четырьмя членами:
 

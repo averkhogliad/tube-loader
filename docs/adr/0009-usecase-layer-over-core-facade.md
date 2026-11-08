@@ -3,7 +3,9 @@
 ## Status
 
 Принято. Применяется с M1 (пакет `core.usecase` в `:core`); вынос в модуль `:usecases`
-и rename `CoreFacade` — на M2, по триггеру «первый фронтенд».
+и rename `CoreFacade` — на M2, по триггеру «первый фронтенд». Частично заменено
+`docs/adr/0011-source-code-and-adapter-contract.md`: состав use-cases (четыре вместо пяти) и
+контракт `CoreFacade` (`findByUrl`/`findById` отдают данные о медиаэлементе).
 
 ## Context
 

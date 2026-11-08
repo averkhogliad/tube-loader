@@ -8,7 +8,7 @@ golden-фикстуры и фейки. Существующий код скач�
 привязкой к конкретному сегментному списку и отсутствием контракта `SourceAdapter`. Внести
 Rutube в роутинг URL, постановку загрузки, нормализацию прогресса и финализацию через ядро
 нельзя, не переписав пайплайн под целевую архитектуру. Пока нет Rutube-адаптера, ядро
-роутит любую ссылку на Rutube в `FindResult.Unsupported`, и пользователь не может скачать
+роутит любую ссылку на Rutube в `ResolveIdResult.Unsupported`, и пользователь не может скачать
 видео из единственного источника, на котором прототип реально работал.
 
 ## Solution
@@ -31,9 +31,9 @@ Rutube в роутинг URL, постановку загрузки, норма�
 2. Как пользователь, я хочу вставить `https://rutube.ru/play/embed/<id>`, чтобы адаптер
    распознал embed-форму и вернул тот же результат, что и для канонической ссылки.
 3. Как пользователь, я хочу вставить URL другого сайта, чтобы адаптер ответил
-   `FindResult.Unsupported` без сетевого запроса.
+   `ResolveIdResult.Unsupported` без сетевого запроса.
 4. Как пользователь, я хочу вставить URL с несуществующим id, чтобы адаптер ответил
-   `FindResult.NotFound`, а не молчаливым `Unsupported`.
+   `ResolveIdResult.NotFound`, а не молчаливым `Unsupported`.
 5. Как пользователь, я хочу получить `MediaMeta` с заголовком, автором, длительностью,
    обложкой и списком качеств из одного запроса, без второго эндпоинта.
 6. Как пользователь, я хочу видеть в качествах только `TrackKind.Video`, чтобы аудио-
@@ -93,14 +93,14 @@ Gradle-модуль `:adapters:rutube`, который появится вмес
 
 - `capability = DownloadCapability.Native` — адаптер скачивает сам, без Delegate.
 - `displayName` — `"Rutube"`.
-- `find(input)` — без сети: regex по URL, исходы `Found(mediaId)` / `Unsupported`.
-  `FindResult.NotFound` — зарезервированный контрактом исход для будущего сетевого
-  `find`; M1 его не возвращает (id всегда синтаксический, а несуществующее видео
-  обнаруживается только на `loadMeta`, там же приходит `DownloadError.NotFound`).
-- `loadMeta(id)` — один HTTP-запрос `playOptions` через `HttpTool.open(...)`. Исходы
+- `resolveId(input)` — без сети: regex по URL, исходы `Found(mediaId)` / `Unsupported`.
+  `ResolveIdResult.NotFound` — зарезервированный контрактом исход для будущего сетевого
+  разбора; M1 его не возвращает (id всегда синтаксический, а несуществующее видео
+  обнаруживается только на `findById`, там же приходит `DownloadError.NotFound`).
+- `findById(id)` — один HTTP-запрос `playOptions` через `HttpTool.open(...)`. Исходы
   `Found(MediaMeta)` / `NotFound` / `Failed(DownloadError)`. Последний несёт
   `ExtractorBroken` на структурный сбой ответа. `Unsupported` невозможен (поддержка уже
-  определена в `find`).
+  определена в `resolveId`).
 - `download(mediaId, quality, targetPath, onProgress)` — линейное скачивание HLS-
   плейлиста нужного качества в `<targetPath>.tmp` рядом с целевым файлом, затем
   `MediaTool.remux(<targetPath>.tmp, targetPath, onProgress)`. Промежуточный файл
@@ -229,8 +229,8 @@ API. Адаптер читает его (через `HttpTool.open`), фильт
 
 | Сценарий | Класс | Условие |
 |---|---|---|
-| URL не распознан | `FindResult.Unsupported` | regex не матчит или id не `[0-9a-f]{32}` |
-| id синтаксически верный, но не найден | `FindResult.NotFound` | зарезервировано контрактом; в M1 не возвращается |
+| URL не распознан | `ResolveIdResult.Unsupported` | regex не матчит или id не `[0-9a-f]{32}` |
+| id синтаксически верный, но не найден | `ResolveIdResult.NotFound` | зарезервировано контрактом; в M1 не возвращается |
 | Видео не существует | `DownloadError.NotFound` | `playOptions` вернул HTTP 244 с `detail.name = default_does_not_exists_video`; голый запрос без `no_404=true` отдаёт 404 |
 | JSON без обязательных полей / не парсится / `video_id` не совпал | `DownloadError.ExtractorBroken` | структурный сбой ответа |
 | HTTP 408/429/502/503/504, таймаут, `IOException`, `UnknownHostException` | `DownloadError.NetworkTransient` | сетевой сбой; ретраим до исчерпания попыток |
@@ -260,7 +260,7 @@ API. Адаптер читает его (через `HttpTool.open`), фильт
    `src/testFixtures/resources/rutube/playOptions-*.json` и
    `m3u8-master-*.m3u8`, эталонные `MediaMeta` и списки `Quality` —
    в `RutubeFixtures.kt`. Тесты контракта покрывают: разбор URL (две формы,
-   `Unsupported`), `loadMeta` (`Found`, `NotFound`, парсинг-ошибка),
+   `Unsupported`), `findById` (`Found`, `NotFound`, парсинг-ошибка),
    `download` (успех, прогресс, финализация, отсутствие побочного файла).
 2. **Тесты ретраев — отдельный suite** внутри пакета адаптера. На вход —
    `FakeHttpTool`, программирующий сценарии: сначала 2 раза 503, на 3-й раз 200
@@ -333,4 +333,5 @@ API. Адаптер читает его (через `HttpTool.open`), фильт
 ## Tickets
 
 Спека фичи. Тикеты на реализацию — GitHub #51–58 (`ready-for-agent`), блокирующие рёбра
-выставлены нативной связью `blocked_by`; ключи `[156]`–`[163]` — карточки Weeek.
+выставлены нативной связью `blocked_by`; ключи `[156]`–`[163]` — карточки Weeek. Перевод адаптера
+на контракт `resolveId`/`findById` — #111.
