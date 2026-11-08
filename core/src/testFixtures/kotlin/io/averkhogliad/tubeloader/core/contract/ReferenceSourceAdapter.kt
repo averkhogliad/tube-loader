@@ -2,8 +2,8 @@ package io.averkhogliad.tubeloader.core.contract
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadCapability
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
@@ -34,19 +34,19 @@ class ReferenceSourceAdapter(private val fixtures: SourceAdapterFixtures) : Sour
 
     val progress: MutableList<Progress> = mutableListOf()
 
-    override suspend fun find(input: String): FindResult {
-        val url = runCatching { java.net.URI(input) }.getOrNull() ?: return FindResult.Unsupported
-        if (url.host != HOST) return FindResult.Unsupported
+    override suspend fun resolveId(input: String): ResolveIdResult {
+        val url = runCatching { java.net.URI(input) }.getOrNull() ?: return ResolveIdResult.Unsupported
+        if (url.host != HOST) return ResolveIdResult.Unsupported
         val id =
             url.rawQuery
                 ?.split('&')
                 ?.firstOrNull { it.startsWith("v=") }
                 ?.removePrefix("v=")
-                ?: return FindResult.NotFound
-        return if (id.isEmpty()) FindResult.NotFound else FindResult.Found(id)
+                ?: return ResolveIdResult.NotFound
+        return if (id.isEmpty()) ResolveIdResult.NotFound else ResolveIdResult.Found(id)
     }
 
-    override suspend fun loadMeta(id: String): LoadMetaResult {
+    override suspend fun findById(id: String): LoadMetaResult {
         val text =
             try {
                 fixtures.responses.bodyFor(metaUrl(id)).decodeToString()

@@ -1,7 +1,7 @@
 package io.averkhogliad.tubeloader.core.facade
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.config.AppConfig
 import io.averkhogliad.tubeloader.core.download.DownloadStatus
 import io.kotest.core.spec.style.FreeSpec
@@ -28,7 +28,7 @@ class CoreFacadeShutdownTest :
                     // given
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val target = world.targetPath()
                     val started = CompletableDeferred<Unit>()
@@ -64,7 +64,7 @@ class CoreFacadeShutdownTest :
                                 initialConfig = AppConfig(maxParallelDownloads = 1, httpTool = testHttpTool),
                             ),
                         )
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val gate = CompletableDeferred<Unit>()
                     world.adapters.single().onDownload = { _, _ ->
@@ -93,7 +93,7 @@ class CoreFacadeShutdownTest :
                     // given
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val interrupted = world.targetPath()
                     world.adapters.single().onDownload = { _, _ ->
@@ -106,7 +106,7 @@ class CoreFacadeShutdownTest :
 
                     // when the assembly builds a fresh core over the same directories
                     val restarted = facadeWorld(world.tempDir)
-                    restarted.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    restarted.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val target = restarted.targetPath()
                     val next = restarted.enqueue(restarted.resolve(mediaId), target)
 

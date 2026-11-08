@@ -1,15 +1,15 @@
 package io.averkhogliad.tubeloader.adapters.youtube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
 import io.averkhogliad.tubeloader.core.config.ToolPaths
 import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.averkhogliad.tubeloader.core.contract.DownloadCase
-import io.averkhogliad.tubeloader.core.contract.FindCase
 import io.averkhogliad.tubeloader.core.contract.MetaCase
 import io.averkhogliad.tubeloader.core.contract.RecordedResponses
+import io.averkhogliad.tubeloader.core.contract.ResolveIdCase
 import io.averkhogliad.tubeloader.core.contract.SourceAdapterFixtures
 import io.averkhogliad.tubeloader.core.contract.deleteWithRetry
 import io.averkhogliad.tubeloader.core.domain.DownloadError
@@ -69,37 +69,37 @@ private val SPARSE_META =
         qualities = listOf(Quality("360p", TrackKind.Video, "360p")),
     )
 
-private val FIND_CASES: List<FindCase> =
+private val RESOLVE_ID_CASES: List<ResolveIdCase> =
     listOf(
-        FindCase(
+        ResolveIdCase(
             name = "reads the id of a watch url",
             input = "$WATCH_URL$RECORDED",
-            expected = FindResult.Found(RECORDED),
+            expected = ResolveIdResult.Found(RECORDED),
         ),
-        FindCase(
+        ResolveIdCase(
             name = "reads the id of a short url",
             input = "https://youtu.be/$RECORDED",
-            expected = FindResult.Found(RECORDED),
+            expected = ResolveIdResult.Found(RECORDED),
         ),
-        FindCase(
+        ResolveIdCase(
             name = "reads the id of a shorts url",
             input = "https://www.youtube.com/shorts/$RECORDED",
-            expected = FindResult.Found(RECORDED),
+            expected = ResolveIdResult.Found(RECORDED),
         ),
-        FindCase(
+        ResolveIdCase(
             name = "reads the id of an embed url",
             input = "https://www.youtube.com/embed/$RECORDED",
-            expected = FindResult.Found(RECORDED),
+            expected = ResolveIdResult.Found(RECORDED),
         ),
-        FindCase(
+        ResolveIdCase(
             name = "leaves the url of another source alone",
             input = "https://vimeo.com/$RECORDED",
-            expected = FindResult.Unsupported,
+            expected = ResolveIdResult.Unsupported,
         ),
-        FindCase(
+        ResolveIdCase(
             name = "names a watch url without an id as missing",
             input = WATCH_URL,
-            expected = FindResult.NotFound,
+            expected = ResolveIdResult.NotFound,
         ),
     )
 
@@ -201,7 +201,7 @@ internal fun youtubeFixtures(): YoutubeFixtures {
         )
     val world = YoutubeWorld(recording)
     return YoutubeFixtures(
-        cases = SourceAdapterFixtures(RecordedResponses.None, FIND_CASES, META_CASES, downloadCases(content)),
+        cases = SourceAdapterFixtures(RecordedResponses.None, RESOLVE_ID_CASES, META_CASES, downloadCases(content)),
         adapter = world::adapter,
         roots = listOf(world.root),
     )

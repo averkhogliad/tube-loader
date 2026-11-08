@@ -1,8 +1,8 @@
 package io.averkhogliad.tubeloader.core.contract
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.domain.Quality
 import java.io.IOException
 import java.nio.file.Path
@@ -62,10 +62,10 @@ class RecordedResponses(
     }
 }
 
-data class FindCase(
+data class ResolveIdCase(
     val name: String,
     val input: String,
-    val expected: FindResult,
+    val expected: ResolveIdResult,
 )
 
 data class MetaCase(
@@ -89,7 +89,7 @@ class DownloadCase(
  */
 data class SourceAdapterFixtures(
     val responses: RecordedResponses,
-    val find: List<FindCase>,
+    val resolveId: List<ResolveIdCase>,
     val meta: List<MetaCase>,
     val download: List<DownloadCase>,
 )

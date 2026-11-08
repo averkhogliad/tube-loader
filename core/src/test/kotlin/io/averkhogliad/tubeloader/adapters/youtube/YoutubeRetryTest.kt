@@ -38,7 +38,7 @@ private class SequencedStart(private val replies: List<ToolReply>) {
 class YoutubeRetryTest :
     FreeSpec({
 
-        "loadMeta retries" - {
+        "findById retries" - {
 
             "retries a transient network failure and succeeds on the next attempt" {
                 // given
@@ -52,7 +52,7 @@ class YoutubeRetryTest :
                 val adapter = adapterOver(fastSettings(), seq.start())
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual::class shouldBe LoadMetaResult.Found::class
@@ -71,7 +71,7 @@ class YoutubeRetryTest :
                 val adapter = adapterOver(fastSettings(), seq.start())
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual::class shouldBe LoadMetaResult.Found::class
@@ -87,7 +87,7 @@ class YoutubeRetryTest :
                 val adapter = adapterOver(fastSettings(), seq.start())
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.NotFound)
@@ -103,7 +103,7 @@ class YoutubeRetryTest :
                 val adapter = adapterOver(fastSettings(), seq.start())
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.AntiBotBlocked)
@@ -119,7 +119,7 @@ class YoutubeRetryTest :
                 val adapter = adapterOver(fastSettings(), seq.start())
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)

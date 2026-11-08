@@ -33,7 +33,7 @@ private const val PROBE_TIMEOUT_SECONDS = 30L
 class YoutubeSourceAdapterIT :
     FreeSpec({
 
-        "loadMeta" - {
+        "findById" - {
             "resolves the metadata and the video qualities of a live video".config(enabled = LIVE_BINARY_AVAILABLE) {
                 // given
                 val adapter =
@@ -42,7 +42,7 @@ class YoutubeSourceAdapterIT :
                     }
 
                 // when
-                val actual = adapter.loadMeta(LIVE_MEDIA_ID)
+                val actual = adapter.findById(LIVE_MEDIA_ID)
 
                 // then
                 val found = actual as? LoadMetaResult.Found ?: error("expected a resolved metadata, got $actual")

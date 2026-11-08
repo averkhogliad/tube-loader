@@ -26,10 +26,10 @@ private val EXPECTED_META =
         qualities = listOf(Quality(QUALITY_1080, TrackKind.Video, QUALITY_1080)),
     )
 
-class RutubeLoadMetaTest :
+class RutubeFindByIdTest :
     FreeSpec({
 
-        "loadMeta" - {
+        "findById" - {
             "returns Found with the meta parsed from the recording" {
                 // given
                 val http = FakeHttpTool().recording("rutube/playOptions.json")
@@ -37,7 +37,7 @@ class RutubeLoadMetaTest :
                 val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Found(EXPECTED_META)
@@ -50,7 +50,7 @@ class RutubeLoadMetaTest :
                 val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
-                adapter.loadMeta(MEDIA_ID)
+                adapter.findById(MEDIA_ID)
 
                 // then
                 val call = http.opened.single()
@@ -67,7 +67,7 @@ class RutubeLoadMetaTest :
                 val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.NotFound
@@ -80,7 +80,7 @@ class RutubeLoadMetaTest :
                 val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.NotFound
@@ -93,7 +93,7 @@ class RutubeLoadMetaTest :
                 val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
@@ -106,7 +106,7 @@ class RutubeLoadMetaTest :
                 val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
@@ -119,7 +119,7 @@ class RutubeLoadMetaTest :
                 val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
@@ -132,7 +132,7 @@ class RutubeLoadMetaTest :
                 val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
@@ -145,7 +145,7 @@ class RutubeLoadMetaTest :
                 val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
@@ -158,7 +158,7 @@ class RutubeLoadMetaTest :
                 val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
@@ -171,7 +171,7 @@ class RutubeLoadMetaTest :
                 val adapter = RutubeSourceAdapter(http, FakeMediaTool(), { settings })
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 val found = actual.shouldBeInstanceOf<LoadMetaResult.Found>()

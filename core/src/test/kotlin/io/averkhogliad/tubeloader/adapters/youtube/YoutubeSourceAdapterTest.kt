@@ -1,7 +1,7 @@
 package io.averkhogliad.tubeloader.adapters.youtube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadCapability
-import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
@@ -32,93 +32,93 @@ class YoutubeSourceAdapterTest :
             }
         }
 
-        "find" - {
+        "resolveId" - {
             "returns the media id of a watch url" {
                 // when
-                val actual = adapter().find("https://www.youtube.com/watch?v=$MEDIA_ID")
+                val actual = adapter().resolveId("https://www.youtube.com/watch?v=$MEDIA_ID")
 
                 // then
-                actual shouldBe FindResult.Found(MEDIA_ID)
+                actual shouldBe ResolveIdResult.Found(MEDIA_ID)
             }
 
             "returns the media id of a short url" {
                 // when
-                val actual = adapter().find("https://youtu.be/$MEDIA_ID")
+                val actual = adapter().resolveId("https://youtu.be/$MEDIA_ID")
 
                 // then
-                actual shouldBe FindResult.Found(MEDIA_ID)
+                actual shouldBe ResolveIdResult.Found(MEDIA_ID)
             }
 
             "returns the media id of a shorts url" {
                 // when
-                val actual = adapter().find("https://youtube.com/shorts/$MEDIA_ID")
+                val actual = adapter().resolveId("https://youtube.com/shorts/$MEDIA_ID")
 
                 // then
-                actual shouldBe FindResult.Found(MEDIA_ID)
+                actual shouldBe ResolveIdResult.Found(MEDIA_ID)
             }
 
             "returns the media id of an embed url" {
                 // when
-                val actual = adapter().find("https://www.youtube.com/embed/$MEDIA_ID")
+                val actual = adapter().resolveId("https://www.youtube.com/embed/$MEDIA_ID")
 
                 // then
-                actual shouldBe FindResult.Found(MEDIA_ID)
+                actual shouldBe ResolveIdResult.Found(MEDIA_ID)
             }
 
             "ignores query parameters and fragments around the id" {
                 // when
-                val actual = adapter().find("https://www.youtube.com/watch?feature=share&v=$MEDIA_ID&t=42s#top")
+                val actual = adapter().resolveId("https://www.youtube.com/watch?feature=share&v=$MEDIA_ID&t=42s#top")
 
                 // then
-                actual shouldBe FindResult.Found(MEDIA_ID)
+                actual shouldBe ResolveIdResult.Found(MEDIA_ID)
             }
 
             "decodes a url without a scheme" {
                 // when
-                val actual = adapter().find("m.youtube.com/watch?v=$MEDIA_ID")
+                val actual = adapter().resolveId("m.youtube.com/watch?v=$MEDIA_ID")
 
                 // then
-                actual shouldBe FindResult.Found(MEDIA_ID)
+                actual shouldBe ResolveIdResult.Found(MEDIA_ID)
             }
 
             "returns Unsupported for a url of another host" {
                 // when
-                val actual = adapter().find("https://vimeo.com/$MEDIA_ID")
+                val actual = adapter().resolveId("https://vimeo.com/$MEDIA_ID")
 
                 // then
-                actual shouldBe FindResult.Unsupported
+                actual shouldBe ResolveIdResult.Unsupported
             }
 
             "returns Unsupported for an input that is not a url" {
                 // when
-                val actual = adapter().find("not a url at all")
+                val actual = adapter().resolveId("not a url at all")
 
                 // then
-                actual shouldBe FindResult.Unsupported
+                actual shouldBe ResolveIdResult.Unsupported
             }
 
             "returns NotFound for a watch url without an id" {
                 // when
-                val actual = adapter().find("https://www.youtube.com/watch?feature=share")
+                val actual = adapter().resolveId("https://www.youtube.com/watch?feature=share")
 
                 // then
-                actual shouldBe FindResult.NotFound
+                actual shouldBe ResolveIdResult.NotFound
             }
 
             "returns NotFound for a shorts url without an id" {
                 // when
-                val actual = adapter().find("https://youtube.com/shorts/")
+                val actual = adapter().resolveId("https://youtube.com/shorts/")
 
                 // then
-                actual shouldBe FindResult.NotFound
+                actual shouldBe ResolveIdResult.NotFound
             }
 
             "returns NotFound for a short url without an id" {
                 // when
-                val actual = adapter().find("https://youtu.be/")
+                val actual = adapter().resolveId("https://youtu.be/")
 
                 // then
-                actual shouldBe FindResult.NotFound
+                actual shouldBe ResolveIdResult.NotFound
             }
         }
     })

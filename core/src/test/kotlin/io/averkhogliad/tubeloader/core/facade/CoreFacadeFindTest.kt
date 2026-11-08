@@ -1,19 +1,33 @@
 package io.averkhogliad.tubeloader.core.facade
 
-import io.averkhogliad.tubeloader.core.ResolveResult
+import io.averkhogliad.tubeloader.adapters.rutube.MEDIA_ID
+import io.averkhogliad.tubeloader.adapters.rutube.RutubeSourceAdapter
+import io.averkhogliad.tubeloader.adapters.rutube.rutubeRecordedHttp
+import io.averkhogliad.tubeloader.core.MediaResult
 import io.averkhogliad.tubeloader.core.adapter.FakeSourceAdapter
-import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
+import io.averkhogliad.tubeloader.core.config.AppConfig
+import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.domain.MediaRef
-import io.averkhogliad.tubeloader.core.domain.SourceId
+import io.averkhogliad.tubeloader.core.domain.Source
+import io.averkhogliad.tubeloader.core.download.DownloadQueue
+import io.averkhogliad.tubeloader.core.download.RandomTaskIdGenerator
+import io.averkhogliad.tubeloader.core.download.downloadErrors
 import io.averkhogliad.tubeloader.core.download.mediaMetas
+import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.next
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CoreFacadeFindTest :
@@ -24,20 +38,23 @@ class CoreFacadeFindTest :
         afterSpec { cleanUp(tempDir) }
 
         "findByUrl" - {
-            "returns Resolved with the id and source when one adapter claims the input" {
+            "returns Found with the ref and the meta when one adapter claims the input" {
                 runTest {
                     // given
-                    val mediaId = mediaIds.next()
+                    val meta = Arb.mediaMetas().next()
+                    val mediaId = meta.id
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
+                    world.adapters.single().onFindById = { LoadMetaResult.Found(meta) }
 
                     // when
                     val actual = world.facade.findByUrl(inputs.next())
 
                     // then
                     actual shouldBe
-                        ResolveResult.Resolved(
+                        MediaResult.Found(
                             MediaRef(world.facade.availableSources.single(), mediaId),
+                            meta,
                         )
                 }
             }
@@ -46,13 +63,13 @@ class CoreFacadeFindTest :
                 runTest {
                     // given
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Unsupported }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Unsupported }
 
                     // when
                     val actual = world.facade.findByUrl(inputs.next())
 
                     // then
-                    actual shouldBe ResolveResult.Unsupported
+                    actual shouldBe MediaResult.Unsupported
                 }
             }
 
@@ -60,24 +77,59 @@ class CoreFacadeFindTest :
                 runTest {
                     // given
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.NotFound }
+                    world.adapters.single().onResolveId = { ResolveIdResult.NotFound }
 
                     // when
                     val actual = world.facade.findByUrl(inputs.next())
 
                     // then
-                    actual shouldBe ResolveResult.NotFound
+                    actual shouldBe MediaResult.NotFound
+                }
+            }
+
+            "returns NotFound when the source has no such media" {
+                runTest {
+                    // given
+                    val mediaId = mediaIds.next()
+                    val world = facadeWorld(tempDir)
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
+                    world.adapters.single().onFindById = { LoadMetaResult.NotFound }
+
+                    // when
+                    val actual = world.facade.findByUrl(inputs.next())
+
+                    // then
+                    actual shouldBe MediaResult.NotFound
+                }
+            }
+
+            "returns Failed with the error the source answered with" {
+                runTest {
+                    // given
+                    val error = Arb.downloadErrors().next()
+                    val mediaId = mediaIds.next()
+                    val world = facadeWorld(tempDir)
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
+                    world.adapters.single().onFindById = { LoadMetaResult.Failed(error) }
+
+                    // when
+                    val actual = world.facade.findByUrl(inputs.next())
+
+                    // then
+                    actual shouldBe MediaResult.Failed(error)
                 }
             }
 
             "routes to the matching adapter among several" {
                 runTest {
                     // given
-                    val first = FakeSourceAdapter(displayName = "alpha")
-                    val second = FakeSourceAdapter(displayName = "beta")
-                    first.onFind = { FindResult.Unsupported }
+                    val first = FakeSourceAdapter(code = "alpha")
+                    val second = FakeSourceAdapter(code = "beta")
+                    first.onResolveId = { ResolveIdResult.Unsupported }
                     val mediaId = mediaIds.next()
-                    second.onFind = { FindResult.Found(mediaId) }
+                    second.onResolveId = { ResolveIdResult.Found(mediaId) }
+                    val meta = Arb.mediaMetas().next()
+                    second.onFindById = { LoadMetaResult.Found(meta) }
                     val world = facadeWorld(tempDir, FacadeSettings(adapters = listOf(first, second)))
 
                     // when
@@ -85,8 +137,9 @@ class CoreFacadeFindTest :
 
                     // then
                     actual shouldBe
-                        ResolveResult.Resolved(
+                        MediaResult.Found(
                             MediaRef(world.facade.availableSources[1], mediaId),
+                            meta,
                         )
                 }
             }
@@ -94,10 +147,10 @@ class CoreFacadeFindTest :
             "throws on ambiguous match by two adapters" {
                 runTest {
                     // given
-                    val first = FakeSourceAdapter(displayName = "alpha")
-                    val second = FakeSourceAdapter(displayName = "beta")
-                    first.onFind = { FindResult.Found("id-1") }
-                    second.onFind = { FindResult.Found("id-2") }
+                    val first = FakeSourceAdapter(code = "alpha")
+                    val second = FakeSourceAdapter(code = "beta")
+                    first.onResolveId = { ResolveIdResult.Found("id-1") }
+                    second.onResolveId = { ResolveIdResult.Found("id-2") }
                     val world = facadeWorld(tempDir, FacadeSettings(adapters = listOf(first, second)))
 
                     // when + then
@@ -110,85 +163,145 @@ class CoreFacadeFindTest :
             "prefers NotFound over Unsupported when both occur" {
                 runTest {
                     // given
-                    val first = FakeSourceAdapter(displayName = "alpha")
-                    val second = FakeSourceAdapter(displayName = "beta")
-                    first.onFind = { FindResult.Unsupported }
-                    second.onFind = { FindResult.NotFound }
+                    val first = FakeSourceAdapter(code = "alpha")
+                    val second = FakeSourceAdapter(code = "beta")
+                    first.onResolveId = { ResolveIdResult.Unsupported }
+                    second.onResolveId = { ResolveIdResult.NotFound }
                     val world = facadeWorld(tempDir, FacadeSettings(adapters = listOf(first, second)))
 
                     // when
                     val actual = world.facade.findByUrl(inputs.next())
 
                     // then
-                    actual shouldBe ResolveResult.NotFound
+                    actual shouldBe MediaResult.NotFound
                 }
             }
         }
 
         "findById" - {
-            "returns Resolved when the named adapter recognizes the id" {
+            "returns Found with the ref and the meta of the named source" {
                 runTest {
                     // given
-                    val first = FakeSourceAdapter(displayName = "alpha")
-                    val second = FakeSourceAdapter(displayName = "beta")
-                    first.onFind = { FindResult.Unsupported }
+                    val first = FakeSourceAdapter(code = "alpha")
+                    val second = FakeSourceAdapter(code = "beta")
                     val mediaId = mediaIds.next()
-                    second.onFind = { FindResult.Found(mediaId) }
+                    val meta = Arb.mediaMetas().next()
+                    second.onFindById = { LoadMetaResult.Found(meta) }
                     val world = facadeWorld(tempDir, FacadeSettings(adapters = listOf(first, second)))
                     val secondSource = world.facade.availableSources[1]
 
                     // when
-                    val actual = world.facade.findById(secondSource.id, mediaId)
+                    val actual = world.facade.findById(secondSource.code, mediaId)
 
                     // then
-                    actual shouldBe ResolveResult.Resolved(MediaRef(secondSource, mediaId))
+                    actual shouldBe MediaResult.Found(MediaRef(secondSource, mediaId), meta)
                 }
             }
 
-            "throws on unknown source id" {
+            "asks the adapter of the code for the media id, without reading it as a url" {
+                runTest {
+                    // given
+                    val mediaId = mediaIds.next()
+                    val requested = mutableListOf<String>()
+                    val world = facadeWorld(tempDir)
+                    world.adapters.single().onResolveId = { ResolveIdResult.Unsupported }
+                    world.adapters.single().onFindById = { id ->
+                        requested += id
+                        LoadMetaResult.NotFound
+                    }
+                    val source = world.facade.availableSources.single()
+
+                    // when
+                    world.facade.findById(source.code, mediaId)
+
+                    // then
+                    requested shouldBe listOf(mediaId)
+                }
+            }
+
+            "returns NotFound when the source has no such media" {
+                runTest {
+                    // given
+                    val world = facadeWorld(tempDir)
+                    world.adapters.single().onFindById = { LoadMetaResult.NotFound }
+                    val source = world.facade.availableSources.single()
+
+                    // when
+                    val actual = world.facade.findById(source.code, mediaIds.next())
+
+                    // then
+                    actual shouldBe MediaResult.NotFound
+                }
+            }
+
+            "returns Failed with the error the source answered with" {
+                runTest {
+                    // given
+                    val error = Arb.downloadErrors().next()
+                    val world = facadeWorld(tempDir)
+                    world.adapters.single().onFindById = { LoadMetaResult.Failed(error) }
+                    val source = world.facade.availableSources.single()
+
+                    // when
+                    val actual = world.facade.findById(source.code, mediaIds.next())
+
+                    // then
+                    actual shouldBe MediaResult.Failed(error)
+                }
+            }
+
+            "throws on unknown source code" {
                 runTest {
                     // given
                     val world = facadeWorld(tempDir)
 
                     // when + then
                     shouldThrow<IllegalStateException> {
-                        world.facade.findById(SourceId(99), mediaIds.next())
+                        world.facade.findById("nowhere", mediaIds.next())
                     }
+                }
+            }
+
+            "works with a real adapter: the id is not read as a url" {
+                runTest {
+                    // given
+                    val adapter =
+                        RutubeSourceAdapter(rutubeRecordedHttp(), FakeMediaTool()) {
+                            HttpToolConfig(perAttemptTimeout = 30.seconds)
+                        }
+                    val queue =
+                        DownloadQueue(
+                            backgroundScope,
+                            UnconfinedTestDispatcher(testScheduler),
+                            UnconfinedTestDispatcher(testScheduler),
+                            MutableStateFlow(AppConfig(httpTool = testHttpTool)),
+                        )
+                    val facade = CoreFacade(mapOf("rutube" to adapter), queue, RandomTaskIdGenerator, Clock.System)
+
+                    // when
+                    val actual = facade.findById("rutube", MEDIA_ID)
+
+                    // then
+                    val found = actual.shouldBeInstanceOf<MediaResult.Found>()
+                    found.ref shouldBe MediaRef(Source("rutube", "Rutube"), MEDIA_ID)
+                    found.meta.id shouldBe MEDIA_ID
                 }
             }
         }
 
-        "loadMeta" - {
-            "returns metadata from the resolved adapter" {
+        "availableSources" - {
+            "holds the code and the name of every registered source" {
                 runTest {
                     // given
-                    val meta = Arb.mediaMetas().next()
-                    val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(meta.id) }
-                    world.adapters.single().onLoadMeta = { LoadMetaResult.Found(meta) }
-                    val ref = world.resolve(meta.id)
+                    val first = FakeSourceAdapter(code = "alpha")
+                    val second = FakeSourceAdapter(code = "beta", displayName = "Beta")
+                    val world = facadeWorld(tempDir, FacadeSettings(adapters = listOf(first, second)))
 
                     // when
-                    val actual = world.facade.loadMeta(ref)
+                    val actual = world.facade.availableSources
 
                     // then
-                    actual shouldBe LoadMetaResult.Found(meta)
-                }
-            }
-
-            "returns NotFound when the adapter has no such media" {
-                runTest {
-                    // given
-                    val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(mediaIds.next()) }
-                    world.adapters.single().onLoadMeta = { LoadMetaResult.NotFound }
-                    val ref = world.resolve(mediaIds.next())
-
-                    // when
-                    val actual = world.facade.loadMeta(ref)
-
-                    // then
-                    actual shouldBe LoadMetaResult.NotFound
+                    actual.map { it.code to it.displayName } shouldBe listOf("alpha" to "alpha", "beta" to "Beta")
                 }
             }
         }

@@ -54,14 +54,14 @@ class YoutubeErrorTaxonomyTest :
             roots.forEach { deleteWithRetry(it) }
         }
 
-        "loadMeta" - {
+        "findById" - {
             TAXONOMY.forEach { case ->
                 "reads ${case.fixture} as ${case.expected}" {
                     // given
                     val adapter = failingAdapter(case.fixture)
 
                     // when
-                    val actual = adapter.loadMeta(MEDIA_ID)
+                    val actual = adapter.findById(MEDIA_ID)
 
                     // then
                     actual shouldBe LoadMetaResult.Failed(case.expected)
@@ -73,7 +73,7 @@ class YoutubeErrorTaxonomyTest :
                 val adapter = failingAdapter("error-antibot.txt", exitCode = 2)
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.AntiBotBlocked)
@@ -84,7 +84,7 @@ class YoutubeErrorTaxonomyTest :
                 val adapter = youtubeAdapter(reply = ToolReply(exitedWith = 1))
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
@@ -95,7 +95,7 @@ class YoutubeErrorTaxonomyTest :
                 val adapter = adapterOver(YOUTUBE_SETTINGS) { _ -> throw IOException("binary not found") }
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
@@ -106,7 +106,7 @@ class YoutubeErrorTaxonomyTest :
                 val adapter = adapterOver(YOUTUBE_SETTINGS) { _ -> throw IOException("binary not found") }
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
@@ -136,7 +136,7 @@ class YoutubeErrorTaxonomyTest :
                 val transferred =
                     failingAdapter("error-antibot.txt", settings = world.settings)
                         .download(MEDIA_ID, QUALITY, world.target) {}
-                val resolved = failingAdapter("error-antibot.txt").loadMeta(MEDIA_ID)
+                val resolved = failingAdapter("error-antibot.txt").findById(MEDIA_ID)
 
                 // then
                 transferred shouldBe DownloadResult.Failed(DownloadError.AntiBotBlocked)

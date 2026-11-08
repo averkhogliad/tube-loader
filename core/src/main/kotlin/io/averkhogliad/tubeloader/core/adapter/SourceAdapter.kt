@@ -12,13 +12,15 @@ enum class DownloadCapability {
     ResolveOnly,
 }
 
-sealed interface FindResult {
+sealed interface ResolveIdResult {
 
-    data class Found(val mediaId: String) : FindResult
+    data class Found(val mediaId: String) : ResolveIdResult
 
-    data object Unsupported : FindResult
+    /** The input does not belong to the source. */
+    data object Unsupported : ResolveIdResult
 
-    data object NotFound : FindResult
+    /** The source recognized its own url, but no media id came out of it. */
+    data object NotFound : ResolveIdResult
 }
 
 sealed interface LoadMetaResult {
@@ -36,9 +38,18 @@ interface SourceAdapter {
 
     val displayName: String
 
-    suspend fun find(input: String): FindResult
+    /**
+     * The media id of the url of the source, read without the network: `Unsupported` when the input
+     * does not belong to the source, `NotFound` when the source recognized its own url but named no
+     * media in it.
+     */
+    suspend fun resolveId(input: String): ResolveIdResult
 
-    suspend fun loadMeta(id: String): LoadMetaResult
+    /**
+     * The data of a media item of the source, read from the source itself: the id is the one the
+     * source named, not a url to be parsed again.
+     */
+    suspend fun findById(id: String): LoadMetaResult
 
     suspend fun download(
         mediaId: String,

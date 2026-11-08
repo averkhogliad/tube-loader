@@ -28,16 +28,16 @@ private val EXPECTED_META =
             ),
     )
 
-class YoutubeLoadMetaTest :
+class YoutubeFindByIdTest :
     FreeSpec({
 
-        "loadMeta" - {
+        "findById" - {
             "returns Found with the meta parsed from the recording" {
                 // given
                 val adapter = youtubeAdapter(reply = ToolReply(output = goldenText("meta.json")))
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Found(EXPECTED_META)
@@ -49,7 +49,7 @@ class YoutubeLoadMetaTest :
                 val adapter = youtubeAdapter(launches = launches, reply = ToolReply(output = goldenText("meta.json")))
 
                 // when
-                adapter.loadMeta(MEDIA_ID)
+                adapter.findById(MEDIA_ID)
 
                 // then
                 launches.single().command shouldBe
@@ -67,7 +67,7 @@ class YoutubeLoadMetaTest :
                 val adapter = youtubeAdapter(reply = ToolReply(output = goldenText("meta-sparse.json")))
 
                 // when
-                val actual = adapter.loadMeta("sparse-1")
+                val actual = adapter.findById("sparse-1")
 
                 // then
                 val found = actual.shouldBeInstanceOf<LoadMetaResult.Found>()
@@ -83,7 +83,7 @@ class YoutubeLoadMetaTest :
                     youtubeAdapter(reply = ToolReply(exitedWith = 1, error = goldenText("error-unavailable.txt")))
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.NotFound)
@@ -95,7 +95,7 @@ class YoutubeLoadMetaTest :
                     youtubeAdapter(reply = ToolReply(exitedWith = 1, error = goldenText("error-network.txt")))
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
@@ -107,7 +107,7 @@ class YoutubeLoadMetaTest :
                 val adapter = youtubeAdapter(settings = settings, reply = ToolReply(exits = false))
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
@@ -118,7 +118,7 @@ class YoutubeLoadMetaTest :
                 val adapter = youtubeAdapter(reply = ToolReply(output = goldenText("meta-broken.txt")))
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
@@ -129,7 +129,7 @@ class YoutubeLoadMetaTest :
                 val adapter = youtubeAdapter(reply = ToolReply(output = goldenText("meta-no-qualities.json")))
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
@@ -140,7 +140,7 @@ class YoutubeLoadMetaTest :
                 val adapter = youtubeAdapter(reply = ToolReply(output = goldenText("meta-foreign.json")))
 
                 // when
-                val actual = adapter.loadMeta(MEDIA_ID)
+                val actual = adapter.findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)

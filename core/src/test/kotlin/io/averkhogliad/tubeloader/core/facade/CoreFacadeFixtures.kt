@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.core.facade
 
 import io.averkhogliad.tubeloader.core.adapter.FakeSourceAdapter
+import io.averkhogliad.tubeloader.core.adapter.adaptersByCode
 import io.averkhogliad.tubeloader.core.config.AppConfig
 import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.deleteWithRetry
@@ -134,7 +135,13 @@ internal fun facadeWorld(
     val scope = CoroutineScope(dispatcher)
     val config = MutableStateFlow(settings.initialConfig)
     val queue = DownloadQueue(scope, dispatcher, workContext, config)
-    val facade = CoreFacade(settings.adapters, queue, settings.taskIdGenerator, settings.clock)
+    val facade =
+        CoreFacade(
+            adaptersByCode(settings.adapters.map { it.code to it }),
+            queue,
+            settings.taskIdGenerator,
+            settings.clock,
+        )
     val world = FacadeWorld(tempDir, settings.adapters, config, scope, queue, facade)
     synchronized(worldsByDir) { worldsByDir.getOrPut(world.tempDir) { mutableListOf() } += world }
     return world

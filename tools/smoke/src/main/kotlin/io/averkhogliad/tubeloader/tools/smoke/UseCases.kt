@@ -4,9 +4,8 @@ import io.averkhogliad.tubeloader.core.facade.CoreFacade
 import io.averkhogliad.tubeloader.core.usecase.CancelDownload
 import io.averkhogliad.tubeloader.core.usecase.DownloadTracker
 import io.averkhogliad.tubeloader.core.usecase.EnqueueDownload
-import io.averkhogliad.tubeloader.core.usecase.LoadMedia
 import io.averkhogliad.tubeloader.core.usecase.ObserveDownloads
-import io.averkhogliad.tubeloader.core.usecase.ResolveUrl
+import io.averkhogliad.tubeloader.core.usecase.ResolveMedia
 import io.averkhogliad.tubeloader.core.usecase.UseCaseShutdown
 import java.nio.file.Path
 import kotlin.time.Duration
@@ -15,8 +14,7 @@ internal class UseCases(facade: CoreFacade, shutdownRequest: suspend (Duration) 
 
     private val tracker = DownloadTracker()
 
-    val resolveUrl = ResolveUrl(facade)
-    val loadMedia = LoadMedia(facade)
+    val resolveMedia = ResolveMedia(facade)
     val enqueueDownload = EnqueueDownload(facade, tracker)
     val cancelDownload = CancelDownload(tracker)
     val observeDownloads = ObserveDownloads(tracker)

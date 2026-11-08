@@ -2,8 +2,8 @@ package io.averkhogliad.tubeloader.adapters.youtube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadCapability
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
 import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.averkhogliad.tubeloader.core.domain.DownloadError
@@ -49,17 +49,17 @@ class YoutubeSourceAdapter internal constructor(
 
     override val displayName: String = "YouTube"
 
-    override suspend fun find(input: String): FindResult {
+    override suspend fun resolveId(input: String): ResolveIdResult {
         val url = runCatching { URI(withScheme(input.trim())) }.getOrNull()
-        val host = url?.host ?: return FindResult.Unsupported
+        val host = url?.host ?: return ResolveIdResult.Unsupported
         return when {
             SHORT_HOST.matches(host) -> found(url.path?.trim('/'))
             YOUTUBE_HOST.matches(host) -> found(mediaIdOf(url))
-            else -> FindResult.Unsupported
+            else -> ResolveIdResult.Unsupported
         }
     }
 
-    override suspend fun loadMeta(id: String): LoadMetaResult {
+    override suspend fun findById(id: String): LoadMetaResult {
         val settings = config()
         val result =
             retry(policyOf(settings)) {
@@ -109,8 +109,8 @@ class YoutubeSourceAdapter internal constructor(
             .firstOrNull { it.size == 2 && it[0] == ID_PARAM }
             ?.get(1)
 
-    private fun found(id: String?): FindResult =
-        id?.takeIf { MEDIA_ID.matches(it) }?.let(FindResult::Found) ?: FindResult.NotFound
+    private fun found(id: String?): ResolveIdResult =
+        id?.takeIf { MEDIA_ID.matches(it) }?.let(ResolveIdResult::Found) ?: ResolveIdResult.NotFound
 
     private fun withScheme(input: String): String =
         if (input.contains(SCHEME_SEPARATOR)) input else DEFAULT_SCHEME + input.trimStart('/')

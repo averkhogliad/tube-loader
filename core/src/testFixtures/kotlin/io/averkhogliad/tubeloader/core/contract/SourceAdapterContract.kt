@@ -1,8 +1,8 @@
 package io.averkhogliad.tubeloader.core.contract
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.Progress
@@ -50,14 +50,14 @@ fun sourceAdapterContract(
             deleteWithRetry(tempDir)
         }
 
-        "find" - {
-            fixtures.find.forEach { case ->
+        "resolveId" - {
+            fixtures.resolveId.forEach { case ->
                 case.name {
                     // given
                     val adapter = create()
 
                     // when
-                    val actual = adapter.find(case.input)
+                    val actual = adapter.resolveId(case.input)
 
                     // then
                     actual shouldBe case.expected
@@ -67,12 +67,12 @@ fun sourceAdapterContract(
             "covers both a matched and an unmatched outcome" {
                 // given
                 val adapter = create()
-                val matched = fixtures.find.first { it.expected is FindResult.Found }
-                val unmatched = fixtures.find.first { it.expected is FindResult.Unsupported }
+                val matched = fixtures.resolveId.first { it.expected is ResolveIdResult.Found }
+                val unmatched = fixtures.resolveId.first { it.expected is ResolveIdResult.Unsupported }
 
                 // when
-                val matchedActual = adapter.find(matched.input)
-                val unmatchedActual = adapter.find(unmatched.input)
+                val matchedActual = adapter.resolveId(matched.input)
+                val unmatchedActual = adapter.resolveId(unmatched.input)
 
                 // then
                 matchedActual shouldBe matched.expected
@@ -85,21 +85,21 @@ fun sourceAdapterContract(
                 val unrouted = "https://unrecorded.example/watch?v=nothing-recorded"
 
                 // when
-                val actual = adapter.find(unrouted)
+                val actual = adapter.resolveId(unrouted)
 
                 // then
-                actual shouldBe FindResult.Unsupported
+                actual shouldBe ResolveIdResult.Unsupported
             }
         }
 
-        "loadMeta" - {
+        "findById" - {
             fixtures.meta.forEach { case ->
                 case.name {
                     // given
                     val adapter = create()
 
                     // when
-                    val actual = adapter.loadMeta(case.id)
+                    val actual = adapter.findById(case.id)
 
                     // then
                     actual shouldBe case.expected
@@ -113,7 +113,7 @@ fun sourceAdapterContract(
                 val reference = case.expected as LoadMetaResult.Found
 
                 // when
-                val actual = adapter.loadMeta(case.id).shouldBeInstanceOf<LoadMetaResult.Found>()
+                val actual = adapter.findById(case.id).shouldBeInstanceOf<LoadMetaResult.Found>()
 
                 // then
                 actual.meta.id shouldBe reference.meta.id

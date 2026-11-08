@@ -33,7 +33,7 @@ private fun adapter(body: String) =
 class RutubePayloadTest :
     FreeSpec({
 
-        "loadMeta" - {
+        "findById" - {
             "reads the fields it needs out of a payload that carries a dozen others" {
                 // given
                 val body =
@@ -58,7 +58,7 @@ class RutubePayloadTest :
                     """.trimIndent()
 
                 // when
-                val actual = adapter(body).loadMeta(MEDIA_ID)
+                val actual = adapter(body).findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Found(expectedMeta)
@@ -69,7 +69,7 @@ class RutubePayloadTest :
                 val body = "not json at all"
 
                 // when
-                val actual = adapter(body).loadMeta(MEDIA_ID)
+                val actual = adapter(body).findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)

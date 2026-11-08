@@ -24,15 +24,37 @@ class CliArgsTest :
                 actual.cancelAfter shouldBe null
             }
 
-            "reads the id and name pair" {
+            "reads the code, the id and the name of a target" {
                 // given
-                val rawArgs = arrayOf("-id", "abc", "-name", "clip")
+                val rawArgs = arrayOf("-id", "rutube:abc", "-name", "clip")
 
                 // when
                 val actual = parseCli(rawArgs)
 
                 // then
-                actual.targets shouldBe listOf(SmokeTarget("https://rutube.ru/video/abc/", "clip"))
+                actual.targets shouldBe listOf(SmokeTarget.ById("rutube", "abc", "clip"))
+            }
+
+            "lowercases the code and keeps the id as it is" {
+                // given
+                val rawArgs = arrayOf("-id", "YouTube:AbC123", "-name", "clip")
+
+                // when
+                val actual = parseCli(rawArgs)
+
+                // then
+                actual.targets shouldBe listOf(SmokeTarget.ById("youtube", "AbC123", "clip"))
+            }
+
+            "splits the code and the id at the first colon" {
+                // given
+                val rawArgs = arrayOf("-id", "youtube:abc:def", "-name", "clip")
+
+                // when
+                val actual = parseCli(rawArgs)
+
+                // then
+                actual.targets shouldBe listOf(SmokeTarget.ById("youtube", "abc:def", "clip"))
             }
 
             "reads a rutube url as a target" {
@@ -43,7 +65,7 @@ class CliArgsTest :
                 val actual = parseCli(rawArgs)
 
                 // then
-                actual.targets shouldBe listOf(SmokeTarget("https://rutube.ru/video/abc123/", null))
+                actual.targets shouldBe listOf(SmokeTarget.ByUrl("https://rutube.ru/video/abc123/"))
             }
 
             "reads a youtube url as a target" {
@@ -54,12 +76,12 @@ class CliArgsTest :
                 val actual = parseCli(rawArgs)
 
                 // then
-                actual.targets shouldBe listOf(SmokeTarget("https://www.youtube.com/watch?v=abc123", null))
+                actual.targets shouldBe listOf(SmokeTarget.ByUrl("https://www.youtube.com/watch?v=abc123"))
             }
 
             "reads several targets" {
                 // given
-                val rawArgs = arrayOf("https://rutube.ru/video/abc123/", "-id", "def", "-name", "clip")
+                val rawArgs = arrayOf("https://rutube.ru/video/abc123/", "-id", "rutube:def", "-name", "clip")
 
                 // when
                 val actual = parseCli(rawArgs)
@@ -67,8 +89,8 @@ class CliArgsTest :
                 // then
                 actual.targets shouldBe
                     listOf(
-                        SmokeTarget("https://rutube.ru/video/abc123/", null),
-                        SmokeTarget("https://rutube.ru/video/def/", "clip"),
+                        SmokeTarget.ByUrl("https://rutube.ru/video/abc123/"),
+                        SmokeTarget.ById("rutube", "def", "clip"),
                     )
             }
 
@@ -93,6 +115,36 @@ class CliArgsTest :
                 }
             }
 
+            "rejects an id without a code of the source" {
+                // given
+                val rawArgs = arrayOf("-id", "abc123")
+
+                // when + then
+                shouldThrow<IllegalStateException> {
+                    parseCli(rawArgs)
+                }
+            }
+
+            "rejects an id without a name of the file" {
+                // given
+                val rawArgs = arrayOf("-id", "rutube:abc123")
+
+                // when + then
+                shouldThrow<IllegalStateException> {
+                    parseCli(rawArgs)
+                }
+            }
+
+            "rejects a name without an id" {
+                // given
+                val rawArgs = arrayOf("-name", "clip")
+
+                // when + then
+                shouldThrow<IllegalStateException> {
+                    parseCli(rawArgs)
+                }
+            }
+
             "rejects a cancel-after delay that is not a number" {
                 // given
                 val rawArgs = arrayOf("-cancel-after", "soon")
@@ -101,6 +153,17 @@ class CliArgsTest :
                 shouldThrow<IllegalStateException> {
                     parseCli(rawArgs)
                 }
+            }
+
+            "tells the usage in the error of a malformed id" {
+                // given
+                val rawArgs = arrayOf("-id", "abc123")
+
+                // when
+                val failure = shouldThrow<IllegalStateException> { parseCli(rawArgs) }
+
+                // then
+                failure.message!! shouldContain "Usage:"
             }
         }
 
@@ -111,6 +174,14 @@ class CliArgsTest :
 
                 // when + then
                 usage shouldContain DEFAULT_TARGET_DIR
+            }
+
+            "names the code and the id of a target" {
+                // given
+                val usage = CliUsage.USAGE
+
+                // when + then
+                usage shouldContain "<code>:<mediaId>"
             }
         }
     })

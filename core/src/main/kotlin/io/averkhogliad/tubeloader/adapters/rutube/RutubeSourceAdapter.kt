@@ -2,8 +2,8 @@ package io.averkhogliad.tubeloader.adapters.rutube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadCapability
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
 import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.domain.DownloadError
@@ -80,13 +80,14 @@ class RutubeSourceAdapter(
 
     override val displayName: String = "Rutube"
 
-    override suspend fun find(input: String): FindResult {
+    override suspend fun resolveId(input: String): ResolveIdResult {
         val url = runCatching { URI(input) }.getOrNull()
-        val id = url?.host?.takeIf { HOST.matches(it) }?.let { mediaIdOf(url.path) }
-        return if (id != null && MEDIA_ID.matches(id)) FindResult.Found(id) else FindResult.Unsupported
+        val host = url?.host?.takeIf { HOST.matches(it) } ?: return ResolveIdResult.Unsupported
+        val id = mediaIdOf(url.path)
+        return if (id != null && MEDIA_ID.matches(id)) ResolveIdResult.Found(id) else ResolveIdResult.NotFound
     }
 
-    override suspend fun loadMeta(id: String): LoadMetaResult {
+    override suspend fun findById(id: String): LoadMetaResult {
         val body = openWithRetry(http, optionsUrl(id), config()).getOrNull()
         if (body == null) return LoadMetaResult.Failed(DownloadError.NetworkTransient)
         return try {

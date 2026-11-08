@@ -6,6 +6,7 @@ import io.averkhogliad.tubeloader.config.Config
 import io.averkhogliad.tubeloader.config.ConfigProvider
 import io.averkhogliad.tubeloader.config.defaultSources
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
+import io.averkhogliad.tubeloader.core.adapter.adaptersByCode
 import io.averkhogliad.tubeloader.core.config.AppConfig
 import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.config.MediaToolConfig
@@ -43,6 +44,9 @@ private val DEFAULT_TARGETS: List<SmokeTarget> = listOf()
 
 private val SHUTDOWN_BUDGET = 30.seconds
 
+internal const val RUTUBE_CODE = "rutube"
+internal const val YOUTUBE_CODE = "youtube"
+
 internal class SmokeComposition(
     val session: SmokeSession,
     val stderr: LineSinkStream,
@@ -62,6 +66,7 @@ private fun runScript(targets: List<SmokeTarget>, targetDir: Path, parallel: Int
     val composition = buildComposition(targetDir, parallel)
     val session = composition.session
     try {
+        checkSourceCodes(session, targets)
         runBlocking {
             val observerJob = launch { session.observer.observe() }
             val cancelJob = launchCancelJobs(session, cancelAfter)
@@ -141,7 +146,8 @@ private fun buildComposition(targetDir: Path, parallel: Int): SmokeComposition {
 }
 
 /**
- * The sources the smoke routes to: every adapter the tool knows, built by hand.
+ * The sources the smoke routes to: every adapter the tool knows, built by hand, under the code that
+ * names the source.
  *
  * The graph of the application itself is a stage of its own — this tool only proves that the pieces
  * fit together, so every dependency is named here instead of being injected.
@@ -151,11 +157,51 @@ internal fun smokeSources(
     mediaTool: MediaTool,
     httpToolConfig: HttpToolConfig,
     ytDlpConfig: YtDlpConfig,
-): List<SourceAdapter> =
-    listOf(
-        RutubeSourceAdapter(httpTool, mediaTool) { httpToolConfig },
-        YoutubeSourceAdapter { ytDlpConfig },
+): Map<String, SourceAdapter> =
+    adaptersByCode(
+        listOf(
+            RUTUBE_CODE to RutubeSourceAdapter(httpTool, mediaTool) { httpToolConfig },
+            YOUTUBE_CODE to YoutubeSourceAdapter { ytDlpConfig },
+        ),
     )
+
+/**
+ * The codes of the targets must be known before the first download starts.
+ *
+ * The list of the sources is known only after the graph is built, so the check lives here and not in
+ * the parsing of the command. The registry of the sources is not duplicated: the codes come from the
+ * facade.
+ */
+internal fun requireKnownSourceCodes(targets: List<SmokeTarget>, knownCodes: List<String>) {
+    val unknown =
+        targets
+            .filterIsInstance<SmokeTarget.ById>()
+            .map { it.code }
+            .distinct()
+            .filter { it !in knownCodes }
+    if (unknown.isEmpty()) return
+    error(
+        "unknown source code: ${unknown.joinToString(", ")}; " +
+            "known codes: ${knownCodes.joinToString(", ")}\n${CliUsage.USAGE}",
+    )
+}
+
+/**
+ * The check of the codes of the targets, printed before the failure leaves the tool.
+ *
+ * The stderr of the tools is routed into the dashboard, so the stack trace of the failure would be
+ * swallowed by the redirect: the answer of the command is printed instead.
+ */
+private fun checkSourceCodes(session: SmokeSession, targets: List<SmokeTarget>) {
+    val resolveMedia = session.useCases.resolveMedia
+    val codes = resolveMedia.sources.map { it.code }
+    try {
+        requireKnownSourceCodes(targets, codes)
+    } catch (failure: IllegalStateException) {
+        session.dashboard.note(failure.message ?: "the command names an unknown source")
+        throw failure
+    }
+}
 
 private fun loadConfig(homeDir: Path): Config {
     val provider = ConfigProvider()

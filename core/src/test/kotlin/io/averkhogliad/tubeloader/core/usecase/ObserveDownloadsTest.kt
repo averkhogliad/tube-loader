@@ -1,9 +1,9 @@
 package io.averkhogliad.tubeloader.core.usecase
 
-import io.averkhogliad.tubeloader.core.ResolveResult
+import io.averkhogliad.tubeloader.core.MediaResult
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.domain.TaskId
 import io.averkhogliad.tubeloader.core.download.DownloadState
 import io.averkhogliad.tubeloader.core.download.DownloadStatus
@@ -74,7 +74,7 @@ class ObserveDownloadsTest :
                     // given
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir, FacadeSettings(clock = steppingClock()))
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val release = CompletableDeferred<Unit>()
                     world.adapters.single().onDownload = { _, _ ->
@@ -112,7 +112,7 @@ class ObserveDownloadsTest :
                                 clock = fixedClock(),
                             ),
                         )
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val release = CompletableDeferred<Unit>()
                     world.adapters.single().onDownload = { _, _ ->
@@ -140,7 +140,7 @@ class ObserveDownloadsTest :
                     // given
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val release = CompletableDeferred<Unit>()
                     world.adapters.single().onDownload = { _, _ ->
@@ -184,7 +184,7 @@ class ObserveDownloadsTest :
                             FacadeSettings(clock = steppingClock()),
                             dispatcher = StandardTestDispatcher(testScheduler),
                         )
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val tracker = DownloadTracker()
                     val enqueue = EnqueueDownload(world.facade, tracker)
@@ -209,18 +209,16 @@ class ObserveDownloadsTest :
                     val mediaId = mediaIds.next()
                     val meta = Arb.mediaMetas().next()
                     val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
-                    world.adapters.single().onLoadMeta = { LoadMetaResult.Found(meta) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
+                    world.adapters.single().onFindById = { LoadMetaResult.Found(meta) }
                     val tracker = DownloadTracker()
-                    val resolve = ResolveUrl(world.facade)
-                    val load = LoadMedia(world.facade)
+                    val resolve = ResolveMedia(world.facade)
                     val enqueue = EnqueueDownload(world.facade, tracker)
                     val observe = ObserveDownloads(tracker)
 
                     // when
                     val resolved = resolve.byUrl(inputs.next())
-                    val ref = resolved.shouldBeInstanceOf<ResolveResult.Resolved>().ref
-                    load.load(ref) shouldBe LoadMetaResult.Found(meta)
+                    val ref = resolved.shouldBeInstanceOf<MediaResult.Found>().ref
                     val handle = enqueue.enqueue(ref, Arb.qualities().next(), world.targetPath())
                     testScheduler.advanceUntilIdle()
 
