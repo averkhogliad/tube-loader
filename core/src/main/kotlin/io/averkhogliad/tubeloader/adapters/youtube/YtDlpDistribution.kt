@@ -46,7 +46,10 @@ internal fun checksumOf(sums: String, assetName: String): String? =
  *
  * [fetch] is the seam of the download: a test hands in its own, so no test reaches the network.
  */
-internal class YtDlpDistribution(private val paths: ToolPaths, private val fetch: (Path) -> Unit = ::fetchManaged) {
+internal class YtDlpDistribution(
+    private val paths: ToolPaths,
+    private val fetch: (Path) -> Unit = { binary -> fetchManaged(binary) },
+) {
 
     private val mutex = Mutex()
 
@@ -71,14 +74,17 @@ internal class YtDlpDistribution(private val paths: ToolPaths, private val fetch
     }
 }
 
+/** Fetches the build of the latest release: what the distribution calls on a miss. */
+private fun fetchManaged(binary: Path) = fetchManaged(binary, YtDlpSource.current())
+
 /**
- * Fetches the official build into [binary] through a temporary file of the same directory: a call
- * that fails half-way leaves no broken binary behind, and a reader never sees a partial one.
+ * Fetches [source] into [binary] through a temporary file of the same directory: a call that fails
+ * half-way leaves no broken binary behind, and a reader never sees a partial one.
+ *
+ * The asset of the source is reached through the redirects of its host: a client that does not
+ * follow them sees the body of a 302 and names no checksum.
  */
-private fun fetchManaged(binary: Path) {
-    val source = YtDlpSource.current()
-    // the release asset of the source is reached through redirects of its host: a client that does
-    // not follow them sees the body of a 302 and names no checksum
+internal fun fetchManaged(binary: Path, source: YtDlpSource) {
     val client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()
     val checksum =
         checksumOf(client.bodyOf(source.checksums), source.assetName)
@@ -166,7 +172,7 @@ private const val PARTIAL_SUFFIX = ".part"
  * Where the official build of the tool lives. The release is the latest one: a stale extractor is
  * the failure this tool exists to avoid.
  */
-private class YtDlpSource(
+internal class YtDlpSource(
     val binary: URI,
     val checksums: URI,
     val assetName: String,
