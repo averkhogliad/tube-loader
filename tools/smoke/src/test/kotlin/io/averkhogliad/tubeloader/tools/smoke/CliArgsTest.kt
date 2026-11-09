@@ -59,29 +59,43 @@ class CliArgsTest :
 
             "reads a rutube url as a target" {
                 // given
-                val rawArgs = arrayOf("https://rutube.ru/video/abc123/")
+                val rawArgs = arrayOf("-url", "https://rutube.ru/video/abc123/", "-name", "clip")
 
                 // when
                 val actual = parseCli(rawArgs)
 
                 // then
-                actual.targets shouldBe listOf(SmokeTarget.ByUrl("https://rutube.ru/video/abc123/"))
+                actual.targets shouldBe listOf(SmokeTarget.ByUrl("https://rutube.ru/video/abc123/", "clip"))
             }
 
             "reads a youtube url as a target" {
                 // given
-                val rawArgs = arrayOf("https://www.youtube.com/watch?v=abc123")
+                val rawArgs = arrayOf("-url", "https://www.youtube.com/watch?v=abc123", "-name", "clip")
 
                 // when
                 val actual = parseCli(rawArgs)
 
                 // then
-                actual.targets shouldBe listOf(SmokeTarget.ByUrl("https://www.youtube.com/watch?v=abc123"))
+                actual.targets shouldBe listOf(SmokeTarget.ByUrl("https://www.youtube.com/watch?v=abc123", "clip"))
             }
 
-            "reads several targets" {
+            "reads several targets, each with a name of its own" {
                 // given
-                val rawArgs = arrayOf("https://rutube.ru/video/abc123/", "-id", "rutube:def", "-name", "clip")
+                val rawArgs =
+                    arrayOf(
+                        "-url",
+                        "https://rutube.ru/video/abc123/",
+                        "-name",
+                        "one",
+                        "-url",
+                        "https://youtu.be/xyz",
+                        "-name",
+                        "two",
+                        "-id",
+                        "rutube:def",
+                        "-name",
+                        "three",
+                    )
 
                 // when
                 val actual = parseCli(rawArgs)
@@ -89,8 +103,9 @@ class CliArgsTest :
                 // then
                 actual.targets shouldBe
                     listOf(
-                        SmokeTarget.ByUrl("https://rutube.ru/video/abc123/"),
-                        SmokeTarget.ById("rutube", "def", "clip"),
+                        SmokeTarget.ByUrl("https://rutube.ru/video/abc123/", "one"),
+                        SmokeTarget.ByUrl("https://youtu.be/xyz", "two"),
+                        SmokeTarget.ById("rutube", "def", "three"),
                     )
             }
 
@@ -105,9 +120,59 @@ class CliArgsTest :
                 actual.cancelAfter shouldBe 7.seconds
             }
 
-            "rejects a target that is not a url" {
+            "rejects an argument that is not a flag" {
                 // given
                 val rawArgs = arrayOf("abc123")
+
+                // when + then
+                shouldThrow<IllegalStateException> {
+                    parseCli(rawArgs)
+                }
+            }
+
+            "rejects a url target without a name" {
+                // given
+                val rawArgs = arrayOf("-url", "https://youtu.be/xyz")
+
+                // when + then
+                shouldThrow<IllegalStateException> {
+                    parseCli(rawArgs)
+                }
+            }
+
+            "rejects a url target whose value is not a url" {
+                // given
+                val rawArgs = arrayOf("-url", "abc123")
+
+                // when + then
+                shouldThrow<IllegalStateException> {
+                    parseCli(rawArgs)
+                }
+            }
+
+            "rejects a url flag without a value" {
+                // given
+                val rawArgs = arrayOf("-url")
+
+                // when + then
+                shouldThrow<IllegalStateException> {
+                    parseCli(rawArgs)
+                }
+            }
+
+            "rejects a name that does not follow its target" {
+                // given
+                val rawArgs = arrayOf("-url", "https://youtu.be/xyz", "-out", "out", "-name", "clip")
+
+                // when + then
+                shouldThrow<IllegalStateException> {
+                    parseCli(rawArgs)
+                }
+            }
+
+            "rejects a name before any target" {
+                // given
+                val rawArgs = arrayOf("-name", "clip")
 
                 // when + then
                 shouldThrow<IllegalStateException> {
@@ -128,16 +193,6 @@ class CliArgsTest :
             "rejects an id without a name of the file" {
                 // given
                 val rawArgs = arrayOf("-id", "rutube:abc123")
-
-                // when + then
-                shouldThrow<IllegalStateException> {
-                    parseCli(rawArgs)
-                }
-            }
-
-            "rejects a name without an id" {
-                // given
-                val rawArgs = arrayOf("-name", "clip")
 
                 // when + then
                 shouldThrow<IllegalStateException> {

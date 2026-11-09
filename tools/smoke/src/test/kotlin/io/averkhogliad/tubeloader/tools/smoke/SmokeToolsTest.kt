@@ -1,7 +1,6 @@
 package io.averkhogliad.tubeloader.tools.smoke
 
 import io.averkhogliad.tubeloader.core.config.ToolPaths
-import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.runBlocking
@@ -10,8 +9,6 @@ import java.nio.file.Path
 
 private val HOME = Path.of("home")
 private val BINARY = Path.of("home", "ffmpeg", "ffmpeg.exe")
-
-private fun ytDlpConfig(): YtDlpConfig = YtDlpConfig(paths = ToolPaths.of(HOME))
 
 class SmokeToolsTest :
     FreeSpec({
@@ -27,7 +24,7 @@ class SmokeToolsTest :
                 // given
                 var fetches = 0
                 val tools =
-                    SmokeTools(ToolPaths.of(HOME), ytDlpConfig(), screen.dashboard) {
+                    SmokeTools(ToolPaths.of(HOME), screen.dashboard) {
                         fetches++
                         Result.success(BINARY)
                     }
@@ -45,7 +42,7 @@ class SmokeToolsTest :
             "reports a tool it cannot obtain as a note and goes on" {
                 // given
                 val failure = IOException("no network")
-                val tools = SmokeTools(ToolPaths.of(HOME), ytDlpConfig(), screen.dashboard) { Result.failure(failure) }
+                val tools = SmokeTools(ToolPaths.of(HOME), screen.dashboard) { Result.failure(failure) }
 
                 // when
                 val actual = runBlocking { tools.ensureFfmpeg() }

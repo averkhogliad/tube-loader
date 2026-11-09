@@ -12,21 +12,16 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotBeBlank
 import org.junit.jupiter.api.Tag
 import java.nio.file.Path
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /** The first video ever uploaded: public and stable enough to resolve by a live tool. */
 private const val LIVE_MEDIA_ID = "jNQXAC9IVRw"
 
-private const val BINARY = "yt-dlp"
-private const val VERSION = "--version"
-
-private const val PROBE_TIMEOUT_SECONDS = 30L
-
 /**
- * Drives the adapter over the real binary. Nothing of the tool is kept in the repository, so a machine
- * without it skips the spec instead of failing it.
+ * Drives the adapter over the real binary. Nothing of the tool is kept in the repository: the adapter
+ * fetches the managed build into the home directory on its first call (ADR-0012), so the spec needs
+ * no binary on the machine and no probe of its own.
  */
 @Tag("integration")
 @Tags("integration")
@@ -34,7 +29,7 @@ class YoutubeSourceAdapterIT :
     FreeSpec({
 
         "findById" - {
-            "resolves the metadata and the video qualities of a live video".config(enabled = LIVE_BINARY_AVAILABLE) {
+            "resolves the metadata and the video qualities of a live video" {
                 // given
                 val adapter =
                     YoutubeSourceAdapter {
@@ -59,13 +54,3 @@ class YoutubeSourceAdapterIT :
     })
 
 private val HOME: Path = Path.of(System.getProperty("user.home"), ".tubeloader")
-
-/** Asked once: it drives the switch of the whole spec, so a silent answer is enough. */
-private val LIVE_BINARY_AVAILABLE: Boolean by lazy {
-    runCatching {
-        val process = ProcessBuilder(BINARY, VERSION).redirectErrorStream(true).start()
-        val finished = process.waitFor(PROBE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        if (!finished) process.destroyForcibly()
-        finished && process.exitValue() == 0
-    }.getOrDefault(false)
-}

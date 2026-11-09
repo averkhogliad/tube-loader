@@ -6,9 +6,6 @@ import java.nio.file.Path
 
 private const val WATCH_URL = "https://www.youtube.com/watch?v="
 
-/** No distribution policy places the binary yet, so a bare name is left for the `PATH` of the machine. */
-private val DEFAULT_BINARY: Path = Path.of("yt-dlp")
-
 private const val NEWLINE = "--newline"
 private const val NO_QUIET = "--no-quiet"
 private const val NO_SIMULATE = "--no-simulate"
@@ -30,17 +27,24 @@ private const val PROGRESS_TEMPLATE_VALUE = PROGRESS_MARK + "%(progress.download
 private const val FILEPATH_TEMPLATE_VALUE = "after_move:" + FILEPATH_MARK + "%(filepath)s"
 private const val STAGING_TEMPLATE = "%(id)s.%(ext)s"
 
-internal fun binaryOf(settings: YtDlpConfig): String = (settings.binaryPath ?: DEFAULT_BINARY).toString()
-
 internal fun watchUrlOf(id: String): String = WATCH_URL + id
 
 /**
  * The transfer of [mediaId] into [staging]: the tool picks the format itself, merges video with its
  * audio through the bundled ffmpeg and reports both the progress and the path it ended at.
+ *
+ * [binary] is the absolute path of the tool the distribution handed out: the call does not depend on
+ * the `PATH` of the machine nor on the directory the process runs from.
  */
-internal fun downloadCommand(settings: YtDlpConfig, mediaId: String, selector: String, staging: Path): List<String> =
+internal fun downloadCommand(
+    settings: YtDlpConfig,
+    binary: Path,
+    mediaId: String,
+    selector: String,
+    staging: Path,
+): List<String> =
     listOf(
-        binaryOf(settings),
+        binary.toString(),
         NEWLINE,
         NO_QUIET,
         NO_SIMULATE,

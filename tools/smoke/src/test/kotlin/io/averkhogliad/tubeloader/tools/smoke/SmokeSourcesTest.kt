@@ -111,7 +111,7 @@ class SmokeSourcesTest :
 
             "passes when the targets name no source at all" {
                 // given
-                val targets = listOf(SmokeTarget.ByUrl("https://rutube.ru/video/abc/"))
+                val targets = listOf(SmokeTarget.ByUrl("https://rutube.ru/video/abc/", "clip"))
 
                 // when + then
                 withFacade { facade ->
