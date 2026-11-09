@@ -15,8 +15,10 @@ import kotlin.time.Duration.Companion.seconds
  * [binaryPath] overrides the binary the distribution policy would place on the machine; set it where
  * the tool is already installed (CI, tests). A null path leaves the choice to the implementation.
  *
- * [paths] carries the binary of ffmpeg, which the download needs to merge video with audio.
- * [workDirectory] is where the tool may write; it defaults under the home directory of [paths].
+ * [paths] carries the binary of ffmpeg, which the download needs to merge video with audio, and the
+ * path of the managed build of the tool itself.
+ * [workDirectory] is where the tool may write; it defaults under the tool directory of [paths], next
+ * to the binary the distribution keeps there.
  */
 data class YtDlpConfig(
     val paths: ToolPaths,
@@ -48,8 +50,11 @@ data class YtDlpConfig(
         const val DEFAULT_RETRY_MAX_ATTEMPTS = 5
         const val DEFAULT_RETRY_RANDOMIZATION_FACTOR = 0.0
 
-        /** The directory a transfer of the tool keeps its parts in, under the home directory. */
-        const val DEFAULT_WORK_DIR = "yt-dlp"
+        /**
+         * The directory a transfer of the tool keeps its parts in, under the tool directory of the
+         * home directory: the root is a scratch area of its own and not the directory of the binary.
+         */
+        val DEFAULT_WORK_DIR: Path = Path.of(ToolPaths.YT_DLP_DIR, "work")
 
         val DEFAULT_RESOLVE_TIMEOUT = 60.seconds
         val DEFAULT_RETRY_BASE_DELAY = 250.milliseconds

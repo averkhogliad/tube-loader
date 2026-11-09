@@ -17,9 +17,11 @@ end-to-end headless, рядом с Rutube, без установки Python/Node
 
 `SourceAdapter`-реализация `YoutubeSourceAdapter` в пакете `adapters.youtube` (внутри `:core`),
 `capability = Delegate`. Разбор URL — нативный, offline, без yt-dlp. Метаданные и скачивание
-делегируются CLI-бинарнику yt-dlp через процесс-раннер. yt-dlp сам скачивает и мёрджит
-video+audio через bundled ffmpeg (`--ffmpeg-location`); адаптер **не зовёт** `MediaTool` — в этом
-суть `Delegate`. Финальный файл пишется в `targetPath` (part-путь ядра), инвариант
+делегируются CLI-бинарнику yt-dlp через процесс-раннер. Бинарник приложение не поставляет и на
+машине не требует: при первом обращении адаптер скачивает официальный build в
+`<homeDir>/yt-dlp/` и запускает его по абсолютному пути (ADR-0012). yt-dlp сам скачивает и
+мёрджит video+audio через bundled ffmpeg (`--ffmpeg-location`); адаптер **не зовёт** `MediaTool` —
+в этом суть `Delegate`. Финальный файл пишется в `targetPath` (part-путь ядра), инвариант
 `CoreFacade` (staging + `ATOMIC_MOVE`) сохранён, как у Rutube.
 
 ## User Stories
@@ -144,13 +146,28 @@ stderr/JSON:
 вывода. Таймаут на resolve-вызовы.
 
 **`YtDlpConfig`.** Новый объект в `core.config` (рядом с `HttpToolConfig`, `MediaToolConfig`):
-`binaryPath: Path?` (optional escape hatch для CI/тестов с уже установленным yt-dlp),
-`paths: ToolPaths` (общий компонент путей инструментов — даёт путь к бинарнику ffmpeg и home-каталог),
-`workDirectory: Path`, `resolveTimeout`, `concurrentFragments: Int`. Ключи под `[download.youtube]`.
-Версия/URL/SHA-256 бинарника — `private const` реализации, не пользовательский конфиг (политика
-дистрибутива — ADR по упаковке, M2). Никаких новых библиотечных зависимостей:
-`java.lang.ProcessBuilder`, `ProcessHandle`, `kotlinx.coroutines`, `kotlinx.serialization`
-(уже в `:core` для JSON).
+`binaryPath: Path?` (optional escape hatch для CI/тестов с уже установленным yt-dlp; при заданном
+пути скачивания нет), `paths: ToolPaths` (общий компонент путей инструментов — даёт путь к
+бинарнику ffmpeg, путь управляемого бинарника yt-dlp и home-каталог), `workDirectory: Path`
+(стейджинг; дефолт `<homeDir>/yt-dlp/work` — рядом с управляемым бинарником, но не в нём),
+`resolveTimeout`, `concurrentFragments: Int`. Ключи под `[download.youtube]`. Версия/URL/SHA-256
+бинарника — `private const` реализации, не пользовательский конфиг. Никаких новых библиотечных
+зависимостей: `java.lang.ProcessBuilder`, `ProcessHandle`, `kotlinx.coroutines`,
+`kotlinx.serialization` (уже в `:core` для JSON).
+
+**Дистрибуция yt-dlp (ADR-0012).** Бинарник не поставляется и не берётся с машины. Владелец
+скачивания — сам адаптер: перед первым вызовом раннера (`findById`/`download`) он вызывает
+`ensureBinary`; при найденном исполнимом файле в `<homeDir>/yt-dlp/yt-dlp(.exe)` (`ToolPaths`)
+проверка файловая и дешёвая, промах — скачивание. `binaryPath` из конфига остаётся escape hatch:
+заданный путь используется как есть, без скачивания и без проверки. Источник — официальный
+GitHub-релиз yt-dlp: последний (`releases/latest/download/yt-dlp.exe`, свежесть важнее пиннинга —
+устаревший экстрактор и есть целевой отказ) и `SHA2-256SUMS` того же релиза; SHA-256 сверяется,
+файл кладётся через временный файл и `ATOMIC_MOVE`, чтобы параллельные вызовы не увидели
+полуфайл; fetch — под мьютексом дистрибуции. Канал — `java.net.http.HttpClient`, не `HttpTool`
+(один GET, без прогресса и ретраев, сбой — `IOException`; та же аргументация, что в ADR-0008).
+M1 — только Windows-бинарник; прочие платформы — `UnavailableOn`, как у ffmpeg. Промах ensure
+отдаётся как `LoadMetaResult.Failed(ExtractorBroken)` / `DownloadResult.Failed(ExtractorBroken)`:
+класс приблизительный, точный вердикт — причина (`errors.md`).
 
 **Пути инструментов.** Где лежит ffmpeg, адаптер не вычисляет и ничего о медиа-пакете не знает:
 пути резолвит общий `ToolPaths`, преднастраиваемый при сборке графа объектов, и оба потребителя
@@ -161,7 +178,9 @@ stderr/JSON:
 вызов. Поэтому корень сборки зовёт `ensureManagedFfmpeg` один раз за прогон, до первого
 скачивания: бинарник на диске есть всегда, когда адаптер отдаёт путь. Политика ADR-0008 не
 меняется: то же место, тот же источник, те же правила контрольной суммы. Шов остаётся узким и
-общим — зеркалить дистрибуцию в `tools/smoke` было бы дублированием.
+общим — зеркалить дистрибуцию в `tools/smoke` было бы дублированием. У yt-dlp владелец другой:
+адаптер обеспечивает свой бинарник сам и перед собственным вызовом, потому что других потребителей
+этого файла нет; корень сборки к нему не причастен.
 
 **Зависимости адаптера.** Конструктор принимает `YtDlpProcessRunner` (или фабрику) и
 `() -> YtDlpConfig`. `HttpTool` и `MediaTool` адаптеру не нужны — yt-dlp сам делает сеть и
@@ -204,10 +223,19 @@ YouTube не используется — запись живёт в YouTube-fix
 (`core.media`): контрольный поток раннера наблюдаем без запуска процесса. Cancel-кейс: фейк
 имитирует живого ребёнка, проверяется tree-kill.
 
+**Дистрибуция yt-dlp.** `YtDlpDistribution` покрывается без сети: повторное использование уже
+скачанного файла из homeDir, escape hatch `binaryPath` без обращения к диску и к сети,
+однократность скачивания, провал fetch без остатка файла; парсер `SHA2-256SUMS` (`checksumOf`) —
+прямой unit-тест. Fetch — инжектируемый шов (как `start` у `YtDlpProcessRunner`), поэтому ни
+один тест не ходит в сеть. Наблюдаемый факт выбора бинарника — команда раннера: `YoutubeDownloadTest`
+фиксирует запуск по абсолютному пути управляемого файла.
+
 **IT.** `YoutubeSourceAdapterIT`, `@Tag("integration")`, исключён из `check` через
 `excludeTags("integration")` + `excludeTestsMatching("*SourceAdapterIT")` в
 `core/build.gradle.kts` (образец — `RutubeSourceAdapterIT`). Реальный yt-dlp; бинарные фикстуры в
-репозитории не появляются — используется публичное видео или skip при отсутствии бинарника.
+репозитории не появляются — адаптер сам скачивает управляемый бинарник в home-каталог при первом
+вызове (ADR-0012), поэтому проба бинарника в IT не нужна: управляемый build есть всегда, а спека
+идёт по публичному видео.
 
 **Prior art.** `RutubeSourceAdapterTest` (contract на golden), `FfmpegMediaTool` (CLI-процесс,
 tagged IT вне `check`), `FfmpegProcessRunner` (injectable start, tree-kill). Стандарт тестов —
@@ -215,9 +243,9 @@ tagged IT вне `check`), `FfmpegProcessRunner` (injectable start, tree-kill). 
 
 ## Out of Scope
 
-- Дистрибуция и обновление yt-dlp-бинарника (`ComponentUpdater`, manifest, mirror, SHA-256,
-  атомарный swap) — ADR по упаковке, M2. Спека адаптера предполагает, что бинарник доступен
-  (через `YtDlpConfig.binaryPath` или политику дистрибутива); готовность в контракте не описывается.
+- Обновление и версионирование yt-dlp-бинарника (`ComponentUpdater`, manifest, mirror, пиннинг
+  версии, атомарный swap) — M2. Первичное скачивание при первом обращении — в скоупе (ADR-0012).
+  Бинарники не-Windows платформ — отдельный тикет.
 - `MetadataCache`, батчинг URL, префетч при старте.
 - `FormatSelector` как отдельный компонент (§7) — M1 использует инлайн-маппинг.
 - Консолидация `ProcessRunner` (общий для ffmpeg и yt-dlp, §9.1).
@@ -236,8 +264,9 @@ tagged IT вне `check`), `FfmpegProcessRunner` (injectable start, tree-kill). 
   гигиена, маппинг ошибок, перевод качества). Репорт — источник YouTube-специфики; архитектура
   следует коду, не репорту.
 - Связанные ADR: ADR-0008 (ffmpeg CLI-процесс + гибридная дистрибуция; `--ffmpeg-location`
-  переиспользует bundled ffmpeg), ADR-0003 (конфайнмент очереди), ADR-0009 (use-case слой над
-  `CoreFacade` — адаптеру ортогонален).
+  переиспользует bundled ffmpeg), ADR-0012 (управляемая загрузка бинарника yt-dlp при первом
+  обращении), ADR-0003 (конфайнмент очереди), ADR-0009 (use-case слой над `CoreFacade` —
+  адаптеру ортогонален).
 - Контракт и capability-модель: `docs/features/core/spec.md`. Native-коллега:
   `docs/features/rutube-adapter/spec.md`.
 - Открыто без тикета: судьба capability-модели (`core/spec.md` — «свести ли перечисление к
@@ -259,3 +288,5 @@ tagged IT вне `check`), `FfmpegProcessRunner` (injectable start, tree-kill). 
 - 07 — Youtube adapter: IT with real yt-dlp (blocked by #95) — #96
 - 08 — Youtube adapter: smoke end-to-end wiring (blocked by #92, #93, #94, #95, #96) — #103
 - 09 — Youtube adapter: контракт `resolveId`/`findById` вместо `find`/`loadMeta` (blocked by #111) — #111
+- 10 — Youtube adapter: управляемая загрузка yt-dlp при первом обращении (ADR-0012) — #115
+- 11 — Youtube adapter: бинарники yt-dlp для не-Windows платформ (blocked by #115) — #117

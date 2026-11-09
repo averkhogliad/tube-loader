@@ -140,7 +140,7 @@ private fun buildComposition(targetDir: Path, parallel: Int): SmokeComposition {
     val facade = CoreFacade(adapters, queue, RandomTaskIdGenerator, Clock.System)
     val useCases = UseCases(facade, queue::shutdown)
     val observer = DownloadStateObserver(useCases.observeDownloads, dashboard)
-    val tools = SmokeTools(paths, ytDlpConfig, dashboard)
+    val tools = SmokeTools(paths, dashboard)
     val session = SmokeSession(targetDir, dashboard, useCases, observer, tools)
     return SmokeComposition(session, stderr, client, mediaTool, scope)
 }

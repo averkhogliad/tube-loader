@@ -37,11 +37,17 @@ private val MEDIA_ID = Regex("[A-Za-z0-9_-]+")
  * The tool runs in the home directory of the application: a config file of the current directory
  * never reaches it, and the process boundary is a seam of its own, so a test drives the adapter
  * without starting anything.
+ *
+ * The binary itself is not shipped with the application: the first call fetches the official build
+ * into the home directory and every call starts the file by its absolute path, so the machine does
+ * not have to carry the tool.
  */
 class YoutubeSourceAdapter internal constructor(
     private val runner: YtDlpProcessRunner,
     private val config: () -> YtDlpConfig,
 ) : SourceAdapter {
+
+    private val distribution = YtDlpDistribution(config().paths)
 
     constructor(config: () -> YtDlpConfig) : this(YtDlpProcessRunner(workingDirectoryOf(config())), config)
 
@@ -61,18 +67,28 @@ class YoutubeSourceAdapter internal constructor(
 
     override suspend fun findById(id: String): LoadMetaResult {
         val settings = config()
+        return distribution
+            .ensureBinary(settings.binaryPath)
+            .fold(
+                onSuccess = { binary -> resolveMeta(settings, binary, id) },
+                onFailure = { LoadMetaResult.Failed(DownloadError.ExtractorBroken) },
+            )
+    }
+
+    private suspend fun resolveMeta(settings: YtDlpConfig, binary: Path, id: String): LoadMetaResult {
         val result =
             retry(policyOf(settings)) {
-                runner.run(resolveCommand(settings, id), timeout = settings.resolveTimeout)
+                runner.run(resolveCommand(binary, id), timeout = settings.resolveTimeout)
             }
-        val run =
-            result.getOrElse { failure ->
-                return LoadMetaResult.Failed(downloadErrorOf(failure))
-            }
-        val meta =
-            ytDlpPayload(run.output.joinToString("\n"))?.let { payload -> mediaMetaOf(payload, id) }
-        return meta?.let(LoadMetaResult::Found)
-            ?: LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+        return result.fold(
+            onSuccess = { run ->
+                val meta =
+                    ytDlpPayload(run.output.joinToString("\n"))?.let { payload -> mediaMetaOf(payload, id) }
+                meta?.let(LoadMetaResult::Found)
+                    ?: LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+            },
+            onFailure = { failure -> LoadMetaResult.Failed(downloadErrorOf(failure)) },
+        )
     }
 
     override suspend fun download(
@@ -82,17 +98,23 @@ class YoutubeSourceAdapter internal constructor(
         onProgress: (Progress) -> Unit,
     ): DownloadResult {
         val settings = config()
-        val selector = formatSelectorOf(quality) ?: return DownloadResult.Failed(DownloadError.ExtractorBroken)
-        val staging = stagingDirectoryOf(settings, mediaId)
-        return try {
-            transfer(runner, downloadCommand(settings, mediaId, selector, staging), settings, targetPath, onProgress)
-        } finally {
-            runCatching { staging.removeTree() }
+        val binary = distribution.ensureBinary(settings.binaryPath).getOrNull()
+        val selector = formatSelectorOf(quality)
+        return if (binary == null || selector == null) {
+            DownloadResult.Failed(DownloadError.ExtractorBroken)
+        } else {
+            val staging = stagingDirectoryOf(settings, mediaId)
+            try {
+                val command = downloadCommand(settings, binary, mediaId, selector, staging)
+                transfer(runner, command, settings, targetPath, onProgress)
+            } finally {
+                runCatching { staging.removeTree() }
+            }
         }
     }
 
-    private fun resolveCommand(settings: YtDlpConfig, id: String): List<String> =
-        listOf(binaryOf(settings), RESOLVE, SKIP_DOWNLOAD, watchUrlOf(id))
+    private fun resolveCommand(binary: Path, id: String): List<String> =
+        listOf(binary.toString(), RESOLVE, SKIP_DOWNLOAD, watchUrlOf(id))
 
     private fun mediaIdOf(url: URI): String? {
         val path = url.path.orEmpty()

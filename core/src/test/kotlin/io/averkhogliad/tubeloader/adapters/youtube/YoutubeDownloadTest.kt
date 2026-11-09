@@ -83,6 +83,19 @@ class YoutubeDownloadTest :
                     )
             }
 
+            "runs the binary of the home directory by its absolute path when the config names none" {
+                // given
+                val world = DownloadWorld(roots, managedBinary = true).withProducedFile()
+                val launches = mutableListOf<YtDlpLaunch>()
+                val adapter = world.adapter(ToolReply(output = world.transferOutput()), launches = launches)
+
+                // when
+                adapter.download(MEDIA_ID, QUALITY, world.target) {}
+
+                // then
+                launches.single().command.first() shouldBe world.managedBinary().toString()
+            }
+
             "picks the format of the chosen quality and points the tool at the bundled ffmpeg" {
                 // given
                 val world = DownloadWorld(roots).withProducedFile()
@@ -157,7 +170,7 @@ class YoutubeDownloadTest :
     })
 
 /** A home directory of its own, a produced file of its own and the part path the core would hand in. */
-private class DownloadWorld(roots: MutableList<Path>) {
+private class DownloadWorld(roots: MutableList<Path>, managedBinary: Boolean = false) {
 
     private val root: Path = Files.createTempDirectory("youtube-download").also { roots.add(it) }
 
@@ -165,7 +178,21 @@ private class DownloadWorld(roots: MutableList<Path>) {
 
     val target: Path = Files.createFile(root.resolve("video.part-1"))
 
-    private val settings = YtDlpConfig(paths = ToolPaths.of(root, "Linux"), binaryPath = Path.of("yt-dlp"))
+    private val settings =
+        YtDlpConfig(
+            paths = ToolPaths.of(root, "Linux"),
+            binaryPath = if (managedBinary) null else Path.of("yt-dlp"),
+        )
+
+    init {
+        if (managedBinary) {
+            settings.paths.ytDlpBinary.apply {
+                parent.toFile().mkdirs()
+                Files.writeString(this, "stub")
+                toFile().setExecutable(true, false)
+            }
+        }
+    }
 
     fun withProducedFile(): DownloadWorld {
         Files.createDirectories(produced.parent)
@@ -174,6 +201,8 @@ private class DownloadWorld(roots: MutableList<Path>) {
     }
 
     fun bundledFfmpeg(): Path = settings.paths.ffmpegBinary
+
+    fun managedBinary(): Path = settings.paths.ytDlpBinary
 
     fun stagingRoot(): Path = settings.workDirectory
 
