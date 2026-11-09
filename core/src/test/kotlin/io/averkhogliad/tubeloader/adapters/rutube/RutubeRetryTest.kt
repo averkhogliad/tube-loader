@@ -31,7 +31,7 @@ import kotlin.time.Duration.Companion.seconds
 class RutubeRetryTest :
     FreeSpec({
 
-        "loadMeta" - {
+        "findById" - {
             "asks again after a server error and answers from the next response" {
                 // given
                 val http =
@@ -43,7 +43,7 @@ class RutubeRetryTest :
                     )
 
                 // when
-                val actual = adapter(http).loadMeta(MEDIA_ID)
+                val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
                 actual.shouldBeInstanceOf<LoadMetaResult.Found>()
@@ -55,7 +55,7 @@ class RutubeRetryTest :
                 val http = FakeHttpTool().always(SERVER_ERROR_STUB)
 
                 // when
-                val actual = adapter(http).loadMeta(MEDIA_ID)
+                val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
@@ -69,7 +69,7 @@ class RutubeRetryTest :
                 val http = FakeHttpTool().route(OPTIONS_URL, *discarded.map { it.response }.toTypedArray())
 
                 // when
-                adapter(http).loadMeta(MEDIA_ID)
+                adapter(http).findById(MEDIA_ID)
 
                 // then
                 discarded.map { it.isClosed } shouldBe listOf(true, true, true)
@@ -80,7 +80,7 @@ class RutubeRetryTest :
                 val http = FakeHttpTool().route(OPTIONS_URL, TRANSPORT_FAILURE_STUB, recordedStub(RECORDING_OPTIONS))
 
                 // when
-                val actual = adapter(http).loadMeta(MEDIA_ID)
+                val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
                 actual.shouldBeInstanceOf<LoadMetaResult.Found>()
@@ -97,7 +97,7 @@ class RutubeRetryTest :
                     )
 
                 // when
-                val actual = adapter(http).loadMeta(MEDIA_ID)
+                val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
                 actual.shouldBeInstanceOf<LoadMetaResult.Found>()
@@ -109,7 +109,7 @@ class RutubeRetryTest :
                 val http = FakeHttpTool().route(OPTIONS_URL, CLIENT_ERROR_STUB, recordedStub(RECORDING_OPTIONS))
 
                 // when
-                val actual = adapter(http).loadMeta(MEDIA_ID)
+                val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
@@ -123,7 +123,7 @@ class RutubeRetryTest :
                 val http = FakeHttpTool().route(OPTIONS_URL, refused.response)
 
                 // when
-                val actual = adapter(http).loadMeta(MEDIA_ID)
+                val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
@@ -141,7 +141,7 @@ class RutubeRetryTest :
                     )
 
                 // when
-                val actual = adapter(http).loadMeta(MEDIA_ID)
+                val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
                 actual.shouldBeInstanceOf<LoadMetaResult.Found>()
@@ -153,7 +153,7 @@ class RutubeRetryTest :
                 val http = FakeHttpTool().route(OPTIONS_URL, CLIENT_ERROR_STUB)
 
                 // when
-                adapter(http).loadMeta(MEDIA_ID)
+                adapter(http).findById(MEDIA_ID)
 
                 // then
                 http.opened.map { it.headers["Referer"] }.distinct() shouldBe listOf("https://rutube.ru")
@@ -165,7 +165,7 @@ class RutubeRetryTest :
                 val settings = HttpToolConfig(perAttemptTimeout = 30.seconds, retryMaxAttempts = 2)
 
                 // when
-                val actual = adapter(http, settings).loadMeta(MEDIA_ID)
+                val actual = adapter(http, settings).findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
@@ -178,7 +178,7 @@ class RutubeRetryTest :
                 val settings = HttpToolConfig(perAttemptTimeout = 30.seconds, retryRetriableStatuses = setOf(503))
 
                 // when
-                val actual = adapter(http, settings).loadMeta(MEDIA_ID)
+                val actual = adapter(http, settings).findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
@@ -197,10 +197,10 @@ class RutubeRetryTest :
                     )
 
                 // when
-                source.loadMeta(MEDIA_ID)
+                source.findById(MEDIA_ID)
                 attempts = 2
                 http.opened.clear()
-                source.loadMeta(MEDIA_ID)
+                source.findById(MEDIA_ID)
 
                 // then
                 http.opened.size shouldBe 2
@@ -218,7 +218,7 @@ class RutubeRetryTest :
                     val settings = HttpToolConfig(perAttemptTimeout = 1.seconds)
 
                     // when
-                    val actual = adapter(http, settings).loadMeta(MEDIA_ID)
+                    val actual = adapter(http, settings).findById(MEDIA_ID)
 
                     // then
                     actual.shouldBeInstanceOf<LoadMetaResult.Found>()
@@ -233,7 +233,7 @@ class RutubeRetryTest :
                     val settings = HttpToolConfig(perAttemptTimeout = 1.seconds, retryMaxAttempts = 2)
 
                     // when
-                    val actual = adapter(http, settings).loadMeta(MEDIA_ID)
+                    val actual = adapter(http, settings).findById(MEDIA_ID)
 
                     // then a timed-out attempt is a hiccup, not the verdict of the source
                     actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
@@ -247,7 +247,7 @@ class RutubeRetryTest :
                     val http = FakeHttpTool().always(HttpStub.Slow(after = 5.seconds, answer = SERVER_ERROR_STUB))
 
                     // when
-                    val attempt = async { adapter(http).loadMeta(MEDIA_ID) }
+                    val attempt = async { adapter(http).findById(MEDIA_ID) }
                     runCurrent()
                     attempt.cancel()
                     val thrown = runCatching { attempt.await() }.exceptionOrNull()
@@ -270,7 +270,7 @@ class RutubeRetryTest :
                     val thrown =
                         runCatching {
                             withTimeout(1.seconds) {
-                                adapter(http, settings).loadMeta(MEDIA_ID).also { answered = it }
+                                adapter(http, settings).findById(MEDIA_ID).also { answered = it }
                             }
                         }.exceptionOrNull()
 

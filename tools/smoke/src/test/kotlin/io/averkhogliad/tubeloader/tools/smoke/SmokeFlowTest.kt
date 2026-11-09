@@ -9,7 +9,7 @@ class SmokeFlowTest :
         "targetName" - {
             "names the target after the media id of the source when the command gave no name" {
                 // given
-                val target = SmokeTarget("https://www.youtube.com/watch?v=abc123", null)
+                val target = SmokeTarget.ByUrl("https://www.youtube.com/watch?v=abc123")
 
                 // when
                 val actual = targetName(target, "abc123")
@@ -20,7 +20,7 @@ class SmokeFlowTest :
 
             "keeps the name the command gave" {
                 // given
-                val target = SmokeTarget("https://rutube.ru/video/abc/", "clip")
+                val target = SmokeTarget.ById("rutube", "abc", "clip")
 
                 // when
                 val actual = targetName(target, "abc")
@@ -31,7 +31,7 @@ class SmokeFlowTest :
 
             "falls back to the url while the source has not answered yet" {
                 // given
-                val target = SmokeTarget("https://rutube.ru/video/abc/", null)
+                val target = SmokeTarget.ByUrl("https://rutube.ru/video/abc/")
 
                 // when
                 val actual = targetName(target)

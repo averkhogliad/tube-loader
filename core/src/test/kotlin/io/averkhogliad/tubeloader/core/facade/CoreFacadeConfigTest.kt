@@ -1,7 +1,7 @@
 package io.averkhogliad.tubeloader.core.facade
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.config.AppConfig
 import io.averkhogliad.tubeloader.core.download.DownloadStatus
 import io.kotest.core.spec.style.FreeSpec
@@ -34,7 +34,7 @@ class CoreFacadeConfigTest :
                             ),
                             dispatcher = StandardTestDispatcher(testScheduler),
                         )
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val gate = CompletableDeferred<Unit>()
                     var started = 0

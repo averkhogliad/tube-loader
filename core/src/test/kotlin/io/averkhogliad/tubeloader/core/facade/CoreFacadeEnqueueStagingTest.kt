@@ -1,7 +1,7 @@
 package io.averkhogliad.tubeloader.core.facade
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.fraction
@@ -33,7 +33,7 @@ class CoreFacadeEnqueueStagingTest :
                         // given
                         val mediaId = mediaIds.next()
                         val world = facadeWorld(tempDir)
-                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         val target = world.targetPath()
 
@@ -52,7 +52,7 @@ class CoreFacadeEnqueueStagingTest :
                         // given
                         val mediaId = mediaIds.next()
                         val world = facadeWorld(tempDir)
-                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                         world.adapters.single().onDownload = { _, _ ->
                             DownloadResult.Failed(DownloadError.NetworkTransient)
                         }
@@ -74,7 +74,7 @@ class CoreFacadeEnqueueStagingTest :
                         // given
                         val mediaId = mediaIds.next()
                         val world = facadeWorld(tempDir)
-                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         val target = world.targetPath()
                         Files.writeString(target, "stale")
@@ -100,7 +100,7 @@ class CoreFacadeEnqueueStagingTest :
                         // given
                         val mediaId = mediaIds.next()
                         val world = facadeWorld(tempDir)
-                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         val absolute = Arb.absoluteProgresses().next()
                         val reported = CompletableDeferred<Unit>()
@@ -129,7 +129,7 @@ class CoreFacadeEnqueueStagingTest :
                         // given
                         val mediaId = mediaIds.next()
                         val world = facadeWorld(tempDir)
-                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         val fraction = Arb.fractions().next()
                         val reported = CompletableDeferred<Unit>()
@@ -158,7 +158,7 @@ class CoreFacadeEnqueueStagingTest :
                         // given
                         val mediaId = mediaIds.next()
                         val world = facadeWorld(tempDir)
-                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         val absolute = Arb.absoluteProgresses().next()
                         lateinit var lateProgress: (Progress) -> Unit
@@ -190,7 +190,7 @@ class CoreFacadeEnqueueStagingTest :
                         // given
                         val mediaId = mediaIds.next()
                         val world = facadeWorld(tempDir)
-                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         val absolute = Arb.absoluteProgresses().next()
                         lateinit var lateProgress: (Progress) -> Unit
@@ -223,7 +223,7 @@ class CoreFacadeEnqueueStagingTest :
                         // given
                         val mediaId = mediaIds.next()
                         val world = facadeWorld(tempDir)
-                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         val absolute = Arb.absoluteProgresses().next()
                         lateinit var lateProgress: (Progress) -> Unit
@@ -255,7 +255,7 @@ class CoreFacadeEnqueueStagingTest :
                         // given
                         val mediaId = mediaIds.next()
                         val world = facadeWorld(tempDir)
-                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         val absolute = Arb.absoluteProgresses().next()
                         lateinit var lateProgress: (Progress) -> Unit

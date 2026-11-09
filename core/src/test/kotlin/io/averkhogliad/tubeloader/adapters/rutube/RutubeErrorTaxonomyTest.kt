@@ -12,13 +12,13 @@ import io.kotest.matchers.shouldBe
 class RutubeErrorTaxonomyTest :
     FreeSpec({
 
-        "loadMeta" - {
+        "findById" - {
             "reports NotFound when the source answers 404 for a video that does not exist" {
                 // given
                 val http = FakeHttpTool().route(OPTIONS_URL, recordedStub("rutube/playOptions-notfound.json", 404))
 
                 // when
-                val actual = adapter(http).loadMeta(MEDIA_ID)
+                val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.NotFound
@@ -29,7 +29,7 @@ class RutubeErrorTaxonomyTest :
                 val http = FakeHttpTool().route(OPTIONS_URL, recordedStub("rutube/playOptions-notfound.json", 244))
 
                 // when
-                val actual = adapter(http).loadMeta(MEDIA_ID)
+                val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.NotFound
@@ -40,7 +40,7 @@ class RutubeErrorTaxonomyTest :
                 val http = FakeHttpTool().always(SERVER_ERROR_STUB)
 
                 // when
-                val actual = adapter(http).loadMeta(MEDIA_ID)
+                val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
@@ -51,7 +51,7 @@ class RutubeErrorTaxonomyTest :
                 val http = FakeHttpTool().always(BROKEN_BODY_STUB)
 
                 // when
-                val actual = adapter(http).loadMeta(MEDIA_ID)
+                val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
                 actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)

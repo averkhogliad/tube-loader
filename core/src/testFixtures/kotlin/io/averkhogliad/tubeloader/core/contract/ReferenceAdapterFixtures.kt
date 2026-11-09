@@ -1,8 +1,8 @@
 package io.averkhogliad.tubeloader.core.contract
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.Quality
@@ -23,27 +23,27 @@ fun referenceAdapterFixtures(): SourceAdapterFixtures {
     val responses = recordedResponsesOf("reference")
     return SourceAdapterFixtures(
         responses = responses,
-        find =
+        resolveId =
             listOf(
-                FindCase(
+                ResolveIdCase(
                     name = "returns the id for a url of the source",
                     input = "https://reference.example/watch?v=ref-1",
-                    expected = FindResult.Found("ref-1"),
+                    expected = ResolveIdResult.Found("ref-1"),
                 ),
-                FindCase(
+                ResolveIdCase(
                     name = "returns Unsupported for a url of another host",
                     input = "https://elsewhere.example/watch?v=ref-1",
-                    expected = FindResult.Unsupported,
+                    expected = ResolveIdResult.Unsupported,
                 ),
-                FindCase(
+                ResolveIdCase(
                     name = "returns NotFound for a url of the source without an id",
                     input = "https://reference.example/watch",
-                    expected = FindResult.NotFound,
+                    expected = ResolveIdResult.NotFound,
                 ),
-                FindCase(
+                ResolveIdCase(
                     name = "returns NotFound for a url of the source with an empty id",
                     input = "https://reference.example/watch?v=",
-                    expected = FindResult.NotFound,
+                    expected = ResolveIdResult.NotFound,
                 ),
             ),
         meta =

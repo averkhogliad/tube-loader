@@ -93,10 +93,9 @@ Gradle-модуль `:adapters:rutube`, который появится вмес
 
 - `capability = DownloadCapability.Native` — адаптер скачивает сам, без Delegate.
 - `displayName` — `"Rutube"`.
-- `resolveId(input)` — без сети: regex по URL, исходы `Found(mediaId)` / `Unsupported`.
-  `ResolveIdResult.NotFound` — зарезервированный контрактом исход для будущего сетевого
-  разбора; M1 его не возвращает (id всегда синтаксический, а несуществующее видео
-  обнаруживается только на `findById`, там же приходит `DownloadError.NotFound`).
+- `resolveId(input)` — без сети: regex по URL, исходы `Found(mediaId)` / `Unsupported` (чужой
+  хост) / `NotFound` (хост Rutube, но валидный id из URL не извлёкся). Несуществующее видео
+  обнаруживается только на `findById`, там же приходит `DownloadError.NotFound`.
 - `findById(id)` — один HTTP-запрос `playOptions` через `HttpTool.open(...)`. Исходы
   `Found(MediaMeta)` / `NotFound` / `Failed(DownloadError)`. Последний несёт
   `ExtractorBroken` на структурный сбой ответа. `Unsupported` невозможен (поддержка уже
@@ -115,9 +114,10 @@ Gradle-модуль `:adapters:rutube`, который появится вмес
 - `https://rutube.ru/play/embed/<id>` — embed; `<id>` — последний непустой сегмент
   пути.
 
-Прочие URL — `Unsupported` без обращения к сети. Параметры запроса и фрагменты
+URL чужого хоста — `Unsupported` без обращения к сети. Параметры запроса и фрагменты
 игнорируются. Длина `<id>` ограничена длиной hex-хеша (32) по наблюдениям прототипа,
-валидация жёсткая: только `[0-9a-f]{32}`; иначе `Unsupported`.
+валидация жёсткая: только `[0-9a-f]{32}`; иначе `NotFound` — источник узнал свой URL, но
+идентификатор из него не извлёкся.
 
 **Эндпоинт метаданных и качеств.** Один запрос:
 
@@ -229,8 +229,8 @@ API. Адаптер читает его (через `HttpTool.open`), фильт
 
 | Сценарий | Класс | Условие |
 |---|---|---|
-| URL не распознан | `ResolveIdResult.Unsupported` | regex не матчит или id не `[0-9a-f]{32}` |
-| id синтаксически верный, но не найден | `ResolveIdResult.NotFound` | зарезервировано контрактом; в M1 не возвращается |
+| URL чужого хоста | `ResolveIdResult.Unsupported` | regex не матчит |
+| URL Rutube без валидного id | `ResolveIdResult.NotFound` | путь не `/video/<id>` или id не `[0-9a-f]{32}`; несуществующее видео определяется на `findById` |
 | Видео не существует | `DownloadError.NotFound` | `playOptions` вернул HTTP 244 с `detail.name = default_does_not_exists_video`; голый запрос без `no_404=true` отдаёт 404 |
 | JSON без обязательных полей / не парсится / `video_id` не совпал | `DownloadError.ExtractorBroken` | структурный сбой ответа |
 | HTTP 408/429/502/503/504, таймаут, `IOException`, `UnknownHostException` | `DownloadError.NetworkTransient` | сетевой сбой; ретраим до исчерпания попыток |
@@ -260,7 +260,8 @@ API. Адаптер читает его (через `HttpTool.open`), фильт
    `src/testFixtures/resources/rutube/playOptions-*.json` и
    `m3u8-master-*.m3u8`, эталонные `MediaMeta` и списки `Quality` —
    в `RutubeFixtures.kt`. Тесты контракта покрывают: разбор URL (две формы,
-   `Unsupported`), `findById` (`Found`, `NotFound`, парсинг-ошибка),
+   `Unsupported` чужого хоста, `NotFound` без валидного id), `findById` (`Found`,
+   `NotFound`, парсинг-ошибка),
    `download` (успех, прогресс, финализация, отсутствие побочного файла).
 2. **Тесты ретраев — отдельный suite** внутри пакета адаптера. На вход —
    `FakeHttpTool`, программирующий сценарии: сначала 2 раза 503, на 3-й раз 200

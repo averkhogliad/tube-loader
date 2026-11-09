@@ -1,7 +1,7 @@
 package io.averkhogliad.tubeloader.core.facade
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.config.AppConfig
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.download.DownloadStatus
@@ -31,7 +31,7 @@ class CoreFacadeCancelTest :
                     // given
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val stopping = CompletableDeferred<Unit>()
                     world.adapters.single().onDownload = { _, _ ->
@@ -66,7 +66,7 @@ class CoreFacadeCancelTest :
                     // given
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val release = CompletableDeferred<Unit>()
                     world.adapters.single().onDownload = { _, _ ->
@@ -96,7 +96,7 @@ class CoreFacadeCancelTest :
                     // given
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val release = CompletableDeferred<Unit>()
                     world.adapters.single().onDownload = { _, _ ->
@@ -126,7 +126,7 @@ class CoreFacadeCancelTest :
                     // given
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     world.adapters.single().onDownload = { _, _ ->
                         DownloadResult.Failed(DownloadError.NetworkTransient)
                     }
@@ -148,7 +148,7 @@ class CoreFacadeCancelTest :
                     // given
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     world.adapters.single().onDownload = { _, _ ->
                         CompletableDeferred<Unit>().await()
@@ -171,7 +171,7 @@ class CoreFacadeCancelTest :
                     // given
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val target = world.targetPath()
                     val handle = world.enqueue(ref, target)
@@ -193,7 +193,7 @@ class CoreFacadeCancelTest :
                     // given
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val handle = world.enqueue(ref)
                     world.state(handle.taskId).status shouldBe DownloadStatus.Completed
@@ -211,7 +211,7 @@ class CoreFacadeCancelTest :
                     // given
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val target = world.targetPath()
                     val release = CompletableDeferred<Unit>()
@@ -239,7 +239,7 @@ class CoreFacadeCancelTest :
                     // given
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val cancelledStarted = CompletableDeferred<Unit>()
                     val survivorStarted = CompletableDeferred<Unit>()
@@ -285,7 +285,7 @@ class CoreFacadeCancelTest :
                             ),
                             dispatcher = StandardTestDispatcher(testScheduler),
                         )
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val gate = CompletableDeferred<Unit>()
                     var started = 0

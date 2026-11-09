@@ -1,12 +1,12 @@
 package io.averkhogliad.tubeloader.adapters.rutube
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.contract.DownloadCase
-import io.averkhogliad.tubeloader.core.contract.FindCase
 import io.averkhogliad.tubeloader.core.contract.MetaCase
 import io.averkhogliad.tubeloader.core.contract.RecordedResponses
+import io.averkhogliad.tubeloader.core.contract.ResolveIdCase
 import io.averkhogliad.tubeloader.core.contract.SourceAdapterFixtures
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
@@ -44,32 +44,32 @@ fun rutubeAdapterFixtures(): SourceAdapterFixtures =
     SourceAdapterFixtures(
         // the recording is served through the seam above, so the suite needs no second copy of it
         responses = RecordedResponses.None,
-        find = rutubeFindCases(),
+        resolveId = rutubeResolveIdCases(),
         meta = rutubeMetaCases(),
         download = rutubeDownloadCases(),
     )
 
-private fun rutubeFindCases() =
+private fun rutubeResolveIdCases() =
     listOf(
-        FindCase(
+        ResolveIdCase(
             name = "returns the id for a canonical video url",
             input = "https://rutube.ru/video/$RECORDED_MEDIA_ID/",
-            expected = FindResult.Found(RECORDED_MEDIA_ID),
+            expected = ResolveIdResult.Found(RECORDED_MEDIA_ID),
         ),
-        FindCase(
+        ResolveIdCase(
             name = "returns the id for an embed url",
             input = "https://rutube.ru/play/embed/$RECORDED_MEDIA_ID",
-            expected = FindResult.Found(RECORDED_MEDIA_ID),
+            expected = ResolveIdResult.Found(RECORDED_MEDIA_ID),
         ),
-        FindCase(
+        ResolveIdCase(
             name = "returns Unsupported for a url of another host",
             input = "https://vimeo.com/video/$RECORDED_MEDIA_ID/",
-            expected = FindResult.Unsupported,
+            expected = ResolveIdResult.Unsupported,
         ),
-        FindCase(
-            name = "returns Unsupported for an id of the wrong shape",
+        ResolveIdCase(
+            name = "returns NotFound for an id of the wrong shape",
             input = "https://rutube.ru/video/not-an-id/",
-            expected = FindResult.Unsupported,
+            expected = ResolveIdResult.NotFound,
         ),
     )
 

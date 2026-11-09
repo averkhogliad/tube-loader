@@ -1,15 +1,14 @@
 package io.averkhogliad.tubeloader.core.facade
 
-import io.averkhogliad.tubeloader.core.ResolveResult
+import io.averkhogliad.tubeloader.core.MediaResult
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaRef
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.Source
-import io.averkhogliad.tubeloader.core.domain.SourceId
 import io.averkhogliad.tubeloader.core.domain.TaskId
 import io.averkhogliad.tubeloader.core.download.DownloadHandle
 import io.averkhogliad.tubeloader.core.download.DownloadQueue
@@ -26,57 +25,54 @@ import java.nio.file.StandardCopyOption
 import kotlin.time.Clock
 
 class CoreFacade(
-    private val adapters: List<SourceAdapter>,
+    adapters: Map<String, SourceAdapter>,
     private val queue: DownloadQueue,
     taskIdGenerator: TaskIdGenerator,
     private val clock: Clock = Clock.System,
 ) {
-    private val sources: List<Source> =
-        adapters
-            .mapIndexed { index, adapter -> Source(SourceId(index), adapter.displayName) }
+    private val registrations: Map<String, Registration> =
+        adapters.mapValues { (code, adapter) -> Registration(Source(code, adapter.displayName), adapter) }
+
+    private val sources: List<Source> = registrations.values.map { it.source }
 
     val availableSources: List<Source> get() = sources
 
-    private val adaptersBySourceId: Map<SourceId, SourceAdapter> =
-        sources
-            .zip(adapters)
-            .associate { (source, adapter) -> source.id to adapter }
-
     private val registry = TaskRegistry(taskIdGenerator, clock)
 
-    suspend fun findByUrl(input: String): ResolveResult {
-        val matches = mutableListOf<MediaRef>()
+    /**
+     * The media item of the url: the source is the one that named a media id in it, and the metadata
+     * come from that source.
+     */
+    suspend fun findByUrl(input: String): MediaResult {
+        val claims = mutableListOf<Claim>()
         var notFound = false
-        for ((source, adapter) in sources.zip(adapters)) {
-            when (val result = adapter.find(input)) {
-                is FindResult.Found -> matches += MediaRef(source, result.mediaId)
-                FindResult.NotFound -> notFound = true
-                FindResult.Unsupported -> Unit
+        for ((code, registration) in registrations) {
+            when (val result = registration.adapter.resolveId(input)) {
+                is ResolveIdResult.Found -> claims += Claim(code, result.mediaId)
+                ResolveIdResult.NotFound -> notFound = true
+                ResolveIdResult.Unsupported -> Unit
             }
         }
+        val claim = claims.singleOrNull()
         return when {
-            matches.size > 1 -> error("Ambiguous match: ${matches.size} adapters claim input '$input'")
-            matches.size == 1 -> ResolveResult.Resolved(matches.single())
-            notFound -> ResolveResult.NotFound
-            else -> ResolveResult.Unsupported
+            claims.size > 1 -> error("Ambiguous match: ${claims.size} adapters claim input '$input'")
+            claim != null -> mediaResultOf(claim.code, claim.mediaId)
+            notFound -> MediaResult.NotFound
+            else -> MediaResult.Unsupported
         }
     }
 
-    suspend fun findById(sourceId: SourceId, id: String): ResolveResult {
-        val adapter =
-            adaptersBySourceId[sourceId] ?: error("Unknown source id: $sourceId")
-        val source = sources[sourceId.index]
-        return when (val result = adapter.find(id)) {
-            is FindResult.Found -> ResolveResult.Resolved(MediaRef(source, result.mediaId))
-            FindResult.NotFound -> ResolveResult.NotFound
-            FindResult.Unsupported -> ResolveResult.Unsupported
-        }
+    /**
+     * The media item of the code of a source and a media id: the source is named, so it is not
+     * searched for, and the id is not read as a url.
+     */
+    suspend fun findById(code: String, mediaId: String): MediaResult {
+        if (code !in registrations) error("Unknown source code: $code")
+        return mediaResultOf(code, mediaId)
     }
-
-    suspend fun loadMeta(ref: MediaRef): LoadMetaResult = adapterFor(ref.source.id).loadMeta(ref.mediaId)
 
     fun enqueue(ref: MediaRef, quality: Quality, targetPath: Path): DownloadHandle {
-        val adapter = adapterFor(ref.source.id)
+        val adapter = adapterFor(ref.source.code)
         if (targetPath.parent == null) {
             error("targetPath must include a parent directory: $targetPath")
         }
@@ -100,8 +96,17 @@ class CoreFacade(
         }
     }
 
-    private fun adapterFor(sourceId: SourceId): SourceAdapter =
-        adaptersBySourceId[sourceId] ?: error("Unknown source: $sourceId")
+    private fun adapterFor(code: String): SourceAdapter = registrations[code]?.adapter ?: error("Unknown source: $code")
+
+    private suspend fun mediaResultOf(code: String, mediaId: String): MediaResult {
+        val registration = registrations.getValue(code)
+        val meta = registration.adapter.findById(mediaId)
+        return when (meta) {
+            is LoadMetaResult.Found -> MediaResult.Found(MediaRef(registration.source, mediaId), meta.meta)
+            LoadMetaResult.NotFound -> MediaResult.NotFound
+            is LoadMetaResult.Failed -> MediaResult.Failed(meta.error)
+        }
+    }
 
     private suspend fun runDownload(
         taskId: TaskId,
@@ -164,4 +169,10 @@ class CoreFacade(
         } catch (_: Exception) {
         }
     }
+
+    /** A registered source: the code names it, the adapter has its data. */
+    private class Registration(val source: Source, val adapter: SourceAdapter)
+
+    /** A source that claimed a media id: the code of the source and the id it named. */
+    private data class Claim(val code: String, val mediaId: String)
 }

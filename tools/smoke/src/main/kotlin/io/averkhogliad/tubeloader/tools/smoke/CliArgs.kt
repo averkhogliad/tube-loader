@@ -8,12 +8,22 @@ internal const val DEFAULT_PARALLEL = 3
 internal const val EXIT_OK = 0
 
 /**
- * A target of the run: the url to download and the name of the file it lands in.
+ * A target of the run: what to download and what the file is called.
  *
- * [name] is null when the command named no file: the name is then the media id the source answers
- * with, so the file is named after the media and not after the url.
+ * A url target leaves the source to the core, and the file is named after the media the source
+ * answers with. An id target names the source by its code, and the name of the file is the one the
+ * command gave: the name is set by a person, not by a source.
  */
-internal data class SmokeTarget(val url: String, val name: String?)
+internal sealed interface SmokeTarget {
+
+    data class ByUrl(val url: String) : SmokeTarget
+
+    data class ById(
+        val code: String,
+        val mediaId: String,
+        val name: String,
+    ) : SmokeTarget
+}
 
 internal data class CliArgs(
     val targets: List<SmokeTarget>,
@@ -22,12 +32,15 @@ internal data class CliArgs(
     val cancelAfter: Duration?,
 )
 
+/** The code of the source and the media id of the target, as the command named them. */
+private data class TargetId(val code: String, val mediaId: String)
+
 internal object CliUsage {
     const val USAGE =
-        """Usage: smoke [<url>]... [-id <id> -name <name>]... [-out <dir>] [-parallel <n>] [-cancel-after <s>]
+        """Usage: smoke [<url>]... [-id <code>:<mediaId> -name <name>]... [-out <dir>] [-parallel <n>] [-cancel-after <s>]
 Options:
   <url>            Video url to download, of any source the tool knows. Can be given more than once.
-  -id <id>        Rutube video id (32-char hex), a shorthand for the rutube url. Pairs with the next -name.
+  -id <code>:<mediaId>  Source code and media id to download, e.g. rutube:<id>. Pairs with the next -name.
   -name <name>    Target file name without extension.
   -out <dir>      Target directory (default: c:\tmp\smoke).
   -parallel <n>   Max parallel downloads (default: 3).
@@ -40,7 +53,7 @@ internal fun parseCli(rawArgs: Array<String>): CliArgs {
     var targetDir = DEFAULT_TARGET_DIR
     var parallel = DEFAULT_PARALLEL
     var cancelAfter: Duration? = null
-    var pendingId: String? = null
+    var pendingId: TargetId? = null
     var i = 0
 
     fun nextValue(flag: String): String {
@@ -81,28 +94,41 @@ internal fun parseCli(rawArgs: Array<String>): CliArgs {
         }
         i++
     }
-    if (pendingId != null) error("missing -name after -id $pendingId\n${CliUsage.USAGE}")
+    if (pendingId != null) error("missing -name after -id ${pendingId.code}:${pendingId.mediaId}\n${CliUsage.USAGE}")
     return CliArgs(targets, targetDir, parallel, cancelAfter)
 }
 
-private fun takeId(id: String, pendingId: String?): String {
-    if (pendingId != null) error("missing -name after -id $pendingId\n${CliUsage.USAGE}")
-    return id
+/**
+ * The code of the source and the media id of the target: the separator is the first colon, the code
+ * is lowered, and the id stays as it is — the case of an id is meaningful.
+ *
+ * A bare id is an error of the command: the source is not guessed from an id, the ids of two
+ * sources look alike.
+ */
+private fun takeId(raw: String, pendingId: TargetId?): TargetId {
+    if (pendingId != null) {
+        error("missing -name after -id ${pendingId.code}:${pendingId.mediaId}\n${CliUsage.USAGE}")
+    }
+    val separator = raw.indexOf(':')
+    val code = if (separator > 0) raw.substring(0, separator).lowercase() else null
+    val mediaId = if (separator in 0 until raw.length - 1) raw.substring(separator + 1) else null
+    if (code.isNullOrEmpty() || mediaId.isNullOrEmpty()) {
+        error("expected <code>:<mediaId> after -id, got '$raw'\n${CliUsage.USAGE}")
+    }
+    return TargetId(code, mediaId)
 }
 
-private fun takeName(pendingId: String?, name: String): SmokeTarget {
+private fun takeName(pendingId: TargetId?, name: String): SmokeTarget {
     val id = pendingId ?: error("-name without preceding -id\n${CliUsage.USAGE}")
-    return SmokeTarget(url = urlFor(id), name = name)
+    return SmokeTarget.ById(id.code, id.mediaId, name)
 }
 
 private fun takeUrl(raw: String): SmokeTarget {
     if (!raw.startsWith("http://") && !raw.startsWith("https://")) {
         error("expected a url, got '$raw'\n${CliUsage.USAGE}")
     }
-    return SmokeTarget(url = raw, name = null)
+    return SmokeTarget.ByUrl(raw)
 }
-
-private fun urlFor(id: String): String = "https://rutube.ru/video/$id/"
 
 private fun takeParallel(raw: String): Int {
     val parsed = raw.toIntOrNull() ?: error("-parallel must be an integer, got '$raw'\n${CliUsage.USAGE}")

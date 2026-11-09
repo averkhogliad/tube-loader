@@ -16,7 +16,7 @@ private const val UNROUTED_MEDIA_ID = "22222222222222222222222222222222"
 class RutubeRecordingSentinelTest :
     FreeSpec({
 
-        "loadMeta" - {
+        "findById" - {
             "surfaces the sentinel of an unrouted url as a failure a transport hiccup cannot be mistaken for" {
                 // given
                 val http = rutubeRecordedHttp()
@@ -36,8 +36,8 @@ class RutubeRecordingSentinelTest :
                 val hiccup = FakeHttpTool().always(TRANSPORT_FAILURE_STUB)
 
                 // when
-                val sentinelResult = adapter(sentinel).loadMeta(UNROUTED_MEDIA_ID)
-                val hiccupResult = adapter(hiccup).loadMeta(MEDIA_ID)
+                val sentinelResult = adapter(sentinel).findById(UNROUTED_MEDIA_ID)
+                val hiccupResult = adapter(hiccup).findById(MEDIA_ID)
 
                 // then
                 sentinelResult shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)

@@ -1,7 +1,7 @@
 package io.averkhogliad.tubeloader.core.facade
 
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
-import io.averkhogliad.tubeloader.core.adapter.FindResult
+import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.TaskId
 import io.averkhogliad.tubeloader.core.download.DownloadStatus
@@ -41,7 +41,7 @@ class CoreFacadeEnqueueFailureTest :
                             // given
                             val mediaId = mediaIds.next()
                             val world = facadeWorld(tempDir)
-                            world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                            world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                             world.adapters.single().onDownload = { _, _ -> DownloadResult.Failed(error) }
                             val ref = world.resolve(mediaId)
 
@@ -61,7 +61,7 @@ class CoreFacadeEnqueueFailureTest :
                     // given
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir, dispatcher = StandardTestDispatcher(testScheduler))
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     val target = world.targetPath()
                     val release = CompletableDeferred<Unit>()
@@ -101,7 +101,7 @@ class CoreFacadeEnqueueFailureTest :
                             FacadeSettings(taskIdGenerator = TaskIdGenerator { TaskId(1) }),
                             dispatcher = StandardTestDispatcher(testScheduler),
                         )
-                    world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                    world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                     val ref = world.resolve(mediaId)
                     // a directory where the partial file belongs makes Files.createFile fail
                     val target = world.targetPath()
@@ -128,7 +128,7 @@ class CoreFacadeEnqueueFailureTest :
                         val tool = FakeMediaTool()
                         tool.onMux = { _, _, _ -> Result.failure(IllegalStateException("mux failed")) }
                         val world = facadeWorld(tempDir)
-                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         val target = world.targetPath()
                         val audio = world.targetPath()
@@ -153,7 +153,7 @@ class CoreFacadeEnqueueFailureTest :
                         val mediaId = mediaIds.next()
                         val tool = FakeMediaTool()
                         val world = facadeWorld(tempDir)
-                        world.adapters.single().onFind = { FindResult.Found(mediaId) }
+                        world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
                         val ref = world.resolve(mediaId)
                         val target = world.targetPath()
                         val audio = world.targetPath()
