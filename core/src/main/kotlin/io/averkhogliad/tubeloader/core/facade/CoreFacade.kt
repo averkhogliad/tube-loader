@@ -1,6 +1,5 @@
 package io.averkhogliad.tubeloader.core.facade
 
-import io.averkhogliad.tubeloader.core.MediaResult
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult

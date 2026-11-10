@@ -1,4 +1,4 @@
-package io.averkhogliad.tubeloader.core
+package io.averkhogliad.tubeloader.core.facade
 
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta

@@ -1,8 +1,8 @@
 package io.averkhogliad.tubeloader.core.usecase
 
-import io.averkhogliad.tubeloader.core.MediaResult
 import io.averkhogliad.tubeloader.core.domain.Source
 import io.averkhogliad.tubeloader.core.facade.CoreFacade
+import io.averkhogliad.tubeloader.core.facade.MediaResult
 
 /**
  * The resolution of a media item: by url, or by the code of a source and a media id.
