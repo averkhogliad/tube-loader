@@ -24,6 +24,8 @@ internal fun targetRows(targets: List<SmokeTarget>): List<TargetRow> {
 }
 
 internal suspend fun runOne(session: SmokeSession, target: SmokeTarget, row: TargetRow) {
+    // the row answers while the plan is being read from the source: a silent resolve looks dead
+    session.dashboard.update(row.key, formatResolving(row))
     val plan = planDownload(session, target, row) ?: return
     // a delegate adapter hands the path of ffmpeg to the tool it delegates to, so the binary has to
     // be on the disk before that tool starts

@@ -45,6 +45,12 @@ class ProgressFormatterTest :
             }
         }
 
+        "formatResolving" - {
+            "renders the row of a target whose plan is being read from the source" {
+                formatResolving(row(NAME)) shouldBe "clip  resolving"
+            }
+        }
+
         "formatSkipped" - {
             "names the reason of a target the run skipped" {
                 formatSkipped(row(NAME), "no adapter claims the target") shouldBe

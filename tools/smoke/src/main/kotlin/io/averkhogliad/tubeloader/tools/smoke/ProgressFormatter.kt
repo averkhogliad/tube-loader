@@ -5,7 +5,6 @@ import io.averkhogliad.tubeloader.core.domain.fraction
 import io.averkhogliad.tubeloader.core.download.DownloadState
 import io.averkhogliad.tubeloader.core.download.DownloadStatus
 import java.util.Locale
-import kotlin.time.Duration
 
 private const val PLANNED = "planned"
 
@@ -14,6 +13,9 @@ internal fun nameWidth(names: List<String>): Int = names.maxOfOrNull(String::len
 
 /** The row of a target that has not started yet. */
 internal fun formatPlanned(row: TargetRow): String = rowOf(row, PLANNED)
+
+/** The row of a target whose media and tools are being prepared before the download starts. */
+internal fun formatResolving(row: TargetRow): String = rowOf(row, "resolving")
 
 /** The row of a target the run skipped before the download started. */
 internal fun formatSkipped(row: TargetRow, reason: String): String = rowOf(row, "skipped: $reason")
@@ -50,7 +52,5 @@ private fun shareOf(progress: Progress): String {
 private fun finishedTail(state: DownloadState, fileName: String): String {
     val finished = state.finishedAt ?: return fileName
     val elapsed = finished - state.startedAt
-    return "$fileName, ${elapsed.secondsLabel()}"
+    return "$fileName, ${elapsed.inWholeSeconds}s"
 }
-
-private fun Duration.secondsLabel(): String = "${inWholeSeconds}s"
