@@ -24,11 +24,11 @@ internal fun targetRows(targets: List<SmokeTarget>): List<TargetRow> {
 }
 
 internal suspend fun runOne(session: SmokeSession, target: SmokeTarget, row: TargetRow) {
-    // the row answers while the plan is being read from the source: a silent resolve looks dead
+    // the row answers while the media is being read from the source: a silent resolve looks dead
     session.dashboard.update(row.key, formatResolving(row))
     val plan = planDownload(session, target, row) ?: return
-    // a delegate adapter hands the path of ffmpeg to the tool it delegates to, so the binary has to
-    // be on the disk before that tool starts
+    // the tools are fetched at the startup of the run: this call only answers the cached result,
+    // and the binary has to be on the disk before the tool of the adapter starts
     val ffmpeg = session.tools.ensureFfmpeg()
     if (ffmpeg.isFailure) {
         session.dashboard.update(row.key, formatSkipped(row, "ffmpeg is not available"))

@@ -14,7 +14,7 @@ internal fun nameWidth(names: List<String>): Int = names.maxOfOrNull(String::len
 /** The row of a target that has not started yet. */
 internal fun formatPlanned(row: TargetRow): String = rowOf(row, PLANNED)
 
-/** The row of a target whose media and tools are being prepared before the download starts. */
+/** The row of a target whose media is being read from the source. */
 internal fun formatResolving(row: TargetRow): String = rowOf(row, "resolving")
 
 /** The row of a target the run skipped before the download started. */

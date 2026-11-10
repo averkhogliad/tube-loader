@@ -70,6 +70,9 @@ private fun runScript(targets: List<SmokeTarget>, targetDir: Path, parallel: Int
         val rows = targetRows(targets)
         rows.forEach { row -> session.dashboard.register(row.key, formatPlanned(row)) }
         runBlocking {
+            // the tools of the run are fetched at startup: a target waits for its source, not for the network
+            session.tools.ensureFfmpeg()
+            session.tools.ensureYtDlp()
             val observerJob = launch { session.observer.observe() }
             val cancelJob = launchCancelJobs(session, cancelAfter)
             try {

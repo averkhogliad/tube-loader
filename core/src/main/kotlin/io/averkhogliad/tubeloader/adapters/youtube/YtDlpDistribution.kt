@@ -48,7 +48,7 @@ internal fun checksumOf(sums: String, assetName: String): String? =
  */
 internal class YtDlpDistribution(
     private val paths: ToolPaths,
-    private val fetch: (Path) -> Unit = { binary -> fetchManaged(binary) },
+    private val fetch: (Path) -> Unit = { binary -> fetchManaged(binary, YtDlpSource.current()) },
 ) {
 
     private val mutex = Mutex()
@@ -74,8 +74,15 @@ internal class YtDlpDistribution(
     }
 }
 
-/** Fetches the build of the latest release: what the distribution calls on a miss. */
-private fun fetchManaged(binary: Path) = fetchManaged(binary, YtDlpSource.current())
+/**
+ * Makes sure the managed build of the tool is on the disk and hands back the path to run, as the
+ * media tool does with its own distribution. The adapter fetches it on its first call anyway; a
+ * composition root calls this once per run, before the first resolve, so no call of the adapter
+ * waits for the network.
+ *
+ * @return the binary to run, or the reason it could not be obtained.
+ */
+suspend fun ensureManagedYtDlp(paths: ToolPaths): Result<Path> = YtDlpDistribution(paths).ensureBinary(null)
 
 /**
  * Fetches [source] into [binary] through a temporary file of the same directory: a call that fails

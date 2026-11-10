@@ -8,7 +8,8 @@ import java.io.IOException
 import java.nio.file.Path
 
 private val HOME = Path.of("home")
-private val BINARY = Path.of("home", "ffmpeg", "ffmpeg.exe")
+private val FFMPEG = Path.of("home", "ffmpeg", "ffmpeg.exe")
+private val YT_DLP = Path.of("home", "yt-dlp", "yt-dlp.exe")
 
 class SmokeToolsTest :
     FreeSpec({
@@ -26,7 +27,7 @@ class SmokeToolsTest :
                 val tools =
                     SmokeTools(ToolPaths.of(HOME), screen.dashboard) {
                         fetches++
-                        Result.success(BINARY)
+                        Result.success(FFMPEG)
                     }
 
                 // when
@@ -35,8 +36,8 @@ class SmokeToolsTest :
 
                 // then
                 fetches shouldBe 1
-                first.getOrNull() shouldBe BINARY
-                second.getOrNull() shouldBe BINARY
+                first.getOrNull() shouldBe FFMPEG
+                second.getOrNull() shouldBe FFMPEG
             }
 
             "reports a tool it cannot obtain as a note and goes on" {
@@ -50,6 +51,49 @@ class SmokeToolsTest :
                 // then
                 actual.exceptionOrNull() shouldBe failure
                 screen.lines() shouldBe listOf("ffmpeg is not available: no network")
+            }
+        }
+
+        "ensureYtDlp" - {
+            "fetches the tool once per run and answers the binary it found" {
+                // given
+                var fetches = 0
+                val tools =
+                    SmokeTools(
+                        ToolPaths.of(HOME),
+                        screen.dashboard,
+                        ytDlpFetch = {
+                            fetches++
+                            Result.success(YT_DLP)
+                        },
+                    )
+
+                // when
+                val first = runBlocking { tools.ensureYtDlp() }
+                val second = runBlocking { tools.ensureYtDlp() }
+
+                // then
+                fetches shouldBe 1
+                first.getOrNull() shouldBe YT_DLP
+                second.getOrNull() shouldBe YT_DLP
+            }
+
+            "reports a tool it cannot obtain as a note and goes on" {
+                // given
+                val failure = IOException("no network")
+                val tools =
+                    SmokeTools(
+                        ToolPaths.of(HOME),
+                        screen.dashboard,
+                        ytDlpFetch = { Result.failure(failure) },
+                    )
+
+                // when
+                val actual = runBlocking { tools.ensureYtDlp() }
+
+                // then
+                actual.exceptionOrNull() shouldBe failure
+                screen.lines() shouldBe listOf("yt-dlp is not available: no network")
             }
         }
     })
