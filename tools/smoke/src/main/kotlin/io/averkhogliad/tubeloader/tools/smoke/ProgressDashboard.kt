@@ -7,6 +7,13 @@ private const val RESTORE_CURSOR = "\u001B8"
 private const val ERASE_DOWN = "\u001B[J"
 private const val NEWLINE = "\r\n"
 
+/**
+ * The live table of the run: one row per planned target, redrawn in place while the downloads go.
+ *
+ * Terminal rows stay in the table: the table itself is the report of the run, so a finished target
+ * is updated in its own row instead of being printed as a line of its own. Only a note — a failure
+ * of the run as a whole — is printed above the table and stays there forever.
+ */
 internal class ProgressDashboard(private val out: PrintStream = System.out) {
     private val lock = Any()
     private val lines = LinkedHashMap<String, String>()
@@ -27,14 +34,7 @@ internal class ProgressDashboard(private val out: PrintStream = System.out) {
         }
     }
 
-    fun complete(key: String, terminalLine: String) {
-        synchronized(lock) {
-            lines.remove(key)
-            note(terminalLine)
-        }
-    }
-
-    /** Prints a permanent line above the live block and redraws the block below it. */
+    /** Prints a permanent line above the live table and redraws the table below it. */
     fun note(text: String) {
         synchronized(lock) {
             closeBlock()
@@ -44,9 +44,9 @@ internal class ProgressDashboard(private val out: PrintStream = System.out) {
         }
     }
 
+    /** Stops drawing and hands the terminal over: the table stays on the screen as the report. */
     fun close() {
         synchronized(lock) {
-            closeBlock()
             out.flush()
         }
     }

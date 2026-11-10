@@ -2,23 +2,20 @@ package io.averkhogliad.tubeloader.tools.smoke
 
 import io.averkhogliad.tubeloader.core.domain.TaskId
 import io.averkhogliad.tubeloader.core.download.DownloadState
-import io.averkhogliad.tubeloader.core.download.DownloadStatus
 import io.averkhogliad.tubeloader.core.download.isTerminal
 import io.averkhogliad.tubeloader.core.usecase.ObserveDownloads
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.ConcurrentHashMap
 
-internal data class DownloadEntry(val name: String, val targetName: String)
-
+/** Follows every download of the run and keeps its row of the live table up to date. */
 internal class DownloadStateObserver(
     private val observeDownloads: ObserveDownloads,
     private val dashboard: ProgressDashboard,
 ) {
 
     private val states = MutableStateFlow<List<DownloadState>>(emptyList())
-    private val entries = ConcurrentHashMap<TaskId, DownloadEntry>()
-    private val finished = mutableSetOf<String>()
+    private val rows = ConcurrentHashMap<TaskId, TargetRow>()
 
     suspend fun observe() {
         observeDownloads.states().collect { current ->
@@ -27,8 +24,8 @@ internal class DownloadStateObserver(
         }
     }
 
-    fun register(taskId: TaskId, entry: DownloadEntry) {
-        entries[taskId] = entry
+    fun register(taskId: TaskId, row: TargetRow) {
+        rows[taskId] = row
     }
 
     fun snapshot(): List<DownloadState> = states.value
@@ -40,26 +37,12 @@ internal class DownloadStateObserver(
 
     suspend fun awaitFirstTask(): DownloadState = states.first { current -> current.isNotEmpty() }.first()
 
+    /**
+     * A terminal status is written into the row of its own target as any other: the table is the
+     * report of the run, so nothing leaves it for a line above.
+     */
     private fun render(state: DownloadState) {
-        val key = state.taskId.toString()
-        val entry = entries[state.taskId]
-        val name = entry?.name ?: key
-        if (state.status.isTerminal) {
-            if (finished.add(key)) {
-                dashboard.complete(key, formatTerminal(state, name, entry?.targetName))
-            }
-        } else {
-            dashboard.update(key, formatProgress(state, name).ifEmpty { "[$key] $name: ${label(state.status)}" })
-        }
+        val row = rows[state.taskId] ?: return
+        dashboard.update(row.key, formatRow(state, row))
     }
 }
-
-private fun label(status: DownloadStatus): String =
-    when (status) {
-        DownloadStatus.Queued -> "queued"
-        DownloadStatus.LoadingMeta -> "loading metadata"
-        DownloadStatus.Downloading -> "downloading"
-        DownloadStatus.Finalizing -> "finalizing"
-        DownloadStatus.Cancelling -> "cancelling"
-        else -> status.toString()
-    }

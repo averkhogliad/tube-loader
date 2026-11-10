@@ -9,9 +9,12 @@ import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import kotlin.time.Instant
 
-private const val NAME = "Почему хороший продукт"
+private const val NAME = "clip"
 private val TASK = TaskId(0x1234_5678)
 private val STARTED = Instant.fromEpochMilliseconds(1_700_000_000_000)
+
+private fun row(name: String, width: Int = name.length): TargetRow =
+    TargetRow(key = "0", name = name, fileName = "$name.mp4", width = width)
 
 private fun state(
     status: DownloadStatus,
@@ -22,66 +25,89 @@ private fun state(
 class ProgressFormatterTest :
     FreeSpec({
 
-        "formatProgress" - {
-            "drops the indeterminate LoadingMeta" {
-                formatProgress(state(DownloadStatus.LoadingMeta), NAME) shouldBe ""
+        "nameWidth" - {
+            "takes the longest name of the run" {
+                nameWidth(listOf("a", "three", "ze")) shouldBe 5
             }
 
-            "drops the indeterminate Finalizing" {
-                formatProgress(state(DownloadStatus.Finalizing), NAME) shouldBe ""
-            }
-
-            "renders a determinate Downloading as a percent" {
-                val out =
-                    formatProgress(
-                        state(DownloadStatus.Downloading, Progress.Absolute(processed = 4, total = 10)),
-                        NAME,
-                    )
-                out shouldBe "[12345678] $NAME: downloading 40.00%"
-            }
-
-            "renders a third of the work with two decimals" {
-                val out =
-                    formatProgress(
-                        state(DownloadStatus.Downloading, Progress.Absolute(processed = 1, total = 3)),
-                        NAME,
-                    )
-                out shouldBe "[12345678] $NAME: downloading 33.33%"
-            }
-
-            "renders an indeterminate Downloading as a dash" {
-                val out = formatProgress(state(DownloadStatus.Downloading, Progress.Indeterminate), NAME)
-                out shouldBe "[12345678] $NAME: downloading -"
-            }
-
-            "renders a Queued once" {
-                val out = formatProgress(state(DownloadStatus.Queued), NAME)
-                out shouldBe "[12345678] $NAME: queued"
+            "names no width when the run has no targets" {
+                nameWidth(emptyList()) shouldBe 0
             }
         }
 
-        "formatTerminal" - {
-            "renders a Completed with the target path" {
-                formatTerminal(
+        "formatPlanned" - {
+            "renders the row of a target that has not started yet" {
+                formatPlanned(row(NAME)) shouldBe "clip  planned"
+            }
+
+            "pads the name to the width of the run" {
+                formatPlanned(row(NAME, width = 6)) shouldBe "clip    planned"
+            }
+        }
+
+        "formatSkipped" - {
+            "names the reason of a target the run skipped" {
+                formatSkipped(row(NAME), "no adapter claims the target") shouldBe
+                    "clip  skipped: no adapter claims the target"
+            }
+        }
+
+        "formatRow" - {
+            "renders the waiting of a queued download" {
+                formatRow(state(DownloadStatus.Queued), row(NAME)) shouldBe "clip  queued"
+            }
+
+            "renders the metadata phase" {
+                formatRow(state(DownloadStatus.LoadingMeta), row(NAME)) shouldBe "clip  loading metadata"
+            }
+
+            "renders a determinate download as a percent" {
+                formatRow(
+                    state(DownloadStatus.Downloading, Progress.Absolute(processed = 4, total = 10)),
+                    row(NAME),
+                ) shouldBe "clip  downloading 40.00%"
+            }
+
+            "renders a third of the work with two decimals" {
+                formatRow(
+                    state(DownloadStatus.Downloading, Progress.Absolute(processed = 1, total = 3)),
+                    row(NAME),
+                ) shouldBe "clip  downloading 33.33%"
+            }
+
+            "renders an indeterminate download as a dash" {
+                formatRow(state(DownloadStatus.Downloading, Progress.Indeterminate), row(NAME)) shouldBe
+                    "clip  downloading -"
+            }
+
+            "renders the finalizing phase" {
+                formatRow(state(DownloadStatus.Finalizing), row(NAME)) shouldBe "clip  finalizing"
+            }
+
+            "renders the cancelling phase" {
+                formatRow(state(DownloadStatus.Cancelling), row(NAME)) shouldBe "clip  cancelling"
+            }
+
+            "renders a completed download with the file and the time it took" {
+                formatRow(
                     state(DownloadStatus.Completed, finishedAt = Instant.fromEpochMilliseconds(1_700_000_010_000)),
-                    NAME,
-                    targetName = "clip.mp4",
-                ) shouldBe "[12345678] $NAME: done (clip.mp4, 10s)"
+                    row(NAME),
+                ) shouldBe "clip  done (clip.mp4, 10s)"
             }
 
-            "renders a Cancelled" {
-                formatTerminal(state(DownloadStatus.Cancelled), NAME) shouldBe "[12345678] $NAME: cancelled"
+            "renders a cancelled download" {
+                formatRow(state(DownloadStatus.Cancelled), row(NAME)) shouldBe "clip  cancelled"
             }
 
-            "renders a Failed with the error and cause" {
+            "renders a failure with the error and the cause" {
                 val cause = RuntimeException("server reset")
-                formatTerminal(state(DownloadStatus.Failed(DownloadError.NetworkTransient, cause)), NAME) shouldBe
-                    "[12345678] $NAME: FAILED NetworkTransient: server reset"
+                formatRow(state(DownloadStatus.Failed(DownloadError.NetworkTransient, cause)), row(NAME)) shouldBe
+                    "clip  failed: NetworkTransient: server reset"
             }
 
-            "renders a Failed without a cause" {
-                formatTerminal(state(DownloadStatus.Failed(DownloadError.ExtractorBroken)), NAME) shouldBe
-                    "[12345678] $NAME: FAILED ExtractorBroken"
+            "renders a failure without a cause" {
+                formatRow(state(DownloadStatus.Failed(DownloadError.ExtractorBroken)), row(NAME)) shouldBe
+                    "clip  failed: ExtractorBroken"
             }
         }
     })

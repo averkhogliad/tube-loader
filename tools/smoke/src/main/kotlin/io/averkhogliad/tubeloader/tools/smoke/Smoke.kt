@@ -67,13 +67,15 @@ private fun runScript(targets: List<SmokeTarget>, targetDir: Path, parallel: Int
     val session = composition.session
     try {
         checkSourceCodes(session, targets)
+        val rows = targetRows(targets)
+        rows.forEach { row -> session.dashboard.register(row.key, formatPlanned(row)) }
         runBlocking {
             val observerJob = launch { session.observer.observe() }
             val cancelJob = launchCancelJobs(session, cancelAfter)
             try {
                 coroutineScope {
-                    targets.forEach { target ->
-                        launch { runOne(session, target) }
+                    targets.forEachIndexed { index, target ->
+                        launch { runOne(session, target, rows[index]) }
                     }
                 }
             } finally {
