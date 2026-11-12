@@ -1,6 +1,5 @@
 package io.averkhogliad.tubeloader.core.usecase
 
-import io.averkhogliad.tubeloader.core.MediaResult
 import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
@@ -11,6 +10,7 @@ import io.averkhogliad.tubeloader.core.download.TaskIdGenerator
 import io.averkhogliad.tubeloader.core.download.mediaMetas
 import io.averkhogliad.tubeloader.core.download.qualities
 import io.averkhogliad.tubeloader.core.facade.FacadeSettings
+import io.averkhogliad.tubeloader.core.facade.MediaResult
 import io.averkhogliad.tubeloader.core.facade.cleanUp
 import io.averkhogliad.tubeloader.core.facade.facadeWorld
 import io.averkhogliad.tubeloader.core.facade.inputs

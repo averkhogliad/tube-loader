@@ -3,7 +3,6 @@ package io.averkhogliad.tubeloader.core.facade
 import io.averkhogliad.tubeloader.adapters.rutube.MEDIA_ID
 import io.averkhogliad.tubeloader.adapters.rutube.RutubeSourceAdapter
 import io.averkhogliad.tubeloader.adapters.rutube.rutubeRecordedHttp
-import io.averkhogliad.tubeloader.core.MediaResult
 import io.averkhogliad.tubeloader.core.adapter.FakeSourceAdapter
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult

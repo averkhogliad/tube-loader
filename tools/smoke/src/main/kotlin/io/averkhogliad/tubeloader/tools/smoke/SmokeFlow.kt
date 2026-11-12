@@ -1,10 +1,10 @@
 package io.averkhogliad.tubeloader.tools.smoke
 
-import io.averkhogliad.tubeloader.core.MediaResult
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.MediaRef
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
+import io.averkhogliad.tubeloader.core.facade.MediaResult
 
 private val QUALITY_1080P = Quality("1080p", TrackKind.Video, "1080p")
 
