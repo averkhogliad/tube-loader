@@ -3,7 +3,7 @@ package io.averkhogliad.tubeloader.adapters.youtube
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import io.averkhogliad.tubeloader.core.config.ToolPaths
-import io.averkhogliad.tubeloader.core.deleteWithRetry
+import io.averkhogliad.tubeloader.core.contract.deleteWithRetry
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe

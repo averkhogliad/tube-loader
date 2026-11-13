@@ -2,7 +2,7 @@ package io.averkhogliad.tubeloader.core.media
 
 import io.averkhogliad.tubeloader.core.config.MediaToolConfig
 import io.averkhogliad.tubeloader.core.config.ToolPaths
-import io.averkhogliad.tubeloader.core.deleteWithRetry
+import io.averkhogliad.tubeloader.core.contract.deleteWithRetry
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.port.MediaTool
 import io.kotest.core.spec.style.FreeSpec

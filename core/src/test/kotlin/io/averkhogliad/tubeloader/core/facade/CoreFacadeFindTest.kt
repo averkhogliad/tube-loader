@@ -1,34 +1,18 @@
 package io.averkhogliad.tubeloader.core.facade
 
-import io.averkhogliad.tubeloader.adapters.rutube.MEDIA_ID
-import io.averkhogliad.tubeloader.adapters.rutube.RutubeSourceAdapter
-import io.averkhogliad.tubeloader.adapters.rutube.rutubeRecordedHttp
 import io.averkhogliad.tubeloader.core.adapter.FakeSourceAdapter
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
-import io.averkhogliad.tubeloader.core.config.AppConfig
-import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.domain.MediaRef
-import io.averkhogliad.tubeloader.core.domain.Source
-import io.averkhogliad.tubeloader.core.download.DownloadQueue
-import io.averkhogliad.tubeloader.core.download.RandomTaskIdGenerator
 import io.averkhogliad.tubeloader.core.download.downloadErrors
 import io.averkhogliad.tubeloader.core.download.mediaMetas
-import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.next
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import kotlin.time.Clock
-import kotlin.time.Duration.Companion.seconds
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class CoreFacadeFindTest :
     FreeSpec({
 
@@ -258,32 +242,6 @@ class CoreFacadeFindTest :
                     shouldThrow<IllegalStateException> {
                         world.facade.findById("nowhere", mediaIds.next())
                     }
-                }
-            }
-
-            "works with a real adapter: the id is not read as a url" {
-                runTest {
-                    // given
-                    val adapter =
-                        RutubeSourceAdapter(rutubeRecordedHttp(), FakeMediaTool()) {
-                            HttpToolConfig(perAttemptTimeout = 30.seconds)
-                        }
-                    val queue =
-                        DownloadQueue(
-                            backgroundScope,
-                            UnconfinedTestDispatcher(testScheduler),
-                            UnconfinedTestDispatcher(testScheduler),
-                            MutableStateFlow(AppConfig(httpTool = testHttpTool)),
-                        )
-                    val facade = CoreFacade(mapOf("rutube" to adapter), queue, RandomTaskIdGenerator, Clock.System)
-
-                    // when
-                    val actual = facade.findById("rutube", MEDIA_ID)
-
-                    // then
-                    val found = actual.shouldBeInstanceOf<MediaResult.Found>()
-                    found.ref shouldBe MediaRef(Source("rutube", "Rutube"), MEDIA_ID)
-                    found.meta.id shouldBe MEDIA_ID
                 }
             }
         }

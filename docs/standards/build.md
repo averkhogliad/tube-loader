@@ -60,7 +60,7 @@ Remove-Item -Recurse -Force core/build/test-results
 ## Интеграционные тесты — отдельной задачей
 
 ```
-./gradlew :core:integrationTest --rerun-tasks
+./gradlew :adapters:integrationTest --rerun-tasks
 ```
 
 Живые спеки (`*SourceAdapterIT`) в `check` не входят: они требуют реальных инструментов и сети.

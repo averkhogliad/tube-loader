@@ -2,7 +2,6 @@ import java.time.Duration
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kover)
     `java-test-fixtures`
 }
@@ -16,7 +15,6 @@ kotlin {
 
 dependencies {
     implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.serialization.json)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.encoding)
@@ -44,24 +42,4 @@ tasks.test {
     // last-resort backstop: a test blocked on its own thread is not interrupted by kotest's own
     // timeout unless it opts into blockingTest, so this kills the task instead of hanging CI
     timeout.set(Duration.ofMinutes(5))
-}
-
-val integrationTest by tasks.registering(Test::class) {
-    description = "Runs the live integration specs (real tools, opt-in)."
-    group = LifecycleBasePlugin.VERIFICATION_GROUP
-    testClassesDirs = sourceSets["test"].output.classesDirs
-    classpath = sourceSets["test"].runtimeClasspath
-    useJUnitPlatform()
-    systemProperty("kotest.tags.include", "integration")
-    // same backstop as `test`: a live tool may block a thread past kotest's own timeout
-    timeout.set(Duration.ofMinutes(5))
-}
-
-kover {
-    currentProject {
-        instrumentation {
-            // koverVerify waits for every instrumented Test task, so the live suite would land in `check`
-            disabledForTestTasks.add("integrationTest")
-        }
-    }
 }
