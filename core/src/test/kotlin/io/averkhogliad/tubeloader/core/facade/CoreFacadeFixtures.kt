@@ -4,7 +4,7 @@ import io.averkhogliad.tubeloader.core.adapter.FakeSourceAdapter
 import io.averkhogliad.tubeloader.core.adapter.adaptersByCode
 import io.averkhogliad.tubeloader.core.config.AppConfig
 import io.averkhogliad.tubeloader.core.config.HttpToolConfig
-import io.averkhogliad.tubeloader.core.deleteWithRetry
+import io.averkhogliad.tubeloader.core.contract.deleteWithRetry
 import io.averkhogliad.tubeloader.core.domain.MediaRef
 import io.averkhogliad.tubeloader.core.domain.TaskId
 import io.averkhogliad.tubeloader.core.download.DownloadHandle

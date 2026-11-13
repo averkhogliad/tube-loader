@@ -23,6 +23,7 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.encoding)
     implementation(project(":core"))
+    implementation(project(":adapters"))
     implementation(project(":common:config"))
 
     testImplementation(libs.kotest.runner.junit6)
