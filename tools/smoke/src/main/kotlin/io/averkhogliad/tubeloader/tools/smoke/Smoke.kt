@@ -6,6 +6,7 @@ import io.averkhogliad.tubeloader.adapters.youtube.YtDlpProcessRunner
 import io.averkhogliad.tubeloader.adapters.youtube.ytDlpPolicy
 import io.averkhogliad.tubeloader.config.Config
 import io.averkhogliad.tubeloader.config.ConfigProvider
+import io.averkhogliad.tubeloader.config.TomlConfigReader
 import io.averkhogliad.tubeloader.config.defaultSources
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
 import io.averkhogliad.tubeloader.core.adapter.adaptersByCode
@@ -141,7 +142,7 @@ private fun buildComposition(targetDir: Path, parallel: Int): SmokeComposition {
             SystemProcessRunner(),
             ffmpegBinary,
         )
-    val ytDlpConfig = YtDlpConfig.fromConfig(config, paths)
+    val ytDlpConfig = YtDlpConfig.fromReader(TomlConfigReader(config), paths)
     val adapters = smokeSources(httpTool, mediaTool, httpToolConfig, ytDlpConfig, ytDlpBinary)
     val parentJob = SupervisorJob()
     val scope = CoroutineScope(Dispatchers.IO + parentJob)

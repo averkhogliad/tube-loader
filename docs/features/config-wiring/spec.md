@@ -52,7 +52,9 @@ CLI > TOML > default: флаги перекрывают файл, констан
   синтаксическая ошибка — `IllegalArgumentException` с ключом и значением; целые — строгий
   `Int`-диапазон (`Long` вне диапазона — отказ).
 - **Источники — адаптеры там же:** `TomlConfigReader` поверх `Config`/TOML; `MemoryConfigReader`
-  для кода и тестов. Ядро видит только интерфейс; TOML, файлы и ktoml остаются в `common:config`.
+  для кода и тестов. `MemoryConfigReader` принимает только «сырые» написания значений, как их
+  отдал бы TOML (числа, текст, списки); типизированные `Duration`/`Path` им не принимаются. Ядро
+  видит только интерфейс; TOML, файлы и ktoml остаются в `common:config`.
 - **Типизированные конфиги остаются в `core.config`** (в т.ч. `AppConfig` — доменный,
   package-structure spec): `fromConfig(config)` заменяется на `fromReader(reader)`; синтаксис —
   в reader'е, семантика (позитивность, границы, обязательность per-attempt) — в `init` конфигов.
@@ -87,6 +89,10 @@ CLI > TOML > default: флаги перекрывают файл, констан
 
 ## Further Notes
 
+- **Исключение из typed-доступа — `AppConfig`:** `max-parallel-downloads` и `default-target-dir`
+  читаются через `ConfigReader.text()` с прежним лояльным разбором (`toIntOrNull` / `Path.of`) и
+  откатом на default при нечитаемом значении. Это осознанное сохранение поведения этих ключей, а
+  не пропущенный строгий доступ; блок `http-tool` читается строго.
 - `common:config` остаётся микрофреймворком: `ConfigReader` — generic typed lookup, не доменные
   настройки; доменные остаются в `core.config` (package-structure spec).
 - Критерий дизайна: «источник настроек — файл и его формат, код или др — изолирован от ядра»:

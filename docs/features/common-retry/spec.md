@@ -146,7 +146,8 @@ number, previousDelay, cumulativeDelay, elapsed)` предикат `continueIf` 
 
 **TOML — плоский под-блок.** `[download.http-tool]`: `connect-timeout-ms`, `request-timeout-ms`,
 `per-attempt-timeout-ms`, `max-attempts`, `base-delay-ms`, `randomization-factor`, `retriable-statuses`. Конфиг резолвится
-в `HttpToolConfig` (`AppConfig.httpTool`) его собственным `fromConfig` через `Config.getTableOrNull("download.http-tool")`.
+в `HttpToolConfig` (`AppConfig.httpTool`) его собственным `fromReader(reader)` через `ConfigReader` по ключам
+блока `download.http-tool`.
 Никакого вложенного `[download.http-tool.retry]` — одна вложенность (`download` → `http-tool`).
 
 **Что не делается в этой миграции.** Decorator-style API (`executeSupplier`/`decorateSupplier`),
