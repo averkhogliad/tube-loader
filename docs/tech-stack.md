@@ -12,6 +12,7 @@
 | `common:retry` | Движок повторов: политика решает, повторять ли упавшую попытку и сколько ждать. Источник-нейтрален, ядро и адаптеры переиспользуют |
 | `core` | Headless-ядро: роутинг URL, оркестрация загрузок, нормализация прогресса и ошибок, staging |
 | `usecases` | Прикладной слой над ядром: `ResolveMedia` и `DownloadSession`; зависит от `:core` и `kotlinx.coroutines` |
+| `app` | Композиционный корень `TubeloaderApp`: собирает граф (Ktor → `HttpTool`, `ManagedBinary` ×2, `FfmpegMediaTool`, адаптеры, очередь, фасад, use-cases) и владеет подготовкой инструментов и жизненным циклом; единственный композитор, фронтенды видят только его и `:usecases` |
 | `adapters` | Реализации источников: разбор URL, метаданные и скачивание через порт `HttpTool` или внешний инструмент; зависит от `:infra` (общие механизмы внешних бинарников) |
 | `infra` | Реализации портов: `infra.http` (Ktor-транспорт за `HttpTool`), `infra.media` (FFmpeg-обёртка за `MediaTool`), `infra.binaries` (общие механизмы внешних бинарников) |
 | Фронтенды (план) | Compose Desktop GUI (M1), mosaic TUI (M2) — тонкие клиенты: команды вниз, события вверх |
@@ -35,6 +36,12 @@
 | Пакет | Содержимое |
 | --- | --- |
 | `usecase` | Сценарии поверх фасада: `ResolveMedia` (разрешение медиа) и `DownloadSession` (постановка, отмена, агрегированный список загрузок; трекер внутри) |
+
+## Подпакеты `app`
+
+| Пакет | Содержимое |
+| --- | --- |
+| `app` | `TubeloaderApp` (фабрика графа, `prepareTools`, `shutdown`, `close`), `AppOverrides` (значения фронтенда поверх конфига), `PreparedTools`/`ToolStatus` (пер-инструментный статус ffmpeg и yt-dlp) |
 
 ## Подпакеты `adapters`
 
@@ -86,7 +93,7 @@
 | kotest | Runner (JUnit6), property-тесты: `Arb`/`Exhaustive`, сэмпл — `gen.next()` | `docs/standards/testing.md` |
 | mockk | Моки: подключён к `:core`, `:adapters` и `:infra`, применяется; query-методы заглушаются, command-методы верифицируются с `capture` | `docs/standards/testing.md` |
 | JUnit Platform launcher | Тестовая платформа Gradle | — |
-| Kover | Покрытие в `:core`, `:usecases`, `:adapters`, `:infra`, `:common:config` и `:common:retry`; гейт 80% строк / 75% ветвей, `testFixtures` исключены | — |
+| Kover | Покрытие в `:core`, `:usecases`, `:app`, `:adapters`, `:infra`, `:common:config` и `:common:retry`; гейт 80% строк / 75% ветвей, `testFixtures` исключены | — |
 
 ## Линт
 

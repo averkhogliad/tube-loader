@@ -1,10 +1,11 @@
 package io.averkhogliad.tubeloader.tools.smoke
 
+import io.averkhogliad.tubeloader.app.AppOverrides
+import java.nio.file.Paths
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 internal const val DEFAULT_TARGET_DIR = "c:\\tmp\\smoke"
-internal const val DEFAULT_PARALLEL = 3
 internal const val EXIT_OK = 0
 
 /**
@@ -26,15 +27,29 @@ internal sealed interface SmokeTarget {
     ) : SmokeTarget
 }
 
+/**
+ * The command of the run. A setting the command does not name stays null: the config file then
+ * names the value, and the default of the application is the last backstop.
+ */
 internal data class CliArgs(
     val targets: List<SmokeTarget>,
-    val targetDir: String,
-    val parallel: Int,
+    val targetDir: String?,
+    val parallel: Int?,
     val cancelAfter: Duration?,
 )
 
 /** The code of the source and the media id of the target, as the command named them. */
 private data class TargetId(val code: String, val mediaId: String)
+
+/**
+ * The values the command sets over the config: a flag the command does not give stays null and
+ * leaves the value of the config in force.
+ */
+internal fun CliArgs.overrides(): AppOverrides =
+    AppOverrides(
+        maxParallelDownloads = parallel,
+        defaultTargetDir = targetDir?.let { raw -> Paths.get(raw) },
+    )
 
 internal object CliUsage {
     const val USAGE =
@@ -53,8 +68,8 @@ Options:
 
 internal fun parseCli(rawArgs: Array<String>): CliArgs {
     val targets = mutableListOf<SmokeTarget>()
-    var targetDir = DEFAULT_TARGET_DIR
-    var parallel = DEFAULT_PARALLEL
+    var targetDir: String? = null
+    var parallel: Int? = null
     var cancelAfter: Duration? = null
     var i = 0
 

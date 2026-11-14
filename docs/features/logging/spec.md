@@ -21,8 +21,8 @@ smoke — здесь. Тикеты независимы.
 по имени/KClass. `FfmpegMediaTool` мигрирует: недоступность — warn, команда — info, провал —
 warn; ручной префикс умирает. `System.setErr`-перехват и `LineSinkStream` удаляются: нота с
 командой ffmpeg остаётся в stderr-логе backend'а — осознанная потеря заметки на дашборде
-(недоступность отмечает `SmokeTools`, провалы едут через `DownloadState.cause`). Версии — только
-`gradle/libs.versions.toml`.
+(недоступность отмечает `TubeloaderApp.prepareTools`, провалы едут через `DownloadState.cause`).
+Версии — только `gradle/libs.versions.toml`.
 
 ## User Stories
 

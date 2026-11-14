@@ -19,19 +19,12 @@ kotlin {
 
 dependencies {
     implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.cio)
-    implementation(libs.ktor.client.encoding)
-    implementation(project(":core"))
+    implementation(project(":app"))
     implementation(project(":usecases"))
-    implementation(project(":adapters"))
-    implementation(project(":infra"))
-    implementation(project(":common:config"))
     implementation(libs.logback.classic)
 
     testImplementation(libs.kotest.runner.junit6)
     testImplementation(libs.kotest.assertions.core)
-    testImplementation(testFixtures(project(":core")))
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
