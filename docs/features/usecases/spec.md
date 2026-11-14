@@ -2,8 +2,8 @@
 
 Спека прикладного слоя над ядром — тонкие оркестраторы для GUI/TUI. Решение зафиксировано в
 `docs/adr/0009-usecase-layer-over-core-facade.md`. Контракт ядра и `CoreFacade` —
-`docs/features/core/spec.md`; термины `DownloadHandle`/`DownloadState`/`DownloadQueue` —
-`CONTEXT.md`.
+`docs/features/core/spec.md`; термины `DownloadHandle`/`DownloadState`/`DownloadQueue`/`Download
+Session` — `CONTEXT.md`.
 
 ## Problem Statement
 
@@ -16,12 +16,12 @@ GUI и TUI (M2) требуют прикладной логики, которой
 ## Solution
 
 Use-case слой в пакете `core.usecase` (внутри `:core` в M1, ADR-0009), обёртка над `CoreFacade`.
-Четыре use-cases: `ResolveMedia`, `EnqueueDownload`, `CancelDownload`, `ObserveDownloads`.
-`ResolveMedia` заменяет пару `ResolveUrl` + `LoadMedia`: разрешение медиаэлемента — одна операция
-ядра, отдающая и ссылку, и метаданные, поэтому слой не разводит её на два вызова.
-`ObserveDownloads` владеет map `taskId → DownloadHandle` и агрегирует
-`Flow<List<DownloadState>>`. `CoreFacade` остаётся lean — observe-all в него не идёт. Вынос в
-модуль `:usecases` + rename `CoreFacade` — M2, по триггеру «первый фронтенд».
+Два модуля: `ResolveMedia` и `DownloadSession`. `ResolveMedia` заменяет пару `ResolveUrl` +
+`LoadMedia`: разрешение медиаэлемента — одна операция ядра, отдающая и ссылку, и метаданные,
+поэтому слой не разводит её на два вызова. `DownloadSession` — набор загрузок этого запуска:
+владеет трекером `taskId → DownloadHandle` как внутренностью, ставит и отменяет загрузки,
+агрегирует `Flow<List<DownloadState>>`. `CoreFacade` остаётся lean — observe-all в него не идёт.
+Вынос в модуль `:usecases` + rename `CoreFacade` — M2, по триггеру «первый фронтенд».
 
 ## User Stories
 
@@ -43,9 +43,9 @@ Use-case слой в пакете `core.usecase` (внутри `:core` в M1, AD
    слоя, чтобы UI-специфичный выбор (диалог, пикер) остался в виде.
 9. Как разработчик, я хочу, чтобы `CoreFacade` не менялся ради этого слоя, чтобы ядро осталось
    стабильным и покрытым существующими тестами.
-10. Как разработчик, я хочу, чтобы трекинг (`ObserveDownloads`) тестировался детерминированно
+10. Как разработчик, я хочу, чтобы трекинг (`DownloadSession`) тестировался детерминированно
     на фейках ядра, без реальной сети и процессов.
-11. Как разработчик, я хочу, чтобы тонкие use-cases (`ResolveMedia`) проверялись
+11. Как разработчик, я хочу, чтобы тонкий use-case (`ResolveMedia`) проверялся
     через существующий шов `CoreFacade` (`FacadeWorld`), чтобы не плодить новые фейки.
 12. Как мейнтейнер, я хочу, чтобы слой жил в `:core` как пакет `core.usecase` только временно, с
     задокументированным триггером выноса в модуль, чтобы «временно» не стало «навсегда»
@@ -70,22 +70,18 @@ Use-case слой в пакете `core.usecase` (внутри `:core` в M1, AD
 `Source` для выбора источника по коду. Без состояния. Код источника приходит от вызывающего:
 неизвестный код — ошибка вызывающей стороны, а не исход с пустым результатом.
 
-**`EnqueueDownload`.** Обёртка над `CoreFacade.enqueue(ref, quality, targetPath)` →
-`DownloadHandle`. Регистрирует хэндл в трекере слоя (map `taskId → DownloadHandle`). `quality` и
-`targetPath` — входные параметры от вида; слой не выбирает их.
+**`DownloadSession` — реальная логика слоя.** Один модуль на набор загрузок этого запуска:
+владеет трекером `taskId → DownloadHandle` как внутренностью (отдельного типа-трекера нет).
+Операции: `enqueue(ref, quality, targetPath)` — обёртка над `CoreFacade.enqueue`, регистрирует
+хэндл; `cancel(taskId)` — lookup хэндла и `handle.cancel()`, неизвестный `taskId` — `false`;
+`states()` — агрегирует `Flow<List<DownloadState>>` по `handle.state` каждого хэндла, порядок по
+`startedAt` (момент постановки). Терминальные задачи (`Completed`/`Cancelled`/`Failed`) остаются
+в списке до явного удаления (политика удаления — M2 с видом; в M1 список только растёт, удаление
+out of scope). `quality` и `targetPath` — входные параметры от вида; слой не выбирает их.
 
-**`CancelDownload`.** Lookup хэндла по `taskId` в трекере слоя → `handle.cancel()`. Если `taskId`
-неизвестен — no-op или исход «не найдено» (деталь реализации, не контракта ядра).
-
-**`ObserveDownloads` — реальная логика слоя.** Владеет map `taskId → DownloadHandle`.
-Подписывается на `handle.state: Flow<DownloadState>` каждого хэндла; агрегирует в
-`Flow<List<DownloadState>>`. Порядок — по `startedAt` (момент постановки, `DownloadState`).
-Терминальные задачи (`Completed`/`Cancelled`/`Failed`) остаются в списке до явного удаления
-(политика удаления — M2 с видом; в M1 список только растёт, удаление out of scope). Aggregation
-через `kotlinx.coroutines.flow` (combine/merge поверх StateFlow-хэндлов).
-
-**Shutdown.** Слой делегирует штатную остановку на `CoreFacade`/`DownloadQueue.shutdown` (ADR-0003,
-конфайнмент). Слой не владеет очередью.
+**Shutdown.** Слой не владеет очередью и не заводит модуль остановки: композиция передаёт
+`DownloadQueue.shutdown` лямбдой (ADR-0003, конфайнмент). `UseCaseShutdown` удалён как
+pass-through.
 
 **Нет новой domain-модели.** Слой оперирует типами ядра (`MediaRef`, `MediaMeta`,
 `Quality`, `DownloadHandle`, `DownloadState`, `TaskId`, `MediaResult`): `MediaResult` — тип ядра
@@ -105,16 +101,13 @@ Use-case слой в пакете `core.usecase` (внутри `:core` в M1, AD
 возвращает маппинг; поведение равно `CoreFacadeFind`/`CoreFacadeEnqueue`. Prior art:
 `CoreFacadeFindTest`, `CoreFacadeEnqueueTest`.
 
-**`ObserveDownloads` — детерминированный тест агрегации.** В `FacadeWorld` ставятся N загрузок
+**`DownloadSession` — детерминированный suite агрегации.** В `FacadeWorld` ставятся N загрузок
 через `FakeSourceAdapter` (с управляемыми переходами статусов через `CompletableDeferred`, как в
 `CoreFacadeEnqueueTest`); собирается `Flow<List<DownloadState>>`; asserts: порядок по `startedAt`,
-обновления при переходах, терминальные задачи остаются. Cancel-кейс: `CancelDownload` → хэндл
-переходит в `Cancelling`/`Cancelled`, список отражает. Для изоляции агрегации допускается фейк
-хэндла с `MutableStateFlow<DownloadState>` (без `CoreFacade`), но предпочтён сквозной путь через
-`FacadeWorld`.
-
-**`CancelDownload`.** Lookup + `cancel()`: тестируется через `CoreFacadeCancelTest`-образец —
-ставится задача, отменяется по `taskId` через use-case, наблюдается переход в `Cancelled`.
+обновления при переходах, терминальные задачи остаются. Cancel-кейс: `cancel(taskId)` → хэндл
+переходит в `Cancelling`/`Cancelled`, список отражает; неизвестный `taskId` — `false`. Для
+изоляции агрегации допускается фейк хэндла с `MutableStateFlow<DownloadState>` (без
+`CoreFacade`), но предпочтён сквозной путь через `FacadeWorld`.
 
 **Prior art.** `CoreFacadeEnqueueTest`, `CoreFacadeCancelTest`, `CoreFacadeFindTest`,
 `CoreFacadeShutdownTest`, `FacadeWorld` харнес. Стандарт тестов — `docs/standards/testing.md`;
@@ -139,8 +132,9 @@ Use-case слой в пакете `core.usecase` (внутри `:core` в M1, AD
 - ADR-0011 — решение «код источника и контракт адаптера»: `ResolveMedia` снимает пару
   `ResolveUrl` + `LoadMedia`, источник адресуется кодом.
 - `docs/features/core/spec.md` — контракт `CoreFacade`, capability-модель, staging.
-- `CONTEXT.md` — `Core`, `DownloadHandle`, `DownloadState`, `DownloadQueue`, `DownloadStatus`.
-- 3 из 4 use-cases — тонкие делегирования; реальную логику несёт `ObserveDownloads`. Слой ради
+- `CONTEXT.md` — `Core`, `DownloadHandle`, `DownloadState`, `DownloadQueue`, `DownloadStatus`,
+  `Download Session`.
+- `ResolveMedia` — тонкое делегирование; реальную логику несёт `DownloadSession`. Слой ради
   сокрытия `:core` от фронтендов актуален с M2; в M1 pass-through обоснован подготовкой API и
   валидацией через `tools/smoke` (ADR-0009, Consequences).
 
@@ -157,3 +151,4 @@ Use-case слой в пакете `core.usecase` (внутри `:core` в M1, AD
 - 05 — usecases: tests + shutdown delegation (blocked by #98, #99, #100, #101) — #102
 - 06 — usecases: smoke over use-cases layer (blocked by #99, #100, #101, #102) — #104
 - 07 — usecases: `ResolveMedia` вместо `ResolveUrl` + `LoadMedia` (blocked by #111) — #111
+- 08 — usecases: `DownloadSession` вместо `EnqueueDownload`/`CancelDownload`/`ObserveDownloads`/`DownloadTracker`, удаление `UseCaseShutdown` — #133

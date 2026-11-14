@@ -28,7 +28,7 @@
 | `core.download` | Жизненный цикл и исполнение: `DownloadHandle`, `DownloadQueue`, `DownloadState`, `DownloadStatus`, `TaskIdGenerator`, `TaskRegistry` |
 | `core.facade` | Единственная точка входа команд: `CoreFacade` |
 | `core.port` | Порты ядра: `MediaTool`, `HttpTool`, `HttpResponse` (закрываемый ответ, несёт `status`) |
-| `core.usecase` | Сценарии поверх фасада: разрешение медиа, постановка, наблюдение и отмена загрузок, реестр хэндлов, остановка |
+| `core.usecase` | Сценарии поверх фасада: `ResolveMedia` (разрешение медиа) и `DownloadSession` (постановка, отмена, агрегированный список загрузок; трекер внутри) |
 
 ## Подпакеты `adapters`
 
