@@ -1,6 +1,6 @@
 package io.averkhogliad.tubeloader.core.config
 
-import io.averkhogliad.tubeloader.config.Config
+import io.averkhogliad.tubeloader.config.ConfigReader
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -35,6 +35,9 @@ data class HttpToolConfig(
         require(retryRandomizationFactor in 0.0..1.0) {
             "retryRandomizationFactor must be within 0.0..1.0, got $retryRandomizationFactor"
         }
+        require(retryRetriableStatuses.all { it > 0 }) {
+            "retryRetriableStatuses must be positive, got $retryRetriableStatuses"
+        }
     }
 
     companion object {
@@ -50,88 +53,32 @@ data class HttpToolConfig(
         val DEFAULT_RETRIABLE_STATUSES = setOf(408, 429, 502, 503, 504)
 
         /**
-         * Reads the flat `[download.http-tool]` sub-block. A missing table and a missing key both
-         * answer the default, except for `per-attempt-timeout-ms`, which is required and raises with
-         * its own name; a value that cannot be read raises with the name of the key and the value,
-         * because a typo in a timeout is worth a loud stop rather than a silent default.
+         * Reads the flat `[download.http-tool]` sub-block through the source-agnostic reader: a
+         * missing key answers the default, except `per-attempt-timeout-ms`, which is required. The
+         * syntax of a value belongs to the reader; the semantics — positivity, bounds — are the
+         * checks of `init`, so a bad value is stopped the same way however the config was built.
          */
-        fun fromConfig(config: Config, tablePath: String = DEFAULT_TABLE): HttpToolConfig {
-            val table = config.getTableOrNull(tablePath).orEmpty()
-            return HttpToolConfig(
-                connectTimeout = millisecondsAt(table, tablePath, "connect-timeout-ms", DEFAULT_CONNECT_TIMEOUT),
-                requestTimeout = millisecondsAt(table, tablePath, "request-timeout-ms", DEFAULT_REQUEST_TIMEOUT),
-                perAttemptTimeout = requiredMillisecondsAt(table, tablePath, "per-attempt-timeout-ms"),
-                retryMaxAttempts = attemptsAt(table, tablePath),
+        fun fromReader(reader: ConfigReader, tablePath: String = DEFAULT_TABLE): HttpToolConfig =
+            HttpToolConfig(
+                connectTimeout =
+                    reader.durationMillis(key(tablePath, "connect-timeout-ms")) ?: DEFAULT_CONNECT_TIMEOUT,
+                requestTimeout =
+                    reader.durationMillis(key(tablePath, "request-timeout-ms")) ?: DEFAULT_REQUEST_TIMEOUT,
+                perAttemptTimeout =
+                    requireNotNull(reader.durationMillis(key(tablePath, "per-attempt-timeout-ms"))) {
+                        "${key(tablePath, "per-attempt-timeout-ms")} is required"
+                    },
+                retryMaxAttempts =
+                    reader.wholeNumber(key(tablePath, "max-attempts")) ?: DEFAULT_RETRY_MAX_ATTEMPTS,
                 retryBaseDelay =
-                    millisecondsAt(
-                        table,
-                        tablePath,
-                        "base-delay-ms",
-                        DEFAULT_RETRY_BASE_DELAY,
-                        allowZero = true,
-                    ),
-                retryRandomizationFactor = factorAt(table, tablePath),
-                retryRetriableStatuses = statusesAt(table, tablePath) ?: DEFAULT_RETRIABLE_STATUSES,
+                    reader.durationMillis(key(tablePath, "base-delay-ms")) ?: DEFAULT_RETRY_BASE_DELAY,
+                retryRandomizationFactor =
+                    reader.factor(key(tablePath, "randomization-factor")) ?: DEFAULT_RETRY_RANDOMIZATION_FACTOR,
+                retryRetriableStatuses =
+                    reader.numberList(key(tablePath, "retriable-statuses"))?.toSet()
+                        ?: DEFAULT_RETRIABLE_STATUSES,
             )
-        }
 
-        private fun millisecondsAt(
-            table: Map<String, Any>,
-            tablePath: String,
-            key: String,
-            default: Duration,
-            allowZero: Boolean = false,
-        ): Duration {
-            val raw = table[key] ?: return default
-            val at = name(tablePath, key)
-            val value = requireNonNegative(raw, at)
-            require(allowZero || value > 0) { "$at must be positive, got $raw" }
-            return value.milliseconds
-        }
-
-        private fun requiredMillisecondsAt(table: Map<String, Any>, tablePath: String, key: String): Duration {
-            require(key in table) { "${name(tablePath, key)} is required" }
-            return millisecondsAt(table, tablePath, key, Duration.ZERO)
-        }
-
-        private fun attemptsAt(table: Map<String, Any>, tablePath: String): Int =
-            requirePositive(table["max-attempts"] ?: return DEFAULT_RETRY_MAX_ATTEMPTS, name(tablePath, "max-attempts"))
-
-        private fun factorAt(table: Map<String, Any>, tablePath: String): Double {
-            val raw = table["randomization-factor"] ?: return DEFAULT_RETRY_RANDOMIZATION_FACTOR
-            val at = name(tablePath, "randomization-factor")
-            val value = raw.toString().trim().toDoubleOrNull()
-            require(value != null && value in 0.0..1.0) { "$at must be within 0.0..1.0, got $raw" }
-            return value
-        }
-
-        private fun statusesAt(table: Map<String, Any>, tablePath: String): Set<Int>? {
-            val raw = table["retriable-statuses"] ?: return null
-            val at = name(tablePath, "retriable-statuses")
-            require(raw is Collection<*>) { "$at must be a list of statuses, got $raw" }
-            return raw.map { element -> requirePositive(element ?: reject(at), at) }.toSet()
-        }
-
-        private fun requirePositive(raw: Any, at: String): Int {
-            val value = requireNonNegative(raw, at)
-            require(value >= 1) { "$at must be a whole number of at least 1, got $raw" }
-            return value
-        }
-
-        private fun requireNonNegative(raw: Any, at: String): Int {
-            val value =
-                when (raw) {
-                    is Int -> raw
-                    is Long -> raw.toInt()
-                    is String -> raw.trim().toIntOrNull()
-                    else -> null
-                }
-            require(value != null && value >= 0) { "$at must be a whole number, got $raw" }
-            return value
-        }
-
-        private fun reject(at: String): Nothing = throw IllegalArgumentException("$at must be a list of whole numbers")
-
-        private fun name(tablePath: String, key: String) = "$tablePath.$key"
+        private fun key(tablePath: String, name: String) = "$tablePath.$name"
     }
 }
