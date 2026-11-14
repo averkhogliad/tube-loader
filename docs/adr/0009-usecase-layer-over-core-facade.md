@@ -8,7 +8,10 @@
 контракт `CoreFacade` (`findByUrl`/`findById` отдают данные о медиаэлементе). Состав слоя
 актуализирован спекой `docs/features/usecases/spec.md` (тикет #133): `ResolveMedia` +
 `DownloadSession`; `EnqueueDownload`/`CancelDownload`/`ObserveDownloads` сведены в сессию,
-`UseCaseShutdown` удалён — решение «слой над фасадом» не меняется.
+`UseCaseShutdown` удалён — решение «слой над фасадом» не меняется. Вынос выполнен: слой живёт
+модулем `:usecases` (тикет #144); триггер «первый фронтенд» считается наступившим при подготовке
+фронтендов (GUI — M1 по ADR-0002 и tech-stack). Rename `CoreFacade` отложен — отдельный тикет при
+появлении первого фронтенд-потребителя имени.
 
 ## Context
 
