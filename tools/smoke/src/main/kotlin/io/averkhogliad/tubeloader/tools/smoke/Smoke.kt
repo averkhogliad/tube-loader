@@ -20,6 +20,7 @@ import io.averkhogliad.tubeloader.core.facade.CoreFacade
 import io.averkhogliad.tubeloader.core.port.HttpTool
 import io.averkhogliad.tubeloader.core.port.MediaTool
 import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
+import io.averkhogliad.tubeloader.infra.binaries.SystemProcessRunner
 import io.averkhogliad.tubeloader.infra.http.HttpTools
 import io.averkhogliad.tubeloader.infra.media.FfmpegMediaTool
 import io.averkhogliad.tubeloader.infra.media.ffmpegPolicy
@@ -141,7 +142,7 @@ private fun buildComposition(targetDir: Path, parallel: Int): SmokeComposition {
     val mediaTool =
         FfmpegMediaTool(
             MediaToolConfig(paths = paths, containerFormat = containerFormat),
-            LocalProcessRunner(),
+            SystemProcessRunner(),
             ffmpegBinary,
         )
     val ytDlpConfig = YtDlpConfig.fromConfig(config, paths)

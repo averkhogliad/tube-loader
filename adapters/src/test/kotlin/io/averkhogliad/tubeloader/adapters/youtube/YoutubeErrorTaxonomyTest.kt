@@ -8,6 +8,7 @@ import io.averkhogliad.tubeloader.core.contract.deleteWithRetry
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
+import io.averkhogliad.tubeloader.infra.binaries.ProcessOutcome
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import java.io.IOException
@@ -92,7 +93,11 @@ class YoutubeErrorTaxonomyTest :
 
             "reads a start that never reached the tool as a broken extractor" {
                 // given
-                val adapter = adapterOver(YOUTUBE_SETTINGS) { _ -> throw IOException("binary not found") }
+                val adapter =
+                    adapterWithOutcome(
+                        YOUTUBE_SETTINGS,
+                        ProcessOutcome.SpawnFailed(IOException("binary not found")),
+                    )
 
                 // when
                 val actual = adapter.findById(MEDIA_ID)
@@ -103,7 +108,11 @@ class YoutubeErrorTaxonomyTest :
 
             "reads a start that never reached the tool as a broken extractor" {
                 // given
-                val adapter = adapterOver(YOUTUBE_SETTINGS) { _ -> throw IOException("binary not found") }
+                val adapter =
+                    adapterWithOutcome(
+                        YOUTUBE_SETTINGS,
+                        ProcessOutcome.SpawnFailed(IOException("binary not found")),
+                    )
 
                 // when
                 val actual = adapter.findById(MEDIA_ID)

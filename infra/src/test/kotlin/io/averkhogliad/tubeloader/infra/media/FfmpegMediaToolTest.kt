@@ -6,8 +6,14 @@ import io.averkhogliad.tubeloader.core.contract.deleteWithRetry
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.port.MediaTool
 import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
+import io.averkhogliad.tubeloader.infra.binaries.ProcessLaunch
+import io.averkhogliad.tubeloader.infra.binaries.ProcessOutcome
+import io.averkhogliad.tubeloader.infra.binaries.ProcessRunner
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.types.shouldBeInstanceOf
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
@@ -17,14 +23,17 @@ private val VIDEO = Path.of("in", "video.ts")
 private val AUDIO = Path.of("in", "audio.ts")
 private val OUTPUT = Path.of("out", "clip.mp4")
 
-/** Records the command instead of starting it: the process itself is covered by the integration spec. */
-private class RecordingRunner(private val result: Result<Unit> = Result.success(Unit)) : ProcessRunner {
+/** Records the command instead of starting it: the process itself is covered by the runner spec. */
+private class RecordingRunner(private val outcome: ProcessOutcome? = null) : ProcessRunner {
 
-    val commands = mutableListOf<List<String>>()
+    private val launches = mutableListOf<ProcessLaunch>()
 
-    override suspend fun run(command: List<String>): Result<Unit> {
-        commands += command
-        return result
+    val commands: List<List<String>>
+        get() = launches.map { launch -> launch.command }
+
+    override suspend fun run(launch: ProcessLaunch, onOutputLine: (String) -> Unit): ProcessOutcome {
+        launches += launch
+        return outcome ?: ProcessOutcome.Exited(0, emptyList(), "")
     }
 }
 
@@ -108,16 +117,44 @@ class FfmpegMediaToolTest :
                 progress shouldBe listOf(Progress.Indeterminate)
             }
 
-            "reports the failure the runner returned" {
+            "reports a non-zero exit of the tool with its error text" {
                 // given
-                val failure = ToolFailed(1, "boom")
-                val underTest = MediaToolUnderTest(temp, RecordingRunner(Result.failure(failure)))
+                val underTest =
+                    MediaToolUnderTest(
+                        temp,
+                        RecordingRunner(ProcessOutcome.Exited(1, emptyList(), "boom")),
+                    )
+
+                // when
+                val actual = underTest.tool.mux(VIDEO, AUDIO, OUTPUT) {}
+
+                // then
+                val failure = actual.exceptionOrNull().shouldBeInstanceOf<ToolFailed>()
+                failure.message shouldContain "code 1"
+                failure.message shouldContain "boom"
+            }
+
+            "reports the failure of starting the tool itself" {
+                // given
+                val failure = IOException("cannot start")
+                val underTest = MediaToolUnderTest(temp, RecordingRunner(ProcessOutcome.SpawnFailed(failure)))
 
                 // when
                 val actual = underTest.tool.mux(VIDEO, AUDIO, OUTPUT) {}
 
                 // then
                 actual.exceptionOrNull() shouldBe failure
+            }
+
+            "reports a timeout as a failure of the tool" {
+                // given
+                val underTest = MediaToolUnderTest(temp, RecordingRunner(ProcessOutcome.TimedOut))
+
+                // when
+                val actual = underTest.tool.mux(VIDEO, AUDIO, OUTPUT) {}
+
+                // then
+                actual.exceptionOrNull().shouldBeInstanceOf<ToolTimedOut>()
             }
         }
 
@@ -148,16 +185,20 @@ class FfmpegMediaToolTest :
                     )
             }
 
-            "reports the failure the runner returned" {
+            "reports a non-zero exit of the tool with its error text" {
                 // given
-                val failure = ToolFailed(1, "boom")
-                val underTest = MediaToolUnderTest(temp, RecordingRunner(Result.failure(failure)))
+                val underTest =
+                    MediaToolUnderTest(
+                        temp,
+                        RecordingRunner(ProcessOutcome.Exited(1, emptyList(), "boom")),
+                    )
 
                 // when
                 val actual = underTest.tool.remux(VIDEO, OUTPUT) {}
 
                 // then
-                actual.exceptionOrNull() shouldBe failure
+                val failure = actual.exceptionOrNull().shouldBeInstanceOf<ToolFailed>()
+                failure.message shouldContain "boom"
             }
         }
 
