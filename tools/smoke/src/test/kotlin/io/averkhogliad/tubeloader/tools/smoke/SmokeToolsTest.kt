@@ -1,13 +1,11 @@
 package io.averkhogliad.tubeloader.tools.smoke
 
-import io.averkhogliad.tubeloader.core.config.ToolPaths
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.runBlocking
 import java.io.IOException
 import java.nio.file.Path
 
-private val HOME = Path.of("home")
 private val FFMPEG = Path.of("home", "ffmpeg", "ffmpeg.exe")
 private val YT_DLP = Path.of("home", "yt-dlp", "yt-dlp.exe")
 
@@ -25,10 +23,14 @@ class SmokeToolsTest :
                 // given
                 var fetches = 0
                 val tools =
-                    SmokeTools(ToolPaths.of(HOME), screen.dashboard) {
-                        fetches++
-                        Result.success(FFMPEG)
-                    }
+                    SmokeTools(
+                        screen.dashboard,
+                        ensure = {
+                            fetches++
+                            Result.success(FFMPEG)
+                        },
+                        ytDlpFetch = { error("not used") },
+                    )
 
                 // when
                 val first = runBlocking { tools.ensureFfmpeg() }
@@ -43,7 +45,12 @@ class SmokeToolsTest :
             "reports a tool it cannot obtain as a note and goes on" {
                 // given
                 val failure = IOException("no network")
-                val tools = SmokeTools(ToolPaths.of(HOME), screen.dashboard) { Result.failure(failure) }
+                val tools =
+                    SmokeTools(
+                        screen.dashboard,
+                        ensure = { Result.failure(failure) },
+                        ytDlpFetch = { error("not used") },
+                    )
 
                 // when
                 val actual = runBlocking { tools.ensureFfmpeg() }
@@ -60,8 +67,8 @@ class SmokeToolsTest :
                 var fetches = 0
                 val tools =
                     SmokeTools(
-                        ToolPaths.of(HOME),
                         screen.dashboard,
+                        ensure = { error("not used") },
                         ytDlpFetch = {
                             fetches++
                             Result.success(YT_DLP)
@@ -83,8 +90,8 @@ class SmokeToolsTest :
                 val failure = IOException("no network")
                 val tools =
                     SmokeTools(
-                        ToolPaths.of(HOME),
                         screen.dashboard,
+                        ensure = { error("not used") },
                         ytDlpFetch = { Result.failure(failure) },
                     )
 

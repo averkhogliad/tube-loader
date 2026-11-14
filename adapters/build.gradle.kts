@@ -17,6 +17,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
     implementation(project(":core"))
+    implementation(project(":infra"))
     implementation(project(":common:retry"))
 
     testImplementation(libs.kotest.runner.junit6)

@@ -1,12 +1,7 @@
 package io.averkhogliad.tubeloader.tools.smoke
 
-import io.averkhogliad.tubeloader.adapters.youtube.ensureManagedYtDlp
-import io.averkhogliad.tubeloader.core.config.ToolPaths
-import io.averkhogliad.tubeloader.infra.media.ensureManagedFfmpeg
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import java.nio.file.Path
 
 /**
@@ -18,14 +13,14 @@ import java.nio.file.Path
  * of the delegate tool itself the adapter fetches on its first call; fetching it here simply keeps
  * that call off the network.
  *
- * A tool that cannot be obtained is a note, not a crash: the run goes on, and every target that
- * needs the tool fails or skips on its own.
+ * The instances of the distributions belong to the composition root, so one fetch per run is shared
+ * by every call. A tool that cannot be obtained is a note, not a crash: the run goes on, and every
+ * target that needs the tool fails or skips on its own.
  */
 internal class SmokeTools(
-    paths: ToolPaths,
     private val dashboard: ProgressDashboard,
-    private val ytDlpFetch: suspend () -> Result<Path> = { ensureManagedYtDlp(paths) },
-    private val ensure: () -> Result<Path> = { ensureManagedFfmpeg(paths) },
+    private val ensure: suspend () -> Result<Path>,
+    private val ytDlpFetch: suspend () -> Result<Path>,
 ) {
 
     private val mutex = Mutex()
@@ -35,7 +30,7 @@ internal class SmokeTools(
     suspend fun ensureFfmpeg(): Result<Path> =
         mutex.withLock {
             ffmpeg
-                ?: withContext(Dispatchers.IO) { ensure() }
+                ?: ensure()
                     .onFailure { failure -> dashboard.note("ffmpeg is not available: ${failure.message}") }
                     .also { fetched -> ffmpeg = fetched }
         }
