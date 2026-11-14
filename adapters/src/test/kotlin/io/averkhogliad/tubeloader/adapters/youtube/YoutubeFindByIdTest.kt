@@ -5,6 +5,7 @@ import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
+import io.averkhogliad.tubeloader.infra.binaries.ProcessLaunch
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -45,7 +46,7 @@ class YoutubeFindByIdTest :
 
             "asks the tool to resolve the media without downloading it" {
                 // given
-                val launches = mutableListOf<YtDlpLaunch>()
+                val launches = mutableListOf<ProcessLaunch>()
                 val adapter = youtubeAdapter(launches = launches, reply = ToolReply(output = goldenText("meta.json")))
 
                 // when

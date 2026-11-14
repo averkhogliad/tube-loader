@@ -17,13 +17,11 @@ import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
-import io.mockk.every
-import io.mockk.mockk
-import java.io.ByteArrayInputStream
-import java.lang.Process
+import io.averkhogliad.tubeloader.infra.binaries.ProcessLaunch
+import io.averkhogliad.tubeloader.infra.binaries.ProcessOutcome
+import io.averkhogliad.tubeloader.infra.binaries.ProcessRunner
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.concurrent.CompletableFuture
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -33,7 +31,6 @@ private const val WATCH_URL = "https://www.youtube.com/watch?v="
 private const val PRODUCED_FILE = "video.mp4"
 private const val HOMEDIR = "ffmpeg"
 private const val FAILURE_CODE = 1
-private const val GRACE = 100L
 
 private const val RECORDED = "dQw4w9WgXcQ"
 private const val SPARSE = "sparse-1"
@@ -222,19 +219,19 @@ private class YoutubeWorld(private val recording: YoutubeRecording) {
             binaryPath = Path.of(BINARY),
         )
 
-    fun adapter(): SourceAdapter = adapterOver(settings, ::processOf)
+    fun adapter(): SourceAdapter = adapterOver(settings, ::replyOf)
 
-    private fun processOf(launch: YtDlpLaunch): Process =
+    private fun replyOf(launch: ProcessLaunch): ToolReply =
         if (RESOLVE_FLAG in launch.command) {
             answering(recording.takeOf(idOfUrl(launch.command.last()))) { take -> take.payload }
         } else {
             answering(recording.takeOf(idOfUrl(launch.command.last())), ::producedOutputOf)
         }
 
-    private fun answering(take: YoutubeTake, output: (YoutubeTake) -> String): Process =
+    private fun answering(take: YoutubeTake, output: (YoutubeTake) -> String): ToolReply =
         take.failure
-            ?.let { failure -> toolProcess(ToolReply(exitedWith = FAILURE_CODE, error = failure)) }
-            ?: toolProcess(ToolReply(output = output(take)))
+            ?.let { failure -> ToolReply(exitedWith = FAILURE_CODE, error = failure) }
+            ?: ToolReply(output = output(take))
 
     /** The bytes of the recording land where the tool would leave them, and its path is named on the output. */
     private fun producedOutputOf(take: YoutubeTake): String {
@@ -278,46 +275,51 @@ internal data class ToolReply(
     val exits: Boolean = true,
 )
 
-/** The adapter over a tool of its own: every start is recorded in [launches] and the process answers [reply]. */
+/** The adapter over a tool of its own: every start is recorded in [launches] and the runner answers [reply]. */
 internal fun youtubeAdapter(
     settings: YtDlpConfig = YOUTUBE_SETTINGS,
-    launches: MutableList<YtDlpLaunch> = mutableListOf(),
+    launches: MutableList<ProcessLaunch> = mutableListOf(),
     reply: ToolReply = ToolReply(),
 ): YoutubeSourceAdapter =
     adapterOver(settings) { launch ->
         launches += launch
-        toolProcess(reply)
+        reply
     }
 
-/** The adapter over a tool of its own: [start] answers every call with a process of that call. */
-internal fun adapterOver(settings: YtDlpConfig, start: (YtDlpLaunch) -> Process): YoutubeSourceAdapter =
+/** The adapter over a tool of its own: [replyOf] answers every call with what the tool would say. */
+internal fun adapterOver(settings: YtDlpConfig, replyOf: (ProcessLaunch) -> ToolReply): YoutubeSourceAdapter =
+    YoutubeSourceAdapter(
+        runner = YtDlpProcessRunner(FakeToolRunner(replyOf), Path.of("work")),
+        config = { settings },
+        distribution = ManagedBinary(settings.paths.ytDlpBinary, { ytDlpPolicy() }),
+    )
+
+/** The adapter over a process mechanism that answers every call with [outcome]. */
+internal fun adapterWithOutcome(
+    settings: YtDlpConfig = YOUTUBE_SETTINGS,
+    outcome: ProcessOutcome,
+): YoutubeSourceAdapter =
     YoutubeSourceAdapter(
         runner =
             YtDlpProcessRunner(
-                workingDirectory = Path.of("work"),
-                graceTimeoutMillis = GRACE,
-                start = start,
+                object : ProcessRunner {
+                    override suspend fun run(launch: ProcessLaunch, onOutputLine: (String) -> Unit): ProcessOutcome =
+                        outcome
+                },
+                Path.of("work"),
             ),
         config = { settings },
         distribution = ManagedBinary(settings.paths.ytDlpBinary, { ytDlpPolicy() }),
     )
 
-internal fun toolProcess(reply: ToolReply): Process {
-    val process = mockk<Process>(relaxed = true)
-    val finished = mutableListOf<CompletableFuture<Process>>()
-    var killed = false
-    every { process.inputStream } returns ByteArrayInputStream(reply.output.toByteArray())
-    every { process.errorStream } returns ByteArrayInputStream(reply.error.toByteArray())
-    every { process.onExit() } answers {
-        CompletableFuture<Process>().also { future ->
-            if (reply.exits || killed) future.complete(process)
-            finished += future
-        }
+/** The process mechanism of a test: it answers the launch with the reply and streams the output lines. */
+internal class FakeToolRunner(private val replyOf: (ProcessLaunch) -> ToolReply) : ProcessRunner {
+
+    override suspend fun run(launch: ProcessLaunch, onOutputLine: (String) -> Unit): ProcessOutcome {
+        val reply = replyOf(launch)
+        if (!reply.exits) return ProcessOutcome.TimedOut
+        val lines = reply.output.lines().dropLastWhile(String::isEmpty)
+        lines.forEach(onOutputLine)
+        return ProcessOutcome.Exited(reply.exitedWith, lines, reply.error)
     }
-    every { process.exitValue() } returns reply.exitedWith
-    every { process.destroy() } answers {
-        killed = true
-        finished.forEach { future -> future.complete(process) }
-    }
-    return process
 }

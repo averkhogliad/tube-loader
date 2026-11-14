@@ -9,6 +9,7 @@ import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.domain.fraction
+import io.averkhogliad.tubeloader.infra.binaries.ProcessLaunch
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
@@ -86,7 +87,7 @@ class YoutubeDownloadTest :
             "runs the binary of the home directory by its absolute path when the config names none" {
                 // given
                 val world = DownloadWorld(roots, managedBinary = true).withProducedFile()
-                val launches = mutableListOf<YtDlpLaunch>()
+                val launches = mutableListOf<ProcessLaunch>()
                 val adapter = world.adapter(ToolReply(output = world.transferOutput()), launches = launches)
 
                 // when
@@ -99,7 +100,7 @@ class YoutubeDownloadTest :
             "picks the format of the chosen quality and points the tool at the bundled ffmpeg" {
                 // given
                 val world = DownloadWorld(roots).withProducedFile()
-                val launches = mutableListOf<YtDlpLaunch>()
+                val launches = mutableListOf<ProcessLaunch>()
                 val adapter = world.adapter(ToolReply(output = world.transferOutput()), launches = launches)
 
                 // when
@@ -208,7 +209,7 @@ private class DownloadWorld(roots: MutableList<Path>, managedBinary: Boolean = f
 
     fun stagingEntries(): List<Path> = Files.list(stagingRoot()).use { entries -> entries.toList() }
 
-    fun adapter(reply: ToolReply, launches: MutableList<YtDlpLaunch> = mutableListOf()): YoutubeSourceAdapter =
+    fun adapter(reply: ToolReply, launches: MutableList<ProcessLaunch> = mutableListOf()): YoutubeSourceAdapter =
         youtubeAdapter(settings = settings, launches = launches, reply = reply)
 
     fun transferOutput(progress: List<String> = listOf("dl:@P 100 200", "dl:@P 200 200")): String =
