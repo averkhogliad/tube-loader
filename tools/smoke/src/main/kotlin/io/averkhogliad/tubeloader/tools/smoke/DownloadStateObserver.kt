@@ -3,7 +3,7 @@ package io.averkhogliad.tubeloader.tools.smoke
 import io.averkhogliad.tubeloader.core.domain.TaskId
 import io.averkhogliad.tubeloader.core.download.DownloadState
 import io.averkhogliad.tubeloader.core.download.isTerminal
-import io.averkhogliad.tubeloader.core.usecase.DownloadSession
+import io.averkhogliad.tubeloader.usecase.DownloadSession
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.ConcurrentHashMap

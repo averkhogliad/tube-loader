@@ -23,6 +23,7 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.encoding)
     implementation(project(":core"))
+    implementation(project(":usecases"))
     implementation(project(":adapters"))
     implementation(project(":infra"))
     implementation(project(":common:config"))

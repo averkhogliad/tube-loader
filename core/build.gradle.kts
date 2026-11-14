@@ -20,6 +20,9 @@ dependencies {
 
     testFixturesApi(libs.kotest.runner.junit6)
     testFixturesApi(libs.kotest.assertions.core)
+    testFixturesApi(libs.kotest.property)
+    testFixturesApi(libs.kotlinx.coroutines.core)
+    testFixturesImplementation(libs.kotlinx.coroutines.test)
 
     testImplementation(libs.kotest.runner.junit6)
     testImplementation(libs.kotest.assertions.core)

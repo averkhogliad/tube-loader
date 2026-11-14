@@ -1,4 +1,4 @@
-package io.averkhogliad.tubeloader.core.usecase
+package io.averkhogliad.tubeloader.usecase
 
 import io.averkhogliad.tubeloader.core.domain.Source
 import io.averkhogliad.tubeloader.core.facade.CoreFacade

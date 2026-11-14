@@ -1,4 +1,4 @@
-package io.averkhogliad.tubeloader.core.usecase
+package io.averkhogliad.tubeloader.usecase
 
 import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult

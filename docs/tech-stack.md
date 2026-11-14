@@ -11,6 +11,7 @@
 | `common:config` | Шов чтения настроек `ConfigReader`: типизированный доступ по ключу, адаптеры `TomlConfigReader` (TOML) и `MemoryConfigReader` (код); TOML-формат изолирован от ядра |
 | `common:retry` | Движок повторов: политика решает, повторять ли упавшую попытку и сколько ждать. Источник-нейтрален, ядро и адаптеры переиспользуют |
 | `core` | Headless-ядро: роутинг URL, оркестрация загрузок, нормализация прогресса и ошибок, staging |
+| `usecases` | Прикладной слой над ядром: `ResolveMedia` и `DownloadSession`; зависит от `:core` и `kotlinx.coroutines` |
 | `adapters` | Реализации источников: разбор URL, метаданные и скачивание через порт `HttpTool` или внешний инструмент; зависит от `:infra` (общие механизмы внешних бинарников) |
 | `infra` | Реализации портов: `infra.http` (Ktor-транспорт за `HttpTool`), `infra.media` (FFmpeg-обёртка за `MediaTool`), `infra.binaries` (общие механизмы внешних бинарников) |
 | Фронтенды (план) | Compose Desktop GUI (M1), mosaic TUI (M2) — тонкие клиенты: команды вниз, события вверх |
@@ -28,7 +29,12 @@
 | `core.download` | Жизненный цикл и исполнение: `DownloadHandle`, `DownloadQueue`, `DownloadState`, `DownloadStatus`, `TaskIdGenerator`, `TaskRegistry` |
 | `core.facade` | Единственная точка входа команд: `CoreFacade` |
 | `core.port` | Порты ядра: `MediaTool`, `HttpTool`, `HttpResponse` (закрываемый ответ, несёт `status`) |
-| `core.usecase` | Сценарии поверх фасада: `ResolveMedia` (разрешение медиа) и `DownloadSession` (постановка, отмена, агрегированный список загрузок; трекер внутри) |
+
+## Подпакеты `usecases`
+
+| Пакет | Содержимое |
+| --- | --- |
+| `usecase` | Сценарии поверх фасада: `ResolveMedia` (разрешение медиа) и `DownloadSession` (постановка, отмена, агрегированный список загрузок; трекер внутри) |
 
 ## Подпакеты `adapters`
 
@@ -80,7 +86,7 @@
 | kotest | Runner (JUnit6), property-тесты: `Arb`/`Exhaustive`, сэмпл — `gen.next()` | `docs/standards/testing.md` |
 | mockk | Моки: подключён к `:core`, `:adapters` и `:infra`, применяется; query-методы заглушаются, command-методы верифицируются с `capture` | `docs/standards/testing.md` |
 | JUnit Platform launcher | Тестовая платформа Gradle | — |
-| Kover | Покрытие в `:core`, `:adapters`, `:infra`, `:common:config` и `:common:retry`; гейт 80% строк / 75% ветвей, `testFixtures` исключены | — |
+| Kover | Покрытие в `:core`, `:usecases`, `:adapters`, `:infra`, `:common:config` и `:common:retry`; гейт 80% строк / 75% ветвей, `testFixtures` исключены | — |
 
 ## Линт
 

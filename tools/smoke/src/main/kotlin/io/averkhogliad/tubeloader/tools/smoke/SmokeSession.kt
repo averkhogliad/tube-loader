@@ -1,8 +1,8 @@
 package io.averkhogliad.tubeloader.tools.smoke
 
 import io.averkhogliad.tubeloader.core.facade.CoreFacade
-import io.averkhogliad.tubeloader.core.usecase.DownloadSession
-import io.averkhogliad.tubeloader.core.usecase.ResolveMedia
+import io.averkhogliad.tubeloader.usecase.DownloadSession
+import io.averkhogliad.tubeloader.usecase.ResolveMedia
 import java.nio.file.Path
 import kotlin.time.Duration
 

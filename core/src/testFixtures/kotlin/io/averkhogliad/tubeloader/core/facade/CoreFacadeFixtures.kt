@@ -34,11 +34,11 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
-internal val testHttpTool = HttpToolConfig(perAttemptTimeout = 30.seconds)
-internal val mediaIds = Arb.string(1..12)
-internal val inputs = Arb.string(1..24)
+val testHttpTool = HttpToolConfig(perAttemptTimeout = 30.seconds)
+val mediaIds = Arb.string(1..12)
+val inputs = Arb.string(1..24)
 
-internal fun scratchDir(): Path = Files.createTempDirectory("tubeloader-test")
+fun scratchDir(): Path = Files.createTempDirectory("tubeloader-test")
 
 private val worldsByDir = mutableMapOf<Path, MutableList<FacadeWorld>>()
 
@@ -46,7 +46,7 @@ private val worldsByDir = mutableMapOf<Path, MutableList<FacadeWorld>>()
 // once the test scheduler stops being advanced: the join has to be bounded
 private val stopBudget = 1.seconds
 
-internal suspend fun cleanUp(dir: Path) {
+suspend fun cleanUp(dir: Path) {
     closeWorldsIn(dir)
     deleteWithRetry(dir)
 }
@@ -62,14 +62,14 @@ private suspend fun closeWorldsIn(dir: Path) {
     worlds.forEach { it.close() }
 }
 
-internal data class FacadeSettings(
+data class FacadeSettings(
     val adapters: List<FakeSourceAdapter> = listOf(FakeSourceAdapter()),
     val initialConfig: AppConfig = AppConfig(httpTool = testHttpTool),
     val taskIdGenerator: TaskIdGenerator = RandomTaskIdGenerator,
     val clock: Clock = Clock.System,
 )
 
-internal class FacadeWorld(
+class FacadeWorld(
     rootDir: Path,
     val adapters: List<FakeSourceAdapter>,
     val config: MutableStateFlow<AppConfig>,
@@ -126,7 +126,7 @@ internal class FacadeWorld(
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-internal fun facadeWorld(
+fun facadeWorld(
     tempDir: Path,
     settings: FacadeSettings = FacadeSettings(),
     dispatcher: CoroutineDispatcher = UnconfinedTestDispatcher(),
@@ -147,7 +147,7 @@ internal fun facadeWorld(
     return world
 }
 
-internal fun leftoverFilesIn(dir: Path, expected: Path): List<Path> =
+fun leftoverFilesIn(dir: Path, expected: Path): List<Path> =
     Files.newDirectoryStream(dir).use { entries ->
         entries.filter {
             it !=
@@ -155,7 +155,7 @@ internal fun leftoverFilesIn(dir: Path, expected: Path): List<Path> =
         }
     }
 
-internal fun partialsIn(dir: Path): List<Path> =
+fun partialsIn(dir: Path): List<Path> =
     Files.newDirectoryStream(dir).use { entries ->
         entries.filter { it.fileName.toString().contains(".part-") }
     }
