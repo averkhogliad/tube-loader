@@ -8,6 +8,7 @@ import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.averkhogliad.tubeloader.core.port.HttpStub
 import io.averkhogliad.tubeloader.core.port.textBody
+import io.averkhogliad.tubeloader.retry.AttemptTimedOut
 import io.averkhogliad.tubeloader.retry.RetryPolicy
 import io.averkhogliad.tubeloader.retry.constantDelay
 import io.averkhogliad.tubeloader.retry.retry
@@ -58,7 +59,9 @@ class RutubeRetryTest :
                 val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.NetworkTransient
+                failed.cause.shouldBeInstanceOf<RutubeStatusFailure>().status shouldBe 503
                 http.opened.size shouldBe 5
             }
 
@@ -112,7 +115,9 @@ class RutubeRetryTest :
                 val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.ExtractorBroken
+                failed.cause.shouldBeInstanceOf<RutubeStatusFailure>().status shouldBe 404
                 http.opened.size shouldBe 1
             }
 
@@ -126,7 +131,9 @@ class RutubeRetryTest :
                 val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.ExtractorBroken
+                failed.cause.shouldBeInstanceOf<RutubeStatusFailure>().status shouldBe 500
                 http.opened.size shouldBe 1
                 refused.isClosed shouldBe true
             }
@@ -168,7 +175,9 @@ class RutubeRetryTest :
                 val actual = adapter(http, settings).findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.NetworkTransient
+                failed.cause.shouldBeInstanceOf<RutubeStatusFailure>().status shouldBe 503
                 http.opened.size shouldBe 2
             }
 
@@ -181,7 +190,9 @@ class RutubeRetryTest :
                 val actual = adapter(http, settings).findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.ExtractorBroken
+                failed.cause.shouldBeInstanceOf<RutubeStatusFailure>().status shouldBe 429
                 http.opened.size shouldBe 1
             }
 
@@ -236,7 +247,9 @@ class RutubeRetryTest :
                     val actual = adapter(http, settings).findById(MEDIA_ID)
 
                     // then a timed-out attempt is a hiccup, not the verdict of the source
-                    actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
+                    val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                    failed.error shouldBe DownloadError.NetworkTransient
+                    failed.cause.shouldBeInstanceOf<AttemptTimedOut>()
                     http.opened.size shouldBe 2
                 }
             }
@@ -306,7 +319,9 @@ class RutubeRetryTest :
                 val actual = adapter(http).download(MEDIA_ID, VIDEO_1080, dir.resolve("clip.mp4")) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.NetworkTransient)
+                val failed = actual.shouldBeInstanceOf<DownloadResult.Failed>()
+                failed.error shouldBe DownloadError.NetworkTransient
+                failed.cause.shouldBeInstanceOf<RutubeStatusFailure>().status shouldBe 503
                 Files.exists(dir.resolve("clip.mp4.tmp")) shouldBe false
             }
 
@@ -336,7 +351,9 @@ class RutubeRetryTest :
                     val actual = adapter(http, settings).download(MEDIA_ID, VIDEO_1080, clip("timeout")) {}
 
                     // then
-                    actual shouldBe DownloadResult.Failed(DownloadError.NetworkTransient)
+                    val failed = actual.shouldBeInstanceOf<DownloadResult.Failed>()
+                    failed.error shouldBe DownloadError.NetworkTransient
+                    failed.cause.shouldBeInstanceOf<AttemptTimedOut>()
                     http.opened.count { it.url == SEGMENT_2 } shouldBe 2
                 }
             }

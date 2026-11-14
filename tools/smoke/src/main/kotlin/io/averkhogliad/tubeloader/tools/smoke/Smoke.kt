@@ -131,7 +131,7 @@ private fun buildComposition(targetDir: Path, parallel: Int): SmokeComposition {
             expectSuccess = false
             followRedirects = false
         }
-    val httpTool = LoggingHttpTool(HttpTools.create(client), dashboard::note)
+    val httpTool = HttpTools.create(client)
     val paths = ToolPaths.of(homeDir)
     val ffmpegBinary = ManagedBinary(paths.ffmpegBinary, { ffmpegPolicy() })
     val ytDlpBinary = ManagedBinary(paths.ytDlpBinary, { ytDlpPolicy() })

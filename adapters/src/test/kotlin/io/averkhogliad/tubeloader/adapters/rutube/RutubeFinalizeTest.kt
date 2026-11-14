@@ -9,6 +9,8 @@ import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.types.shouldBeInstanceOf
 import java.nio.file.Files
 import kotlin.io.path.readBytes
 import kotlin.time.Duration.Companion.seconds
@@ -98,7 +100,9 @@ class RutubeFinalizeTest :
                     ) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken)
+                val failed = actual.shouldBeInstanceOf<DownloadResult.Failed>()
+                failed.error shouldBe DownloadError.ExtractorBroken
+                failed.cause?.message.orEmpty() shouldContain "ffmpeg is gone"
                 Files.exists(dir.resolve("clip.mp4.tmp")) shouldBe false
             }
         }

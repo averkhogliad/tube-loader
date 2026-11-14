@@ -42,7 +42,8 @@ class CoreFacadeEnqueueFailureTest :
                             val mediaId = mediaIds.next()
                             val world = facadeWorld(tempDir)
                             world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
-                            world.adapters.single().onDownload = { _, _ -> DownloadResult.Failed(error) }
+                            val cause = IllegalStateException("the adapter broke")
+                            world.adapters.single().onDownload = { _, _ -> DownloadResult.Failed(error, cause) }
                             val ref = world.resolve(mediaId)
 
                             // when
@@ -51,6 +52,7 @@ class CoreFacadeEnqueueFailureTest :
                             // then
                             val failed = world.state(handle.taskId).status as DownloadStatus.Failed
                             failed.error shouldBe error
+                            failed.cause shouldBeSameInstanceAs cause
                         }
                     }
                 }

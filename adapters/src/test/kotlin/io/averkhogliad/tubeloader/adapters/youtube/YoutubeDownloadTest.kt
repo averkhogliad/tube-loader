@@ -13,6 +13,7 @@ import io.averkhogliad.tubeloader.infra.binaries.ProcessLaunch
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
@@ -136,7 +137,9 @@ class YoutubeDownloadTest :
                 val actual = adapter.download(MEDIA_ID, QUALITY, world.target) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.NotFound)
+                val failed = actual.shouldBeInstanceOf<DownloadResult.Failed>()
+                failed.error shouldBe DownloadError.NotFound
+                failed.cause?.message.orEmpty() shouldContain "Video unavailable"
                 world.stagingEntries().shouldBeEmpty()
             }
 
@@ -165,7 +168,7 @@ class YoutubeDownloadTest :
                 val actual = adapter.download(MEDIA_ID, QUALITY, world.target) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken, null)
             }
         }
     })

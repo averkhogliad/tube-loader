@@ -72,7 +72,7 @@ class RutubePayloadTest :
                 val actual = adapter(body).findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken, null)
             }
         }
     })

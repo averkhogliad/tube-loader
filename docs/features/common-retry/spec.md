@@ -4,7 +4,7 @@
 
 Скачивание через адаптер источника регулярно упирается в сетевые сбои и временные ответы сервера
 (5xx, 429): обрыв соединения, таймаут чтения, перегрузка upstream. Сегодня каждое такое событие
-сразу превращается в `DownloadResult.Failed(NetworkTransient)`, и пользователь вынужден перезапускать
+сразу превращается в `DownloadResult.Failed(NetworkTransient, cause)`, и пользователь вынужден перезапускать
 загрузку вручную. Без автоматического повтора Tubeloader выглядит хрупким относительно любой
 нестабильной ссылки, при том что большинство этих сбоев проходит за секунды без вмешательства
 человека.
@@ -155,7 +155,7 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
 `docs/archive/retry/not-covered.md`.
 
 **Связь с другими решениями.** ADR-0004 (это решение). Инварианты — `docs/standards/architecture.md`.
-Стандарт ошибок — `docs/standards/errors.md`: наружу выходит `DownloadResult.Failed(error)`,
+Стандарт ошибок — `docs/standards/errors.md`: наружу выходит `DownloadResult.Failed(error, cause)`,
 `Result`-фасад внутренний. Стандарт тестов — `docs/standards/testing.md`. Стандарт линта —
 `docs/standards/build.md`: сигнатуры ≤5 параметров (порог ktlint). Форма принята: `judging`,
 `onRetry` и `onExhausted` объединяются через `RetryContext`, драйвер вызывается как
@@ -172,7 +172,8 @@ DSL-блок `retryConfig { … }`, `exceptionHandler`, decorrelated jitter,
 2. `:common:retry` — фейки политик рядом с тестами (`RetryFixtures`): `java-test-fixtures` подключён,
    но каталога `src/testFixtures` в модуле нет, `RecordingPolicy` живёт в `src/test/`.
 3. `core/.../adapters/rutube` — контрактные тесты на retry-логику адаптера (`RutubeRetryTest`):
-   `judging` видит `HttpResponse.status`, исчерпание → `DownloadResult.Failed(NetworkTransient)`,
+   `judging` видит `HttpResponse.status`, исчерпание → `DownloadResult.Failed(NetworkTransient, cause)`
+   (причина — последний статус или сбой),
    нетранзиентный статус не ретраится, транзиентный (408/429/502/503/504) ретраится,
    `CancellationException` не проглатывается.
 4. `core/.../config` — unit-тесты на чтение `[download.http-tool]` (`HttpToolConfigTest`):

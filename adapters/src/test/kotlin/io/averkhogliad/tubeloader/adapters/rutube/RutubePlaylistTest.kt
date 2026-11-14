@@ -41,7 +41,7 @@ class RutubePlaylistTest :
                 val actual = adapter(http).download(MEDIA_ID, VIDEO_1080, clip("playlist")) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken, null)
             }
 
             "returns ExtractorBroken when the master playlist is empty" {
@@ -55,7 +55,7 @@ class RutubePlaylistTest :
                 val actual = adapter(http).download(MEDIA_ID, VIDEO_1080, clip("playlist")) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken, null)
             }
 
             "returns ExtractorBroken when the chosen playlist carries no segments" {
@@ -70,7 +70,7 @@ class RutubePlaylistTest :
                 val actual = adapter(http).download(MEDIA_ID, VIDEO_1080, clip("playlist")) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken, null)
             }
 
             "falls back to the default playlist when the balancer carries no master" {
@@ -122,7 +122,7 @@ class RutubePlaylistTest :
                 val actual = adapter(http).download(MEDIA_ID, VIDEO_1080, clip("playlist")) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken, null)
             }
         }
     })

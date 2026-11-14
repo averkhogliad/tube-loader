@@ -8,10 +8,16 @@ import io.averkhogliad.tubeloader.core.contract.deleteWithRetry
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
+import io.averkhogliad.tubeloader.infra.binaries.BinaryFetch
+import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
 import io.averkhogliad.tubeloader.infra.binaries.ProcessOutcome
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.types.shouldBeSameInstanceAs
 import java.io.IOException
+import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -47,6 +53,24 @@ private fun failingAdapter(
         reply = ToolReply(exitedWith = exitCode, error = goldenText(fixture)),
     )
 
+/** The adapter over a distribution that never reaches the release. */
+private fun unreachableDistributionAdapter(settings: YtDlpConfig): YoutubeSourceAdapter =
+    YoutubeSourceAdapter(
+        runner = YtDlpProcessRunner(FakeToolRunner { ToolReply() }, Path.of("work")),
+        config = { settings },
+        // M1 publishes the Windows build only: the policy is pinned so the host decides nothing here
+        distribution = ManagedBinary(settings.paths.ytDlpBinary, { ytDlpPolicy("Windows 11") }, UnreachableRelease),
+    )
+
+private object UnreachableRelease : BinaryFetch {
+
+    override suspend fun download(tool: String, source: URI, target: Path, followRedirects: Boolean): Unit =
+        throw IOException("the release is unreachable")
+
+    override suspend fun body(tool: String, source: URI, followRedirects: Boolean): String =
+        error("the checksum of an unreachable release is never read")
+}
+
 class YoutubeErrorTaxonomyTest :
     FreeSpec({
         val roots = mutableListOf<Path>()
@@ -65,7 +89,9 @@ class YoutubeErrorTaxonomyTest :
                     val actual = adapter.findById(MEDIA_ID)
 
                     // then
-                    actual shouldBe LoadMetaResult.Failed(case.expected)
+                    val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                    failed.error shouldBe case.expected
+                    failed.cause?.message.orEmpty() shouldContain goldenText(case.fixture).trim()
                 }
             }
 
@@ -77,7 +103,9 @@ class YoutubeErrorTaxonomyTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.AntiBotBlocked)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.AntiBotBlocked
+                failed.cause?.message.orEmpty() shouldContain goldenText("error-antibot.txt").trim()
             }
 
             "reads a failure the tool said nothing about as a broken extractor" {
@@ -88,37 +116,38 @@ class YoutubeErrorTaxonomyTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.ExtractorBroken
+                failed.cause.shouldBeInstanceOf<YtDlpFailed>()
+                failed.cause?.message.orEmpty() shouldContain "the tool exited with code 1"
             }
 
             "reads a start that never reached the tool as a broken extractor" {
                 // given
-                val adapter =
-                    adapterWithOutcome(
-                        YOUTUBE_SETTINGS,
-                        ProcessOutcome.SpawnFailed(IOException("binary not found")),
-                    )
+                val spawnFailure = IOException("binary not found")
+                val adapter = adapterWithOutcome(YOUTUBE_SETTINGS, ProcessOutcome.SpawnFailed(spawnFailure))
 
                 // when
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.ExtractorBroken
+                failed.cause shouldBeSameInstanceAs spawnFailure
             }
 
-            "reads a start that never reached the tool as a broken extractor" {
+            "names the failure of the distribution as the cause" {
                 // given
-                val adapter =
-                    adapterWithOutcome(
-                        YOUTUBE_SETTINGS,
-                        ProcessOutcome.SpawnFailed(IOException("binary not found")),
-                    )
+                val settings = YOUTUBE_SETTINGS.copy(binaryPath = null)
+                val adapter = unreachableDistributionAdapter(settings)
 
                 // when
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.ExtractorBroken
+                failed.cause?.message.orEmpty() shouldContain "the release is unreachable"
             }
         }
 
@@ -133,7 +162,9 @@ class YoutubeErrorTaxonomyTest :
                     val actual = adapter.download(MEDIA_ID, QUALITY, world.target) {}
 
                     // then
-                    actual shouldBe DownloadResult.Failed(case.expected)
+                    val failed = actual.shouldBeInstanceOf<DownloadResult.Failed>()
+                    failed.error shouldBe case.expected
+                    failed.cause?.message.orEmpty() shouldContain goldenText(case.fixture).trim()
                 }
             }
 
@@ -148,8 +179,27 @@ class YoutubeErrorTaxonomyTest :
                 val resolved = failingAdapter("error-antibot.txt").findById(MEDIA_ID)
 
                 // then
-                transferred shouldBe DownloadResult.Failed(DownloadError.AntiBotBlocked)
-                resolved shouldBe LoadMetaResult.Failed(DownloadError.AntiBotBlocked)
+                val transferFailure = transferred.shouldBeInstanceOf<DownloadResult.Failed>()
+                val resolveFailure = resolved.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                transferFailure.error shouldBe DownloadError.AntiBotBlocked
+                resolveFailure.error shouldBe DownloadError.AntiBotBlocked
+                transferFailure.cause?.message.orEmpty() shouldContain "not a bot"
+                resolveFailure.cause?.message.orEmpty() shouldContain "not a bot"
+            }
+
+            "names the failure of the distribution as the cause of a failed transfer" {
+                // given
+                val root = Files.createTempDirectory("youtube-distribution").also(roots::add)
+                val settings = YOUTUBE_SETTINGS.copy(binaryPath = null)
+                val adapter = unreachableDistributionAdapter(settings)
+
+                // when
+                val actual = adapter.download(MEDIA_ID, QUALITY, root.resolve("video.part-1")) {}
+
+                // then
+                val failed = actual.shouldBeInstanceOf<DownloadResult.Failed>()
+                failed.error shouldBe DownloadError.ExtractorBroken
+                failed.cause?.message.orEmpty() shouldContain "the release is unreachable"
             }
         }
     })

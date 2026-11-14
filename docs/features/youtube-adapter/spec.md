@@ -166,7 +166,7 @@ GitHub-релиз yt-dlp: последний (`releases/latest/download/yt-dlp.e
 полуфайл; fetch — под мьютексом дистрибуции. Канал — `java.net.http.HttpClient`, не `HttpTool`
 (один GET, без прогресса и ретраев, сбой — `IOException`; та же аргументация, что в ADR-0008).
 M1 — только Windows-бинарник; прочие платформы — `UnavailableOn`, как у ffmpeg. Промах ensure
-отдаётся как `LoadMetaResult.Failed(ExtractorBroken)` / `DownloadResult.Failed(ExtractorBroken)`:
+отдаётся как `LoadMetaResult.Failed(ExtractorBroken, cause)` / `DownloadResult.Failed(ExtractorBroken, cause)`:
 класс приблизительный, точный вердикт — причина (`errors.md`). Корень сборки может обеспечить
 бинарник заранее (`ensureManagedYtDlp`, идемпотентен): адаптер при первом вызове найдёт файл на
 диске и в сеть не пойдёт.
@@ -215,7 +215,8 @@ YouTube не используется — запись живёт в YouTube-fix
 файла, не тестового кода.
 
 **Таксономия ошибок.** На каждый класс `DownloadError` (включая новый `AntiBotBlocked`) —
-минимум один кейс с эталонным stderr/JSON yt-dlp и ожидаемым `DownloadResult.Failed`.
+минимум один кейс с эталонным stderr/JSON yt-dlp и ожидаемым `DownloadResult.Failed`, плюс
+причина — текст stderr, наблюдаемый в сообщении причины.
 
 **Прогресс.** Golden progress-линии → ожидаемая последовательность `Progress`, достигающая
 завершения (`fraction() == 1.0`), монотонная, последний `Progress.Absolute(fileSize, fileSize)` —
