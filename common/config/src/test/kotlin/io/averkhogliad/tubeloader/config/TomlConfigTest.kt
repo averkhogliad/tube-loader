@@ -237,4 +237,30 @@ class TomlConfigTest :
                 table shouldBe emptyMap()
             }
         }
+
+        "valueOrNull" - {
+            "answers the leaf with the type the parser produced" {
+                // given
+                val config = TomlConfig.fromString("n = 1\ntags = [1, 2]")
+
+                // when
+                val number = config.valueOrNull("n")
+                val list = config.valueOrNull("tags")
+
+                // then
+                number shouldBe 1L
+                list shouldBe listOf(1L, 2L)
+            }
+
+            "answers null for a missing path" {
+                // given
+                val config = TomlConfig.fromString("a = 1")
+
+                // when
+                val actual = config.valueOrNull("missing")
+
+                // then
+                actual shouldBe null
+            }
+        }
     })

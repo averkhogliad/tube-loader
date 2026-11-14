@@ -88,10 +88,11 @@ class RutubePlaylistTest :
                 http.opened[1].url shouldBe MASTER_URL
             }
 
-            "prefers the quality of the requested id over a closer-lower one" {
+            "prefers the requested height over a closer-lower one" {
                 // given
                 val http = streaming()
-                val quality = Quality("720p", TrackKind.Video, "720p")
+                // the id is opaque on purpose: the variant has to be chosen by the height, not the id
+                val quality = Quality("opaque", TrackKind.Video, "720p", height = 720)
 
                 // when
                 adapter(http).download(MEDIA_ID, quality, clip("playlist")) {}

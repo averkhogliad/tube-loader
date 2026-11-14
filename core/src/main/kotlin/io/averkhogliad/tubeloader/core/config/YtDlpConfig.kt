@@ -1,7 +1,6 @@
 package io.averkhogliad.tubeloader.core.config
 
-import io.averkhogliad.tubeloader.config.Config
-import java.nio.file.InvalidPathException
+import io.averkhogliad.tubeloader.config.ConfigReader
 import java.nio.file.Path
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -60,98 +59,29 @@ data class YtDlpConfig(
         val DEFAULT_RETRY_BASE_DELAY = 250.milliseconds
 
         /**
-         * Reads the flat `[download.youtube]` sub-block. A missing table and a missing key both answer
-         * the default; a value that cannot be read raises with the name of the key and the value,
-         * because a typo in a timeout is worth a loud stop rather than a silent default.
+         * Reads the flat `[download.youtube]` sub-block through the source-agnostic reader: a
+         * missing key answers the default. The syntax of a value belongs to the reader; the
+         * semantics — positivity, bounds — are the checks of `init`, so a bad value is stopped the
+         * same way however the config was built.
          */
-        fun fromConfig(config: Config, paths: ToolPaths, tablePath: String = DEFAULT_TABLE): YtDlpConfig {
-            val table = config.getTableOrNull(tablePath).orEmpty()
-            return YtDlpConfig(
+        fun fromReader(reader: ConfigReader, paths: ToolPaths, tablePath: String = DEFAULT_TABLE): YtDlpConfig =
+            YtDlpConfig(
                 paths = paths,
-                workDirectory = pathAt(table, tablePath, "work-directory", paths.homeDir.resolve(DEFAULT_WORK_DIR)),
-                binaryPath = binaryPathAt(table, tablePath),
-                resolveTimeout = resolveTimeoutAt(table, tablePath),
-                concurrentFragments = fragmentsAt(table, tablePath),
-                retryMaxAttempts = attemptsAt(table, tablePath),
+                workDirectory =
+                    reader.path(key(tablePath, "work-directory")) ?: paths.homeDir.resolve(DEFAULT_WORK_DIR),
+                binaryPath = reader.path(key(tablePath, "binary-path")),
+                resolveTimeout =
+                    reader.durationMillis(key(tablePath, "resolve-timeout-ms")) ?: DEFAULT_RESOLVE_TIMEOUT,
+                concurrentFragments =
+                    reader.wholeNumber(key(tablePath, "concurrent-fragments")) ?: DEFAULT_CONCURRENT_FRAGMENTS,
+                retryMaxAttempts =
+                    reader.wholeNumber(key(tablePath, "max-attempts")) ?: DEFAULT_RETRY_MAX_ATTEMPTS,
                 retryBaseDelay =
-                    millisecondsAt(table, tablePath, "base-delay-ms", DEFAULT_RETRY_BASE_DELAY, allowZero = true),
-                retryRandomizationFactor = factorAt(table, tablePath),
+                    reader.durationMillis(key(tablePath, "base-delay-ms")) ?: DEFAULT_RETRY_BASE_DELAY,
+                retryRandomizationFactor =
+                    reader.factor(key(tablePath, "randomization-factor")) ?: DEFAULT_RETRY_RANDOMIZATION_FACTOR,
             )
-        }
 
-        private fun pathAt(table: Map<String, Any>, tablePath: String, key: String, default: Path): Path {
-            val raw = table[key] ?: return default
-            val at = name(tablePath, key)
-            val text = raw.toString().trim()
-            require(text.isNotEmpty()) { "$at must be a path, got an empty value" }
-            return try {
-                Path.of(text)
-            } catch (_: InvalidPathException) {
-                throw IllegalArgumentException("$at must be a path, got $raw")
-            }
-        }
-
-        private fun binaryPathAt(table: Map<String, Any>, tablePath: String): Path? =
-            if (table.containsKey("binary-path")) pathAt(table, tablePath, "binary-path", Path.of("")) else null
-
-        private fun resolveTimeoutAt(table: Map<String, Any>, tablePath: String): Duration {
-            val raw = table["resolve-timeout-ms"] ?: return DEFAULT_RESOLVE_TIMEOUT
-            val at = name(tablePath, "resolve-timeout-ms")
-            val value = wholeNumber(raw, at)
-            require(value > 0) { "$at must be positive, got $raw" }
-            return value.milliseconds
-        }
-
-        private fun fragmentsAt(table: Map<String, Any>, tablePath: String): Int {
-            val raw = table["concurrent-fragments"] ?: return DEFAULT_CONCURRENT_FRAGMENTS
-            val at = name(tablePath, "concurrent-fragments")
-            val value = wholeNumber(raw, at)
-            require(value >= 1) { "$at must be a whole number of at least 1, got $raw" }
-            return value
-        }
-
-        private fun attemptsAt(table: Map<String, Any>, tablePath: String): Int {
-            val raw = table["max-attempts"] ?: return DEFAULT_RETRY_MAX_ATTEMPTS
-            val at = name(tablePath, "max-attempts")
-            val value = wholeNumber(raw, at)
-            require(value >= 1) { "$at must be a whole number of at least 1, got $raw" }
-            return value
-        }
-
-        private fun millisecondsAt(
-            table: Map<String, Any>,
-            tablePath: String,
-            key: String,
-            default: Duration,
-            allowZero: Boolean = false,
-        ): Duration {
-            val raw = table[key] ?: return default
-            val at = name(tablePath, key)
-            val value = wholeNumber(raw, at)
-            require(allowZero || value > 0) { "$at must be positive, got $raw" }
-            return value.milliseconds
-        }
-
-        private fun factorAt(table: Map<String, Any>, tablePath: String): Double {
-            val raw = table["randomization-factor"] ?: return DEFAULT_RETRY_RANDOMIZATION_FACTOR
-            val at = name(tablePath, "randomization-factor")
-            val value = raw.toString().trim().toDoubleOrNull()
-            require(value != null && value in 0.0..1.0) { "$at must be within 0.0..1.0, got $raw" }
-            return value
-        }
-
-        private fun wholeNumber(raw: Any, at: String): Int {
-            val value =
-                when (raw) {
-                    is Int -> raw
-                    is Long -> raw.toInt()
-                    is String -> raw.trim().toIntOrNull()
-                    else -> null
-                }
-            require(value != null) { "$at must be a whole number, got $raw" }
-            return value
-        }
-
-        private fun name(tablePath: String, key: String) = "$tablePath.$key"
+        private fun key(tablePath: String, name: String) = "$tablePath.$name"
     }
 }

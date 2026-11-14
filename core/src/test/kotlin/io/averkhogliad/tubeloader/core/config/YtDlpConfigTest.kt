@@ -1,7 +1,7 @@
 package io.averkhogliad.tubeloader.core.config
 
-import io.averkhogliad.tubeloader.config.TomlConfig
-import io.averkhogliad.tubeloader.core.config.ToolPaths
+import io.averkhogliad.tubeloader.config.ConfigReader
+import io.averkhogliad.tubeloader.config.MemoryConfigReader
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
@@ -9,27 +9,32 @@ import java.nio.file.Path
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+private const val TABLE = YtDlpConfig.DEFAULT_TABLE
+
 /**
- * The block under test is read through a real TOML parse: the seam hands out `Any` values of the type
- * the parser produces, and a hand-written map would not prove that a whole number arrives as one.
+ * The block is read through the in-memory source: parsing a source is the contract of
+ * `common:config`, while the settings here own the keys and the semantics.
  */
-private fun toml(body: String) = TomlConfig.fromString(body.trimIndent())
+private fun reader(vararg pairs: Pair<String, Any>): ConfigReader = MemoryConfigReader(pairs.toMap())
+
+private fun key(name: String) = "$TABLE.$name"
 
 private val PATHS = ToolPaths.of(Path.of("home"), "Linux")
 
 class YtDlpConfigTest :
     FreeSpec({
 
-        "fromConfig" - {
+        "fromReader" - {
             "answers the defaults when the block is missing" {
                 // given
-                val config = toml("[download]\nmax-parallel-downloads = 2")
+                val source = reader()
 
                 // when
-                val actual = YtDlpConfig.fromConfig(config, PATHS)
+                val actual = YtDlpConfig.fromReader(source, PATHS)
 
                 // then
                 actual.paths shouldBe PATHS
+                actual.workDirectory shouldBe PATHS.homeDir.resolve(YtDlpConfig.DEFAULT_WORK_DIR)
                 actual.binaryPath shouldBe null
                 actual.resolveTimeout shouldBe 60.seconds
                 actual.concurrentFragments shouldBe 1
@@ -40,23 +45,22 @@ class YtDlpConfigTest :
 
             "reads every key of the block" {
                 // given
-                val config =
-                    toml(
-                        """
-                        [download.youtube]
-                        binary-path = "opt/yt-dlp"
-                        resolve-timeout-ms = 15000
-                        concurrent-fragments = 4
-                        max-attempts = 3
-                        base-delay-ms = 500
-                        randomization-factor = 0.2
-                        """,
+                val source =
+                    reader(
+                        key("work-directory") to "work",
+                        key("binary-path") to "opt/yt-dlp",
+                        key("resolve-timeout-ms") to 15000,
+                        key("concurrent-fragments") to 4,
+                        key("max-attempts") to 3,
+                        key("base-delay-ms") to 500,
+                        key("randomization-factor") to 0.2,
                     )
 
                 // when
-                val actual = YtDlpConfig.fromConfig(config, PATHS)
+                val actual = YtDlpConfig.fromReader(source, PATHS)
 
                 // then
+                actual.workDirectory shouldBe Path.of("work")
                 actual.binaryPath shouldBe Path.of("opt", "yt-dlp")
                 actual.resolveTimeout shouldBe 15000.milliseconds
                 actual.concurrentFragments shouldBe 4
@@ -68,17 +72,14 @@ class YtDlpConfigTest :
 
             "keeps an unrelated block out of the reading" {
                 // given
-                val config =
-                    toml(
-                        """
-                        [download.http-tool]
-                        concurrent-fragments = 9
-                        resolve-timeout-ms = 1000
-                        """,
+                val source =
+                    reader(
+                        "download.http-tool.concurrent-fragments" to 9,
+                        "download.http-tool.resolve-timeout-ms" to 1000,
                     )
 
                 // when
-                val actual = YtDlpConfig.fromConfig(config, PATHS)
+                val actual = YtDlpConfig.fromReader(source, PATHS)
 
                 // then
                 actual.resolveTimeout shouldBe 60.seconds
@@ -87,16 +88,10 @@ class YtDlpConfigTest :
 
             "reads the block of a prefixed key" {
                 // given
-                val config =
-                    toml(
-                        """
-                        [other.youtube]
-                        concurrent-fragments = 2
-                        """,
-                    )
+                val source = reader("other.youtube.concurrent-fragments" to 2)
 
                 // when
-                val actual = YtDlpConfig.fromConfig(config, PATHS, "other.youtube")
+                val actual = YtDlpConfig.fromReader(source, PATHS, "other.youtube")
 
                 // then
                 actual.concurrentFragments shouldBe 2
@@ -104,10 +99,10 @@ class YtDlpConfigTest :
 
             "raises for an empty binary path" {
                 // given
-                val config = toml("[download.youtube]\nbinary-path = \"  \"")
+                val source = reader(key("binary-path") to "  ")
 
                 // when
-                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromConfig(config, PATHS) }
+                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromReader(source, PATHS) }
 
                 // then
                 thrown.message shouldBe "download.youtube.binary-path must be a path, got an empty value"
@@ -115,21 +110,21 @@ class YtDlpConfigTest :
 
             "raises for a non-positive resolve timeout" {
                 // given
-                val config = toml("[download.youtube]\nresolve-timeout-ms = 0")
+                val source = reader(key("resolve-timeout-ms") to 0)
 
                 // when
-                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromConfig(config, PATHS) }
+                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromReader(source, PATHS) }
 
                 // then
-                thrown.message shouldBe "download.youtube.resolve-timeout-ms must be positive, got 0"
+                thrown.message shouldBe "resolveTimeout must be positive, got 0s"
             }
 
             "raises for a timeout that is not a whole number" {
                 // given
-                val config = toml("[download.youtube]\nresolve-timeout-ms = \"soon\"")
+                val source = reader(key("resolve-timeout-ms") to "soon")
 
                 // when
-                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromConfig(config, PATHS) }
+                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromReader(source, PATHS) }
 
                 // then
                 thrown.message shouldBe "download.youtube.resolve-timeout-ms must be a whole number, got soon"
@@ -137,14 +132,13 @@ class YtDlpConfigTest :
 
             "raises for fewer than one fragment" {
                 // given
-                val config = toml("[download.youtube]\nconcurrent-fragments = 0")
+                val source = reader(key("concurrent-fragments") to 0)
 
                 // when
-                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromConfig(config, PATHS) }
+                val thrown = shouldThrow<IllegalArgumentException> { YtDlpConfig.fromReader(source, PATHS) }
 
                 // then
-                thrown.message shouldBe
-                    "download.youtube.concurrent-fragments must be a whole number of at least 1, got 0"
+                thrown.message shouldBe "concurrentFragments must be at least 1, got 0"
             }
         }
 

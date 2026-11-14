@@ -66,4 +66,4 @@ internal fun downloadCommand(
 
 /** The best video with its audio, no higher than the height the quality names. */
 internal fun formatSelectorOf(quality: Quality): String? =
-    heightOf(quality.id)?.let { height -> "bv*[height<=?$height]+ba/b[height<=?$height]" }
+    quality.height?.let { height -> "bv*[height<=?$height]+ba/b[height<=?$height]" }

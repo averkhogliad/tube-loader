@@ -23,7 +23,7 @@ private val EXPECTED_META =
         duration = 5589952.milliseconds,
         thumbnailUrl =
             "https://pic.rtbcdn.ru/video/2026-09-20/c8/dc/c8dc7f1b3bfb649f3a0f86c1e2da5460.jpg",
-        qualities = listOf(Quality(QUALITY_1080, TrackKind.Video, QUALITY_1080)),
+        qualities = listOf(Quality("1080p", TrackKind.Video, "1080p", height = 1080)),
     )
 
 class RutubeFindByIdTest :

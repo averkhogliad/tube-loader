@@ -41,7 +41,7 @@ private const val UNREACHABLE = "network-1"
 private const val ANTIBOT = "antibot-1"
 private const val BROKEN = "broken-1"
 
-private val RECORDED_QUALITY = Quality("720p", TrackKind.Video, "720p")
+private val RECORDED_QUALITY = Quality.ofHeight(720)
 
 private val RECORDED_META =
     MediaMeta(
@@ -52,9 +52,9 @@ private val RECORDED_META =
         thumbnailUrl = "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
         qualities =
             listOf(
-                Quality("1080p", TrackKind.Video, "1080p"),
-                Quality("720p", TrackKind.Video, "720p"),
-                Quality("360p", TrackKind.Video, "360p"),
+                Quality("1080p", TrackKind.Video, "1080p", height = 1080),
+                Quality("720p", TrackKind.Video, "720p", height = 720),
+                Quality("360p", TrackKind.Video, "360p", height = 360),
             ),
     )
 
@@ -65,7 +65,7 @@ private val SPARSE_META =
         author = "",
         duration = Duration.ZERO,
         thumbnailUrl = null,
-        qualities = listOf(Quality("360p", TrackKind.Video, "360p")),
+        qualities = listOf(Quality("360p", TrackKind.Video, "360p", height = 360)),
     )
 
 private val RESOLVE_ID_CASES: List<ResolveIdCase> =

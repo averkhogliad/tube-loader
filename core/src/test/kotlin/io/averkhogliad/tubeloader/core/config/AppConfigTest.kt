@@ -1,6 +1,7 @@
 package io.averkhogliad.tubeloader.core.config
 
-import io.averkhogliad.tubeloader.config.mapConfig
+import io.averkhogliad.tubeloader.config.ConfigReader
+import io.averkhogliad.tubeloader.config.MemoryConfigReader
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
@@ -9,18 +10,20 @@ import kotlin.time.Duration.Companion.seconds
 
 private val httpToolConfig = HttpToolConfig(perAttemptTimeout = 30.seconds)
 
-private val perAttempt = "download.http-tool.per-attempt-timeout-ms" to "30000"
+private val perAttempt = "download.http-tool.per-attempt-timeout-ms" to 30000
+
+private fun reader(vararg pairs: Pair<String, Any>): ConfigReader = MemoryConfigReader(pairs.toMap())
 
 class AppConfigTest :
     FreeSpec({
 
-        "fromConfig" - {
+        "fromReader" - {
             "returns defaults when the config has no download keys" {
                 // given
-                val config = mapConfig(perAttempt)
+                val source = reader(perAttempt)
 
                 // when
-                val actual = AppConfig.fromConfig(config)
+                val actual = AppConfig.fromReader(source)
 
                 // then
                 actual shouldBe
@@ -33,15 +36,15 @@ class AppConfigTest :
 
             "overrides values from the config" {
                 // given
-                val config =
-                    mapConfig(
+                val source =
+                    reader(
                         "download.max-parallel-downloads" to "2",
                         "download.default-target-dir" to "D:/vid",
                         perAttempt,
                     )
 
                 // when
-                val actual = AppConfig.fromConfig(config)
+                val actual = AppConfig.fromReader(source)
 
                 // then
                 actual shouldBe
@@ -54,10 +57,10 @@ class AppConfigTest :
 
             "trims surrounding whitespace around max-parallel-downloads" {
                 // given
-                val config = mapConfig("download.max-parallel-downloads" to " 7 ", perAttempt)
+                val source = reader("download.max-parallel-downloads" to " 7 ", perAttempt)
 
                 // when
-                val actual = AppConfig.fromConfig(config)
+                val actual = AppConfig.fromReader(source)
 
                 // then
                 actual.maxParallelDownloads shouldBe 7
@@ -65,10 +68,10 @@ class AppConfigTest :
 
             "keeps one as the lowest accepted max-parallel-downloads" {
                 // given
-                val config = mapConfig("download.max-parallel-downloads" to "1", perAttempt)
+                val source = reader("download.max-parallel-downloads" to "1", perAttempt)
 
                 // when
-                val actual = AppConfig.fromConfig(config)
+                val actual = AppConfig.fromReader(source)
 
                 // then
                 actual.maxParallelDownloads shouldBe 1
@@ -76,12 +79,12 @@ class AppConfigTest :
 
             "falls back to default when max-parallel-downloads is zero or negative" {
                 // given
-                val zero = mapConfig("download.max-parallel-downloads" to "0", perAttempt)
-                val negative = mapConfig("download.max-parallel-downloads" to "-3", perAttempt)
+                val zero = reader("download.max-parallel-downloads" to "0", perAttempt)
+                val negative = reader("download.max-parallel-downloads" to "-3", perAttempt)
 
                 // when
-                val fromZero = AppConfig.fromConfig(zero)
-                val fromNegative = AppConfig.fromConfig(negative)
+                val fromZero = AppConfig.fromReader(zero)
+                val fromNegative = AppConfig.fromReader(negative)
 
                 // then
                 fromZero.maxParallelDownloads shouldBe AppConfig.DEFAULT_MAX_PARALLEL_DOWNLOADS
@@ -90,10 +93,10 @@ class AppConfigTest :
 
             "falls back to default when max-parallel-downloads is not a number" {
                 // given
-                val config = mapConfig("download.max-parallel-downloads" to "many", perAttempt)
+                val source = reader("download.max-parallel-downloads" to "many", perAttempt)
 
                 // when
-                val actual = AppConfig.fromConfig(config)
+                val actual = AppConfig.fromReader(source)
 
                 // then
                 actual.maxParallelDownloads shouldBe AppConfig.DEFAULT_MAX_PARALLEL_DOWNLOADS
@@ -101,10 +104,10 @@ class AppConfigTest :
 
             "ignores blank default-target-dir" {
                 // given
-                val config = mapConfig("download.default-target-dir" to "   ", perAttempt)
+                val source = reader("download.default-target-dir" to "   ", perAttempt)
 
                 // when
-                val actual = AppConfig.fromConfig(config)
+                val actual = AppConfig.fromReader(source)
 
                 // then
                 actual.defaultTargetDir shouldBe null
@@ -112,10 +115,10 @@ class AppConfigTest :
 
             "falls back to null when default-target-dir is an invalid path" {
                 // given
-                val config = mapConfig("download.default-target-dir" to "a\u0000b", perAttempt)
+                val source = reader("download.default-target-dir" to "a\u0000b", perAttempt)
 
                 // when
-                val actual = AppConfig.fromConfig(config)
+                val actual = AppConfig.fromReader(source)
 
                 // then
                 actual.defaultTargetDir shouldBe null

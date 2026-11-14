@@ -4,7 +4,6 @@ import io.averkhogliad.tubeloader.core.adapter.DownloadResult
 import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
-import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.domain.fraction
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
@@ -26,7 +25,7 @@ private const val VARIANT_MATCH =
     "https://river-m9-mskix-d3100.rtbcdn.ru/hls-vod/bK-lXdzt0PyCVH-INsCslA/1791896394/3500/" +
         "0x5000c500e9cf2cc2/89f01c7070574acb92ca8adda1274dfa.mp4.m3u8?i=1920x1080_2203"
 
-private val LIVE_VIDEO_1080 = Quality("1080p", TrackKind.Video, "1080p")
+private val LIVE_VIDEO_1080 = Quality.ofHeight(1080)
 
 private val SEGMENT_BYTES = ByteArray(64) { it.toByte() }
 
