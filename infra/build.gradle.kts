@@ -17,6 +17,7 @@ dependencies {
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.encoding)
+    implementation(libs.slf4j.api)
     implementation(project(":core"))
 
     testImplementation(libs.kotest.runner.junit6)
@@ -24,6 +25,7 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.logback.classic)
     testImplementation(testFixtures(project(":core")))
     testRuntimeOnly(libs.junit.platform.launcher)
 }
