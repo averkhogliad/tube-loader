@@ -2,7 +2,6 @@ package io.averkhogliad.tubeloader.adapters.youtube
 
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.Quality
-import io.averkhogliad.tubeloader.core.domain.TrackKind
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlin.math.roundToLong
@@ -14,7 +13,7 @@ private const val CHANNEL = "channel"
 private const val FORMATS = "formats"
 private const val MILLIS_PER_SECOND = 1_000
 
-private val QUALITY_HEIGHT = Regex("""^(\d{3,4})p$""")
+private val INT_RANGE = Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()
 
 /**
  * The payload names the media it resolved, so a payload of another media is a broken read rather
@@ -38,19 +37,16 @@ internal fun mediaMetaOf(payload: JsonObject, requestedId: String): MediaMeta? {
     }
 }
 
-/** The height of the format is the quality: the download picks its selector by the same term. */
-internal fun qualityOf(height: Long): Quality {
-    val label = "${height}p"
-    return Quality(label, TrackKind.Video, label)
-}
-
-/** The height a quality names, or null when the id speaks of something else. */
-internal fun heightOf(qualityId: String): Long? =
-    QUALITY_HEIGHT
-        .matchEntire(qualityId)
-        ?.groupValues
-        ?.get(1)
-        ?.toLongOrNull()
+/**
+ * The height of the format is the quality: the download picks its selector by the same term. A
+ * height the model cannot carry is a format the adapter cannot offer, so it is dropped rather than
+ * truncated.
+ */
+internal fun qualityOf(height: Long): Quality? =
+    height
+        .takeIf { it in INT_RANGE }
+        ?.toInt()
+        ?.let { pixels -> Quality.ofHeight(pixels) }
 
 private fun qualitiesOf(payload: JsonObject): List<Quality> =
     (payload[FORMATS] as? JsonArray)
@@ -60,6 +56,6 @@ private fun qualitiesOf(payload: JsonObject): List<Quality> =
         .mapNotNull { format -> format.wholeNumber("height") }
         .distinct()
         .sortedDescending()
-        .map(::qualityOf)
+        .mapNotNull(::qualityOf)
 
 private fun JsonObject.durationOf() = ((number("duration") ?: 0.0) * MILLIS_PER_SECOND).roundToLong().milliseconds
