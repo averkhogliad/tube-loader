@@ -1,27 +1,17 @@
 package io.averkhogliad.tubeloader.adapters.youtube
 
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.future.await
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
+import io.averkhogliad.tubeloader.infra.binaries.ProcessLaunch
+import io.averkhogliad.tubeloader.infra.binaries.ProcessOutcome
+import io.averkhogliad.tubeloader.infra.binaries.ProcessRunner
+import io.averkhogliad.tubeloader.infra.binaries.SystemProcessRunner
 import java.io.IOException
-import java.io.InputStream
-import java.lang.Process
 import java.nio.file.Path
-import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 private const val NO_CONFIG = "--no-config"
 private const val ERROR_MARK = "ERROR:"
 private const val PYTHON_UTF8 = "PYTHONUTF8"
 private const val PYTHON_UTF8_ON = "1"
-private const val OUTPUT_LIMIT_LINES = 10_000
-private const val ERROR_LIMIT_CHARS = 16_384
 
 private val INHERITED_VARIABLES =
     setOf(
@@ -55,128 +45,47 @@ internal fun ytDlpEnvironment(inherited: Map<String, String>): Map<String, Strin
     return allowed + (PYTHON_UTF8 to PYTHON_UTF8_ON)
 }
 
-/** Everything a start of the tool consists of; the process boundary is a seam, tests hand in a process of their own. */
-internal data class YtDlpLaunch(
-    val command: List<String>,
-    val workingDirectory: Path,
-    val environment: Map<String, String>,
-) {
-    fun toProcess(): Process {
-        val builder = ProcessBuilder(command).directory(workingDirectory.toFile())
-        builder.environment().clear()
-        builder.environment().putAll(environment)
-        return builder.start()
-    }
-}
-
 /** What the tool wrote to its output stream, in order. */
 internal data class YtDlpRun(val output: List<String>)
 
 /**
- * Starts the tool, streams its output line by line and waits for the exit.
- *
- * The exit code alone decides nothing: the tool names its own failures on the error stream, and an
- * error reported there fails the run even when the code is zero.
- *
- * A timeout is an outcome, not a cancellation: the process tree is killed and the call returns.
- * Cancelling the coroutine of the call kills the tree as well, so no orphaned child survives.
+ * Wraps the shared process mechanism for the tool: adds the options and the environment the tool
+ * needs, and judges the outcome. The exit code alone decides nothing: the tool names its own
+ * failures on the error stream, and an error reported there fails the run even when the code is
+ * zero. The process tree, the budgets and the pipes belong to the mechanism.
  */
 class YtDlpProcessRunner internal constructor(
+    private val processRunner: ProcessRunner,
     private val workingDirectory: Path,
-    private val graceTimeoutMillis: Long = GRACE_TIMEOUT_MILLIS,
-    private val start: (YtDlpLaunch) -> Process = YtDlpLaunch::toProcess,
 ) {
 
     /** The composition root starts the tool as it is; the process seam of a test stays internal. */
-    constructor(workingDirectory: Path) : this(workingDirectory, GRACE_TIMEOUT_MILLIS)
+    constructor(workingDirectory: Path) : this(SystemProcessRunner(), workingDirectory)
 
     internal suspend fun run(
         command: List<String>,
         timeout: Duration? = null,
         onOutputLine: (String) -> Unit = {},
-    ): Result<YtDlpRun> =
-        withContext(Dispatchers.IO) {
-            val launch = YtDlpLaunch(withNoConfig(command), workingDirectory, ytDlpEnvironment(System.getenv()))
-            val process =
-                try {
-                    start(launch)
-                } catch (failure: IOException) {
-                    return@withContext Result.failure(failure)
-                }
-            try {
-                val output = mutableListOf<String>()
-                val errorText = StringBuilder()
-                val finished =
-                    coroutineScope {
-                        val outputReader = async { process.inputStream.streamLines(output, onOutputLine) }
-                        val errorReader = async { process.errorStream.collectInto(errorText) }
-                        val exited = awaitExit(process, timeout)
-                        if (exited == null) stopTree(process)
-                        outputReader.await()
-                        errorReader.await()
-                        exited
-                    }
-                if (finished == null) {
-                    Result.failure(YtDlpTimedOut(timeout))
-                } else {
-                    outcomeOf(finished.exitValue(), output, errorText.toString())
-                }
-            } catch (cancellation: CancellationException) {
-                stopTree(process)
-                coroutineContext.ensureActive()
-                throw cancellation
-            }
+    ): Result<YtDlpRun> {
+        val launch =
+            ProcessLaunch(
+                command = withNoConfig(command),
+                workingDirectory = workingDirectory,
+                environment = ytDlpEnvironment(System.getenv()),
+                timeout = timeout,
+            )
+        return when (val outcome = processRunner.run(launch, onOutputLine)) {
+            is ProcessOutcome.Exited -> outcomeOf(outcome.exitCode, outcome.output, outcome.errorText)
+            ProcessOutcome.TimedOut -> Result.failure(YtDlpTimedOut(timeout))
+            is ProcessOutcome.SpawnFailed -> Result.failure(outcome.cause)
         }
-
-    private suspend fun awaitExit(process: Process, timeout: Duration?): Process? =
-        if (timeout == null) {
-            process.onExit().await()
-        } else {
-            withTimeoutOrNull(timeout) { process.onExit().await() }
-        }
+    }
 
     private fun outcomeOf(exitCode: Int, output: List<String>, errorText: String): Result<YtDlpRun> {
         val error = errorText.trim()
         val reported = error.lineSequence().map(String::trim).firstOrNull { line -> line.startsWith(ERROR_MARK) }
         if (exitCode == 0 && reported == null) return Result.success(YtDlpRun(output))
         return Result.failure(YtDlpFailed(exitCode, error))
-    }
-
-    private suspend fun stopTree(process: Process) {
-        withContext(NonCancellable) {
-            process.descendants().forEach { child -> child.destroy() }
-            process.destroy()
-            val exited =
-                withTimeoutOrNull(graceTimeoutMillis) {
-                    process.onExit().await()
-                }
-            if (exited == null) process.destroyForcibly()
-        }
-    }
-
-    private suspend fun InputStream.streamLines(output: MutableList<String>, onOutputLine: (String) -> Unit) {
-        bufferedReader().use { reader ->
-            while (true) {
-                coroutineContext.ensureActive()
-                val line = reader.readLine() ?: break
-                if (output.size < OUTPUT_LIMIT_LINES) output += line
-                onOutputLine(line)
-            }
-        }
-    }
-
-    private suspend fun InputStream.collectInto(sink: StringBuilder) {
-        bufferedReader().use { reader ->
-            while (true) {
-                coroutineContext.ensureActive()
-                val line = reader.readLine() ?: break
-                if (sink.length < ERROR_LIMIT_CHARS) sink.appendLine(line)
-            }
-        }
-    }
-
-    internal companion object {
-        const val GRACE_TIMEOUT_MILLIS = 2_000L
     }
 }
 

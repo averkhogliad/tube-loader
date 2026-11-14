@@ -1,26 +1,17 @@
 package io.averkhogliad.tubeloader.adapters.youtube
 
+import io.averkhogliad.tubeloader.infra.binaries.ProcessLaunch
+import io.averkhogliad.tubeloader.infra.binaries.ProcessOutcome
+import io.averkhogliad.tubeloader.infra.binaries.ProcessRunner
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import java.io.ByteArrayInputStream
 import java.io.IOException
-import java.lang.Process
-import java.lang.ProcessHandle
 import java.nio.file.Path
-import java.util.concurrent.CompletableFuture
-import java.util.stream.Stream
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val BINARY = "yt-dlp"
-private const val GRACE = 100L
 private const val PYTHON_UTF8 = "PYTHONUTF8"
 private const val UNAVAILABLE = "ERROR: Video unavailable"
 
@@ -32,22 +23,22 @@ class YtDlpProcessRunnerTest :
         "run" - {
             "returns the lines the tool wrote to its output stream" {
                 // given
-                val process = process(exitedWith = 0, output = "first\nsecond")
+                val fake = FakeProcessRunner(lines = listOf("first", "second"))
 
                 // when
-                val actual = runnerOf(process).run(listOf(BINARY)).getOrThrow()
+                val actual = runnerOf(fake).run(listOf(BINARY))
 
                 // then
-                actual.output shouldBe listOf("first", "second")
+                actual.getOrThrow().output shouldBe listOf("first", "second")
             }
 
             "streams the output lines to the caller as they come" {
                 // given
-                val process = process(exitedWith = 0, output = "first\nsecond")
+                val fake = FakeProcessRunner(lines = listOf("first", "second"))
                 val streamed = mutableListOf<String>()
 
                 // when
-                runnerOf(process).run(listOf(BINARY), onOutputLine = streamed::add)
+                runnerOf(fake).run(listOf(BINARY), onOutputLine = streamed::add)
 
                 // then
                 streamed shouldBe listOf("first", "second")
@@ -55,10 +46,10 @@ class YtDlpProcessRunnerTest :
 
             "reports success when the tool exits with code zero" {
                 // given
-                val process = process(exitedWith = 0)
+                val fake = FakeProcessRunner()
 
                 // when
-                val actual = runnerOf(process).run(listOf(BINARY))
+                val actual = runnerOf(fake).run(listOf(BINARY))
 
                 // then
                 actual.isSuccess shouldBe true
@@ -66,10 +57,14 @@ class YtDlpProcessRunnerTest :
 
             "reports the failure carrying what the tool wrote to the error stream" {
                 // given
-                val process = process(exitedWith = 1, error = UNAVAILABLE)
+                val fake =
+                    FakeProcessRunner(
+                        lines = listOf("first"),
+                        outcome = { output -> ProcessOutcome.Exited(1, output, UNAVAILABLE) },
+                    )
 
                 // when
-                val actual = runnerOf(process).run(listOf(BINARY))
+                val actual = runnerOf(fake).run(listOf(BINARY))
 
                 // then
                 val failure = actual.exceptionOrNull().shouldBeInstanceOf<YtDlpFailed>()
@@ -78,10 +73,10 @@ class YtDlpProcessRunnerTest :
 
             "treats an error on the error stream as a failure even when the tool exited with zero" {
                 // given
-                val process = process(exitedWith = 0, error = UNAVAILABLE)
+                val fake = FakeProcessRunner(outcome = { output -> ProcessOutcome.Exited(0, output, UNAVAILABLE) })
 
                 // when
-                val actual = runnerOf(process).run(listOf(BINARY))
+                val actual = runnerOf(fake).run(listOf(BINARY))
 
                 // then
                 actual.exceptionOrNull().shouldBeInstanceOf<YtDlpFailed>()
@@ -90,10 +85,10 @@ class YtDlpProcessRunnerTest :
             "reports the failure of starting the process itself" {
                 // given
                 val failure = IOException("cannot start")
-                val runner = YtDlpProcessRunner(workingDirectory = WORKING_DIRECTORY, start = { throw failure })
+                val fake = FakeProcessRunner(outcome = { ProcessOutcome.SpawnFailed(failure) })
 
                 // when
-                val actual = runner.run(listOf(BINARY))
+                val actual = runnerOf(fake).run(listOf(BINARY))
 
                 // then
                 actual.exceptionOrNull() shouldBe failure
@@ -101,79 +96,52 @@ class YtDlpProcessRunnerTest :
 
             "hands the command over with the config disabled right after the binary" {
                 // given
-                val launches = mutableListOf<YtDlpLaunch>()
+                val fake = FakeProcessRunner()
 
                 // when
-                runnerOf(process(exitedWith = 0), launches).run(listOf(BINARY, "-J", "--skip-download"))
+                runnerOf(fake).run(listOf(BINARY, "-J", "--skip-download"))
 
                 // then
-                launches.single().command shouldBe listOf(BINARY, "--no-config", "-J", "--skip-download")
+                fake.launches.single().command shouldBe listOf(BINARY, "--no-config", "-J", "--skip-download")
             }
 
             "runs the tool in the controlled directory with the whitelisted environment" {
                 // given
-                val launches = mutableListOf<YtDlpLaunch>()
+                val fake = FakeProcessRunner()
 
                 // when
-                runnerOf(process(exitedWith = 0), launches).run(listOf(BINARY))
+                runnerOf(fake).run(listOf(BINARY))
 
                 // then
-                val launch = launches.single()
+                val launch = fake.launches.single()
                 launch.workingDirectory shouldBe WORKING_DIRECTORY
-                launch.environment[PYTHON_UTF8] shouldBe "1"
-                launch.environment.containsKey("PYTHONPATH") shouldBe false
-                launch.environment.containsKey("PYTHONHOME") shouldBe false
+                launch.environment!![PYTHON_UTF8] shouldBe "1"
+                launch.environment!!.containsKey("PYTHONPATH") shouldBe false
+                launch.environment!!.containsKey("PYTHONHOME") shouldBe false
+            }
+
+            "passes the budget of the call to the process mechanism" {
+                // given
+                val fake = FakeProcessRunner()
+
+                // when
+                runnerOf(fake).run(listOf(BINARY), timeout = 50.milliseconds)
+
+                // then
+                fake.launches.single().timeout shouldBe 50.milliseconds
             }
         }
 
         "timeout" - {
-            "returns a timeout outcome and kills the tool instead of waiting for it forever" {
+            "returns a timeout outcome instead of waiting for the tool forever" {
                 // given
-                val process = process(exitedWith = null)
+                val fake = FakeProcessRunner(outcome = { ProcessOutcome.TimedOut })
 
                 // when
-                val actual = runnerOf(process).run(listOf(BINARY), timeout = 50.milliseconds)
+                val actual = runnerOf(fake).run(listOf(BINARY), timeout = 50.milliseconds)
 
                 // then
                 actual.exceptionOrNull().shouldBeInstanceOf<YtDlpTimedOut>()
-                verify { process.destroy() }
-            }
-        }
-
-        "cancellation" - {
-            "kills the tool and its whole tree within the grace period" {
-                // given
-                val child = mockk<ProcessHandle>(relaxed = true)
-                val process = process(exitedWith = null, children = listOf(child))
-
-                // when
-                coroutineScope {
-                    val job = launch { runnerOf(process).run(listOf(BINARY)) }
-                    delay(50.milliseconds)
-                    job.cancel()
-                    job.join()
-                }
-
-                // then
-                verify { child.destroy() }
-                verify { process.destroy() }
-                verify(exactly = 0) { process.destroyForcibly() }
-            }
-
-            "forces the tool when it ignores the graceful exit past the grace period" {
-                // given
-                val process = process(exitedWith = null, exitAfterDestroy = false)
-
-                // when
-                coroutineScope {
-                    val job = launch { runnerOf(process).run(listOf(BINARY)) }
-                    delay(50.milliseconds)
-                    job.cancel()
-                    job.join()
-                }
-
-                // then
-                verify { process.destroyForcibly() }
             }
         }
 
@@ -231,47 +199,20 @@ class YtDlpProcessRunnerTest :
         }
     })
 
-private fun runnerOf(process: Process, launches: MutableList<YtDlpLaunch> = mutableListOf()): YtDlpProcessRunner =
-    YtDlpProcessRunner(
-        workingDirectory = WORKING_DIRECTORY,
-        start = { launch ->
-            launches += launch
-            process
-        },
-        graceTimeoutMillis = GRACE,
-    )
+private fun runnerOf(fake: FakeProcessRunner = FakeProcessRunner()): YtDlpProcessRunner =
+    YtDlpProcessRunner(fake, WORKING_DIRECTORY)
 
-/**
- * A tool of its own: `exitedWith` null means it never leaves on its own, which is what an operation
- * faces when its coroutine is cancelled or its budget runs out. `exitAfterDestroy` tells whether the
- * graceful kill is enough.
- */
-private fun process(
-    exitedWith: Int?,
-    output: String = "",
-    error: String = "",
-    children: List<ProcessHandle> = emptyList(),
-    exitAfterDestroy: Boolean = true,
-): Process {
-    val process = mockk<Process>(relaxed = true)
-    val pending = mutableListOf<CompletableFuture<Process>>()
-    var killed = false
+/** The process mechanism of a test: records the launch, streams [lines] and answers [outcome]. */
+private class FakeProcessRunner(
+    private val lines: List<String> = emptyList(),
+    private val outcome: (List<String>) -> ProcessOutcome = { output -> ProcessOutcome.Exited(0, output, "") },
+) : ProcessRunner {
 
-    // the process of a real tool answers a wait that starts after the kill with its final state, not
-    // with a future that never ends: a fresh future per call would report a false timeout otherwise
-    every { process.onExit() } answers {
-        CompletableFuture<Process>().also { future ->
-            if (exitedWith != null || (killed && exitAfterDestroy)) future.complete(process)
-            pending += future
-        }
+    val launches = mutableListOf<ProcessLaunch>()
+
+    override suspend fun run(launch: ProcessLaunch, onOutputLine: (String) -> Unit): ProcessOutcome {
+        launches += launch
+        lines.forEach(onOutputLine)
+        return outcome(lines)
     }
-    every { process.exitValue() } returns (exitedWith ?: 0)
-    every { process.inputStream } returns ByteArrayInputStream(output.toByteArray())
-    every { process.errorStream } returns ByteArrayInputStream(error.toByteArray())
-    every { process.descendants() } returns Stream.of(*children.toTypedArray())
-    every { process.destroy() } answers {
-        killed = true
-        if (exitAfterDestroy) pending.forEach { future -> future.complete(process) }
-    }
-    return process
 }

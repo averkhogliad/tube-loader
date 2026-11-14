@@ -4,22 +4,20 @@ import io.averkhogliad.tubeloader.core.config.MediaToolConfig
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.port.MediaTool
 import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
+import io.averkhogliad.tubeloader.infra.binaries.ProcessLaunch
+import io.averkhogliad.tubeloader.infra.binaries.ProcessOutcome
+import io.averkhogliad.tubeloader.infra.binaries.ProcessRunner
+import java.io.IOException
 import java.nio.file.Path
-
-/**
- * Starts the tool, one process per operation, and waits for it to finish. Cancelling the coroutine
- * of the operation kills the whole process tree: no orphaned child is left behind.
- */
-interface ProcessRunner {
-    suspend fun run(command: List<String>): Result<Unit>
-}
 
 /**
  * The tool runs as an external `ffmpeg` process, one per operation; nothing outlives the call, so
  * closing has nothing to release.
  *
  * The binary is not shipped with the application: the composition root hands in the managed
- * distribution, so every operation of the run shares one instance and one fetch.
+ * distribution, so every operation of the run shares one instance and one fetch. The process
+ * mechanism is shared with the other tools of the application; this consumer decides what its
+ * outcome means.
  */
 class FfmpegMediaTool(
     private val config: MediaToolConfig,
@@ -89,8 +87,26 @@ class FfmpegMediaTool(
         log(command.joinToString(" "))
         // the duration of a stream copy is unpredictable, so the progress stays indeterminate
         onProgress(Progress.Indeterminate)
-        return runner.run(command).onFailure { failure -> log("the tool failed: ${failure.message}") }
+        return runner
+            .run(ProcessLaunch(command))
+            .judgement()
+            .onFailure { failure -> log("the tool failed: ${failure.message}") }
     }
+
+    private fun ProcessOutcome.judgement(): Result<Unit> =
+        when (this) {
+            is ProcessOutcome.Exited -> {
+                if (exitCode == 0) Result.success(Unit) else Result.failure(ToolFailed(exitCode, errorText))
+            }
+
+            ProcessOutcome.TimedOut -> {
+                Result.failure(ToolTimedOut())
+            }
+
+            is ProcessOutcome.SpawnFailed -> {
+                Result.failure(cause)
+            }
+        }
 
     private fun log(message: String) {
         System.err.println("$LOG_PREFIX $message")
@@ -109,3 +125,16 @@ class FfmpegMediaTool(
         const val LOG_PREFIX = "FfmpegMediaTool:"
     }
 }
+
+/** The tool answered with a non-zero code: the operation fails, the reason is what the tool said. */
+internal class ToolFailed(exitCode: Int, toolMessage: String) :
+    IOException(
+        if (toolMessage.isEmpty()) {
+            "the tool exited with code $exitCode"
+        } else {
+            "the tool exited with code $exitCode: $toolMessage"
+        },
+    )
+
+/** The tool did not finish within the budget of its own call: the tree is already killed. */
+internal class ToolTimedOut : IOException("the tool did not finish within its budget")
