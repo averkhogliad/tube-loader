@@ -13,6 +13,7 @@ import io.kotest.core.factory.TestFactory
 import io.kotest.core.spec.style.freeSpec
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.delay
 import java.nio.file.Files
@@ -37,6 +38,10 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * The suite is offline by construction: the adapter answers from the recording, and a URL that was
  * not recorded fails the fixture rather than passing as an adapter outcome.
+ *
+ * A failed reference outcome also carries a reference cause: the suite checks that the adapter names
+ * the same reason in the message of its own cause, so the reason is part of the contract and not a
+ * detail of a log.
  */
 fun sourceAdapterContract(
     adapterName: String,
@@ -102,7 +107,27 @@ fun sourceAdapterContract(
                     val actual = adapter.findById(case.id)
 
                     // then
-                    actual shouldBe case.expected
+                    assertMeta(case.expected, actual)
+                }
+            }
+
+            "names a cause with every failed outcome" {
+                // given
+                val adapter = create()
+                val failures =
+                    fixtures.meta
+                        .mapNotNull { case -> (case.expected as? LoadMetaResult.Failed)?.let { case to it } }
+                        .filter { (_, expected) -> expected.cause != null }
+                failures.shouldNotBeEmpty()
+
+                failures.forEach { (case, expected) ->
+                    // when
+                    val actual = adapter.findById(case.id).shouldBeInstanceOf<LoadMetaResult.Failed>()
+
+                    // then
+                    withClue("cause of ${case.name}") {
+                        actual.cause?.message.orEmpty() shouldContain expected.cause?.message.orEmpty()
+                    }
                 }
             }
 
@@ -137,12 +162,36 @@ fun sourceAdapterContract(
                     val actual = adapter.download(case.id, case.quality, target) { progress += it }
 
                     // then
-                    withClue("outcome") { actual shouldBe case.expected }
+                    withClue("outcome") { assertDownload(case.expected, actual) }
                     case.expectedContent?.let { reference ->
                         withClue("bytes written") { target.readBytes() shouldBe reference }
                     }
                     if (case.expectNoFile) {
                         withClue("file left behind") { Files.exists(target) shouldBe false }
+                    }
+                }
+            }
+
+            "names a cause with every failed transfer" {
+                // given
+                val adapter = create()
+                val failures =
+                    fixtures.download
+                        .mapNotNull { case ->
+                            (case.expected as? DownloadResult.Failed)?.let { case to it }
+                        }.filter { (_, expected) -> expected.cause != null }
+                failures.shouldNotBeEmpty()
+
+                failures.forEach { (case, expected) ->
+                    val target = downloadTargetOf(tempDir, adapterName, case).also { it.deleteIfExists() }
+
+                    // when
+                    val actual = adapter.download(case.id, case.quality, target) {}
+                    val failed = actual.shouldBeInstanceOf<DownloadResult.Failed>()
+
+                    // then
+                    withClue("cause of ${case.name}") {
+                        failed.cause?.message.orEmpty() shouldContain expected.cause?.message.orEmpty()
                     }
                 }
             }
@@ -185,6 +234,36 @@ fun sourceAdapterContract(
             }
         }
     }
+
+/** The failed reference names the error class and the reason of the failure; anything else is an outcome. */
+private fun assertMeta(expected: LoadMetaResult, actual: LoadMetaResult) {
+    if (expected !is LoadMetaResult.Failed) {
+        actual shouldBe expected
+        return
+    }
+    val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+    failed.error shouldBe expected.error
+    assertCause(expected.cause, failed.cause)
+}
+
+/** The failed reference names the error class and the reason of the failure; anything else is an outcome. */
+private fun assertDownload(expected: DownloadResult, actual: DownloadResult) {
+    if (expected !is DownloadResult.Failed) {
+        actual shouldBe expected
+        return
+    }
+    val failed = actual.shouldBeInstanceOf<DownloadResult.Failed>()
+    failed.error shouldBe expected.error
+    assertCause(expected.cause, failed.cause)
+}
+
+private fun assertCause(expected: Throwable?, actual: Throwable?) {
+    if (expected == null) {
+        withClue("cause") { actual shouldBe null }
+    } else {
+        withClue("cause message") { actual?.message.orEmpty() shouldContain expected.message.orEmpty() }
+    }
+}
 
 @OptIn(ExperimentalPathApi::class)
 suspend fun deleteWithRetry(dir: Path) {

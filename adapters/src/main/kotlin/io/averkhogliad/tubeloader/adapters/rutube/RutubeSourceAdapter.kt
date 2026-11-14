@@ -87,13 +87,14 @@ class RutubeSourceAdapter(
     }
 
     override suspend fun findById(id: String): LoadMetaResult {
-        val body = openWithRetry(http, optionsUrl(id), config()).getOrNull()
-        if (body == null) return LoadMetaResult.Failed(DownloadError.NetworkTransient)
+        val opened = openWithRetry(http, optionsUrl(id), config())
+        val body = opened.getOrNull()
+        if (body == null) return LoadMetaResult.Failed(DownloadError.NetworkTransient, opened.exceptionOrNull())
         return try {
             classifyMeta(id, body)
-        } catch (_: IOException) {
+        } catch (failure: IOException) {
             // the port hands out a stream, so a body that breaks mid-read arrives as a throw, not a value
-            LoadMetaResult.Failed(DownloadError.NetworkTransient)
+            LoadMetaResult.Failed(DownloadError.NetworkTransient, failure)
         }
     }
 
@@ -108,8 +109,8 @@ class RutubeSourceAdapter(
             runDownload(mediaId, quality, tmpPath, targetPath, onProgress)
         } catch (cancellation: CancellationException) {
             throw cancellation
-        } catch (_: IOException) {
-            DownloadResult.Failed(DownloadError.NetworkTransient)
+        } catch (failure: IOException) {
+            DownloadResult.Failed(DownloadError.NetworkTransient, failure)
         } finally {
             Files.deleteIfExists(tmpPath)
         }
@@ -130,8 +131,8 @@ class RutubeSourceAdapter(
         val segments = segmentsOf(mediaId, quality, onProgress)
         val found = segments.getOrNull()
         return when {
-            found == null -> DownloadResult.Failed(DownloadError.NetworkTransient)
-            found.isEmpty() -> DownloadResult.Failed(DownloadError.ExtractorBroken)
+            found == null -> DownloadResult.Failed(DownloadError.NetworkTransient, segments.exceptionOrNull())
+            found.isEmpty() -> DownloadResult.Failed(DownloadError.ExtractorBroken, null)
             else -> finalize(transfer(found, tmpPath, onProgress), tmpPath, targetPath, onProgress)
         }
     }
@@ -194,9 +195,9 @@ class RutubeSourceAdapter(
         var failure: DownloadResult? = null
         try {
             for (segment in segments) {
-                val body = openWithRetry(http, segment, config()).getOrNull()
-                failure = refusalOf(body)
-                val accepted = body?.takeIf { failure == null } ?: break
+                val opened = openWithRetry(http, segment, config())
+                failure = refusalOf(opened)
+                val accepted = opened.getOrNull()?.takeIf { failure == null } ?: break
                 if (sink == null) {
                     sink =
                         Files.newOutputStream(
@@ -226,7 +227,7 @@ class RutubeSourceAdapter(
         onProgress(Progress.Indeterminate)
         val remuxed = mediaTool.remux(tmpPath, targetPath, onProgress)
         return if (remuxed.isFailure) {
-            DownloadResult.Failed(DownloadError.ExtractorBroken)
+            DownloadResult.Failed(DownloadError.ExtractorBroken, remuxed.exceptionOrNull())
         } else {
             Files.deleteIfExists(tmpPath)
             val size = Files.size(targetPath)
@@ -262,6 +263,9 @@ private suspend fun openWithRetry(http: HttpTool, url: String, settings: HttpToo
                     true
                 }
             },
+            // the attempts ran out on a status the source asked to come back on: the reason the
+            // caller reads is the status itself, not the generic exhaustion of the loop
+            onExhausted = { body -> Result.failure(RutubeStatusFailure(body.status)) },
         ),
     ) {
         // a budget that ran out is a failure of the attempt, not of the caller: withTimeoutOrNull
@@ -277,21 +281,23 @@ private suspend fun openWithRetry(http: HttpTool, url: String, settings: HttpToo
  * ends the transfer. A body turned down here is closed here: the loop is already over, so nothing
  * else would release it.
  */
-private fun refusalOf(body: HttpResponse?): DownloadResult? =
-    when {
+private fun refusalOf(opened: Result<HttpResponse>): DownloadResult? {
+    val body = opened.getOrNull()
+    return when {
         body == null -> {
-            DownloadResult.Failed(DownloadError.NetworkTransient)
+            DownloadResult.Failed(DownloadError.NetworkTransient, opened.exceptionOrNull())
         }
 
         body.status !in SUCCESS_STATUS -> {
             body.close()
-            DownloadResult.Failed(DownloadError.ExtractorBroken)
+            DownloadResult.Failed(DownloadError.ExtractorBroken, RutubeStatusFailure(body.status))
         }
 
         else -> {
             null
         }
     }
+}
 
 /**
  * Repeats a hiccup of the source rather than its verdict: a status the caller is asked to come back
@@ -311,10 +317,13 @@ private suspend fun classifyMeta(id: String, body: HttpResponse): LoadMetaResult
     val text = body.content { it.readBytes() }.decodeToString()
     return when {
         body.status in MISSING_VIDEO_STATUSES && missingVideoReason(text) -> LoadMetaResult.NotFound
-        body.status !in SUCCESS_STATUS -> LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+        body.status !in SUCCESS_STATUS -> refusedMeta(body.status)
         else -> parseMeta(id, text)
     }
 }
+
+private fun refusedMeta(status: Int): LoadMetaResult =
+    LoadMetaResult.Failed(DownloadError.ExtractorBroken, RutubeStatusFailure(status))
 
 private fun parseMeta(id: String, text: String): LoadMetaResult {
     val options = rutubePayload(text)
@@ -332,7 +341,7 @@ private fun parseMeta(id: String, text: String): LoadMetaResult {
             ),
         )
     } else {
-        LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+        LoadMetaResult.Failed(DownloadError.ExtractorBroken, null)
     }
 }
 

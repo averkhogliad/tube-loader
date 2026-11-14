@@ -127,12 +127,13 @@ class CoreFacadeCancelTest :
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
                     world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
+                    val adapterFailure = IllegalStateException("the adapter broke")
                     world.adapters.single().onDownload = { _, _ ->
-                        DownloadResult.Failed(DownloadError.NetworkTransient)
+                        DownloadResult.Failed(DownloadError.NetworkTransient, adapterFailure)
                     }
                     val ref = world.resolve(mediaId)
                     val handle = world.enqueue(ref)
-                    val broken = DownloadStatus.Failed(DownloadError.NetworkTransient)
+                    val broken = DownloadStatus.Failed(DownloadError.NetworkTransient, adapterFailure)
                     world.state(handle.taskId).status shouldBe broken
 
                     // when

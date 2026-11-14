@@ -8,6 +8,7 @@ import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.infra.binaries.ProcessLaunch
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -109,7 +110,9 @@ class YoutubeFindByIdTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.NotFound)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.NotFound
+                failed.cause?.message.orEmpty() shouldContain "Video unavailable"
             }
 
             "returns Failed(NetworkTransient) when the tool fails to reach the source" {
@@ -121,7 +124,9 @@ class YoutubeFindByIdTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.NetworkTransient
+                failed.cause?.message.orEmpty() shouldContain "Unable to download webpage"
             }
 
             "returns Failed(NetworkTransient) when the resolve outlives its budget" {
@@ -133,7 +138,9 @@ class YoutubeFindByIdTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.NetworkTransient
+                failed.cause.shouldBeInstanceOf<YtDlpTimedOut>()
             }
 
             "returns Failed(ExtractorBroken) when the payload is not json" {
@@ -144,7 +151,7 @@ class YoutubeFindByIdTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken, null)
             }
 
             "returns Failed(ExtractorBroken) when the payload names no video quality" {
@@ -155,7 +162,7 @@ class YoutubeFindByIdTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken, null)
             }
 
             "returns Failed(ExtractorBroken) when the payload is of another media" {
@@ -166,7 +173,7 @@ class YoutubeFindByIdTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken, null)
             }
         }
     })

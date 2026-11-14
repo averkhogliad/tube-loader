@@ -90,16 +90,17 @@ class CoreFacadeFindTest :
                 runTest {
                     // given
                     val error = Arb.downloadErrors().next()
+                    val cause = IllegalStateException("the source broke")
                     val mediaId = mediaIds.next()
                     val world = facadeWorld(tempDir)
                     world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
-                    world.adapters.single().onFindById = { LoadMetaResult.Failed(error) }
+                    world.adapters.single().onFindById = { LoadMetaResult.Failed(error, cause) }
 
                     // when
                     val actual = world.facade.findByUrl(inputs.next())
 
                     // then
-                    actual shouldBe MediaResult.Failed(error)
+                    actual shouldBe MediaResult.Failed(error, cause)
                 }
             }
 
@@ -221,15 +222,16 @@ class CoreFacadeFindTest :
                 runTest {
                     // given
                     val error = Arb.downloadErrors().next()
+                    val cause = IllegalStateException("the source broke")
                     val world = facadeWorld(tempDir)
-                    world.adapters.single().onFindById = { LoadMetaResult.Failed(error) }
+                    world.adapters.single().onFindById = { LoadMetaResult.Failed(error, cause) }
                     val source = world.facade.availableSources.single()
 
                     // when
                     val actual = world.facade.findById(source.code, mediaIds.next())
 
                     // then
-                    actual shouldBe MediaResult.Failed(error)
+                    actual shouldBe MediaResult.Failed(error, cause)
                 }
             }
 
