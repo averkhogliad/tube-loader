@@ -26,6 +26,7 @@ dependencies {
     implementation(project(":adapters"))
     implementation(project(":infra"))
     implementation(project(":common:config"))
+    implementation(libs.logback.classic)
 
     testImplementation(libs.kotest.runner.junit6)
     testImplementation(libs.kotest.assertions.core)
