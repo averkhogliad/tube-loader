@@ -38,7 +38,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import java.io.PrintStream
 import java.nio.file.Files.createDirectories
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -55,13 +54,13 @@ internal const val YOUTUBE_CODE = "youtube"
 
 internal class SmokeComposition(
     val session: SmokeSession,
-    val stderr: LineSinkStream,
     val client: HttpClient,
     val mediaTool: FfmpegMediaTool,
     val scope: CoroutineScope,
 )
 
 fun main(args: Array<String>) {
+    configureLogging()
     val cli = parseCli(args)
     val targets = cli.targets.ifEmpty { DEFAULT_TARGETS }
     val targetDir = Paths.get(cli.targetDir)
@@ -93,7 +92,6 @@ private fun runScript(targets: List<SmokeTarget>, targetDir: Path, parallel: Int
             }
         }
     } finally {
-        composition.stderr.drain()
         session.dashboard.close()
         runCatching { runBlocking { session.shutdown(SHUTDOWN_BUDGET) } }
         runCatching { composition.client.close() }
@@ -116,8 +114,6 @@ private fun buildComposition(targetDir: Path, parallel: Int): SmokeComposition {
     val containerFormat = readContainerFormat(config)
     val httpToolConfig = HttpToolConfig(perAttemptTimeout = 60.seconds)
     val dashboard = ProgressDashboard()
-    val stderr = LineSinkStream(dashboard::note)
-    System.setErr(PrintStream(stderr, true, Charsets.UTF_8))
     val appConfig =
         MutableStateFlow(
             AppConfig(
@@ -161,7 +157,7 @@ private fun buildComposition(targetDir: Path, parallel: Int): SmokeComposition {
             ytDlpFetch = { ytDlpBinary.ensureBinary(null) },
         )
     val session = SmokeSession(targetDir, dashboard, useCases, observer, tools)
-    return SmokeComposition(session, stderr, client, mediaTool, scope)
+    return SmokeComposition(session, client, mediaTool, scope)
 }
 
 /**
@@ -214,8 +210,8 @@ internal fun requireKnownSourceCodes(targets: List<SmokeTarget>, knownCodes: Lis
 /**
  * The check of the codes of the targets, printed before the failure leaves the tool.
  *
- * The stderr of the tools is routed into the dashboard, so the stack trace of the failure would be
- * swallowed by the redirect: the answer of the command is printed instead.
+ * The answer of the command is printed onto the dashboard, so it stays on the screen of the run
+ * next to its rows; the stack trace of the failure leaves through stderr as any other failure.
  */
 private fun checkSourceCodes(session: SmokeSession, targets: List<SmokeTarget>) {
     val resolveMedia = session.useCases.resolveMedia

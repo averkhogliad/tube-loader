@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The tests keep the console clean: the messages of the loggers are not an assertion of the suite. -->
+<configuration>
+    <root level="OFF"/>
+</configuration>
