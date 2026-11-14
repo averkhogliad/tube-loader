@@ -1,4 +1,4 @@
-package io.averkhogliad.tubeloader.core.media
+package io.averkhogliad.tubeloader.infra.media
 
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe

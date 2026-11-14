@@ -172,12 +172,11 @@ _Avoid_: декодировать `Content-Encoding` в адаптере
 _Avoid_: создавать параллельные каталоги вроде `~/.tube-loader`; это другая запись, не та же
 
 **MediaTool implementation (реализация `MediaTool`)**:
-Реализация порта `MediaTool` живёт в пакете `io.averkhogliad.tubeloader.core.media` внутри
-`:core`, не в отдельном Gradle-модуле и не в слое «инфра»: вынос инфры — отдельный шаг, а модули
-под реализации не заводятся заранее. Пакет плоский, без подпакета под бэкенд: единственная
+Реализация порта `MediaTool` живёт в пакете `io.averkhogliad.tubeloader.infra.media` внутри
+Gradle-модуля `:infra`, рядом с `infra.http`. Пакет плоский, без подпакета под бэкенд: единственная
 реализация в M1 — `FfmpegMediaTool` поверх CLI-процесса `ffmpeg`.
 _Avoid_: выделять `:infra:media-ffmpeg` или `:adapters:media-ffmpeg` ради одной реализации;
-добавлять `core.media.ffmpeg` ради имени бэкенда, пока бэкенд один
+добавлять `infra.media.ffmpeg` ради имени бэкенда, пока бэкенд один
 
 **ffmpeg distribution (распространение ffmpeg)**:
 Бинарник `ffmpeg` приложение не поставляет. При первом обращении к `MediaTool` реализация

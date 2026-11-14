@@ -1,4 +1,4 @@
-package io.averkhogliad.tubeloader.core.media
+package io.averkhogliad.tubeloader.infra.media
 
 import io.averkhogliad.tubeloader.core.config.MediaToolConfig
 import io.averkhogliad.tubeloader.core.domain.Progress

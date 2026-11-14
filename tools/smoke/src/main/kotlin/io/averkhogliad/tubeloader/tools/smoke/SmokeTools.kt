@@ -2,7 +2,7 @@ package io.averkhogliad.tubeloader.tools.smoke
 
 import io.averkhogliad.tubeloader.adapters.youtube.ensureManagedYtDlp
 import io.averkhogliad.tubeloader.core.config.ToolPaths
-import io.averkhogliad.tubeloader.core.media.ensureManagedFfmpeg
+import io.averkhogliad.tubeloader.infra.media.ensureManagedFfmpeg
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock

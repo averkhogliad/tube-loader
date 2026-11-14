@@ -12,6 +12,7 @@
 | `common:retry` | Движок повторов: политика решает, повторять ли упавшую попытку и сколько ждать. Источник-нейтрален, ядро и адаптеры переиспользуют |
 | `core` | Headless-ядро: роутинг URL, оркестрация загрузок, нормализация прогресса и ошибок, staging |
 | `adapters` | Реализации источников: разбор URL, метаданные и скачивание через порт `HttpTool` или внешний инструмент |
+| `infra` | Реализации портов: `infra.http` (Ktor-транспорт за `HttpTool`), `infra.media` (FFmpeg-обёртка за `MediaTool`) |
 | Фронтенды (план) | Compose Desktop GUI (M1), mosaic TUI (M2) — тонкие клиенты: команды вниз, события вверх |
 
 ## Подпакеты `core`
@@ -27,6 +28,7 @@
 | `core.download` | Жизненный цикл и исполнение: `DownloadHandle`, `DownloadQueue`, `DownloadState`, `DownloadStatus`, `TaskIdGenerator`, `TaskRegistry` |
 | `core.facade` | Единственная точка входа команд: `CoreFacade` |
 | `core.port` | Порты ядра: `MediaTool`, `HttpTool`, `HttpResponse` (закрываемый ответ, несёт `status`) |
+| `core.usecase` | Сценарии поверх фасада: разрешение медиа, постановка, наблюдение и отмена загрузок, реестр хэндлов, остановка |
 
 ## Подпакеты `adapters`
 
@@ -35,6 +37,13 @@
 | `adapters.rutube` | Первый `SourceAdapter`: разбор URL, `playOptions`, HLS-скачивание, финализация через `MediaTool` |
 | `adapters.youtube` | Второй `SourceAdapter`: метаданные и скачивание через `yt-dlp`, разбор его прогресса и ошибок |
 
+## Подпакеты `infra`
+
+| Пакет | Содержимое |
+| --- | --- |
+| `infra.http` | Реализация `HttpTool` поверх Ktor Client: статус и заголовки ответа, распаковка `Content-Encoding` |
+| `infra.media` | Реализация `MediaTool` поверх CLI-процесса `ffmpeg`: `mux`, `remux` и управляемое распространение бинарника |
+
 ## Рантайм
 
 | Технология | Роль |
@@ -42,7 +51,7 @@
 | Kotlin/JVM | Единый язык ядра и фронтендов |
 | kotlinx.coroutines | Конкурентность ядра; модель конкурентности — конфайнмент на одном воркере (ADR-0003) |
 | kotlinx.serialization | Разбор JSON-ответов источника в адаптере (`RutubeSourceAdapter`) |
-| Ktor Client (engine CIO) | Транспорт порта `HttpTool`: реализация `core.http` (ADR-0006) |
+| Ktor Client (engine CIO) | Транспорт порта `HttpTool`: реализация `infra.http` (ADR-0006) |
 
 ## Конфигурация
 
@@ -61,9 +70,9 @@
 | Технология | Роль | Стандарт |
 | --- | --- | --- |
 | kotest | Runner (JUnit6), property-тесты: `Arb`/`Exhaustive`, сэмпл — `gen.next()` | `docs/standards/testing.md` |
-| mockk | Моки: подключён к `:core` и `:adapters`, применяется; query-методы заглушаются, command-методы верифицируются с `capture` | `docs/standards/testing.md` |
+| mockk | Моки: подключён к `:core`, `:adapters` и `:infra`, применяется; query-методы заглушаются, command-методы верифицируются с `capture` | `docs/standards/testing.md` |
 | JUnit Platform launcher | Тестовая платформа Gradle | — |
-| Kover | Покрытие в `:core`, `:adapters`, `:common:config` и `:common:retry`; гейт 80% строк / 75% ветвей, `testFixtures` исключены | — |
+| Kover | Покрытие в `:core`, `:adapters`, `:infra`, `:common:config` и `:common:retry`; гейт 80% строк / 75% ветвей, `testFixtures` исключены | — |
 
 ## Линт
 
@@ -76,5 +85,5 @@
 
 | Инструмент | Роль |
 | --- | --- |
-| FFmpeg | Муксинг/remux — за портом `MediaTool`, в ядре не упоминается |
+| FFmpeg | Муксинг/remux — за портом `MediaTool`, реализация `infra.media`; в ядре не упоминается |
 | yt-dlp | Адаптер `Delegate` (план): внешний процесс, дерево процессов гасится целиком при отмене |

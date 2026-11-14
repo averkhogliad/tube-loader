@@ -1,6 +1,6 @@
 package io.averkhogliad.tubeloader.tools.smoke
 
-import io.averkhogliad.tubeloader.core.media.ProcessRunner
+import io.averkhogliad.tubeloader.infra.media.ProcessRunner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -13,11 +13,11 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Mirrors [io.averkhogliad.tubeloader.core.media.FfmpegProcessRunner] from the smoke script:
+ * Mirrors [io.averkhogliad.tubeloader.infra.media.FfmpegProcessRunner] from the smoke script:
  * starts the command, waits for it, and reports a non-zero exit as an [IOException]. Cancelling the
  * coroutine kills the process tree.
  *
- * Lives here because the production implementation is `internal` to `:core` — a smoke script
+ * Lives here because the production implementation is `internal` to `:infra` — a smoke script
  * cannot depend on it. The logic is intentionally narrow: this is a one-binary tool runner, not a
  * general process abstraction.
  */
