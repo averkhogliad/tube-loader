@@ -34,10 +34,17 @@ internal class NoChecksumInSource(
     source: URI,
 ) : DistributionFailure("$source names no checksum of $tool asset $asset")
 
-internal class UnavailableOn(tool: String, os: Os) : DistributionFailure("no $tool build is configured for $os")
+internal class UnavailableOn(tool: String, platform: String) :
+    DistributionFailure("no $tool build is configured for $platform")
 
 /**
  * Reports that [tool] has no build for [os]. A policy calls this while it is being constructed: the
  * mechanism catches the failure and returns it as the outcome of the operation.
  */
-fun noBuildFor(tool: String, os: Os): Nothing = throw UnavailableOn(tool, os)
+fun noBuildFor(tool: String, os: Os): Nothing = throw UnavailableOn(tool, os.name)
+
+/**
+ * Reports that [tool] has no build for [platform] named by the policy: the same failure, with the
+ * detail the policy knows (an architecture the release publishes no ready asset for, for example).
+ */
+fun noBuildFor(tool: String, platform: String): Nothing = throw UnavailableOn(tool, platform)
