@@ -24,7 +24,8 @@ private const val MEDIA_ID = "dQw4w9WgXcQ"
 private const val VIDEO_BYTES = "bytes"
 private const val CANCEL_BUDGET_MILLIS = 200L
 
-private val QUALITY = Quality("720p", TrackKind.Video, "720p")
+// the id is opaque on purpose: the selector has to be read off the height, not parsed out of the id
+private val QUALITY = Quality("opaque", TrackKind.Video, "720p", height = 720)
 
 class YoutubeDownloadTest :
     FreeSpec({

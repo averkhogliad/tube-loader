@@ -1,13 +1,14 @@
 # Use-case слой над CoreFacade
 
 Спека прикладного слоя над ядром — тонкие оркестраторы для GUI/TUI. Решение зафиксировано в
-`docs/adr/0009-usecase-layer-over-core-facade.md`. Контракт ядра и `CoreFacade` —
+`docs/adr/0009-usecase-layer-over-core-facade.md`; композиционный корень фронтендов —
+`docs/features/composition-root/spec.md` (ADR-0014). Контракт ядра и `CoreFacade` —
 `docs/features/core/spec.md`; термины `DownloadHandle`/`DownloadState`/`DownloadQueue`/`Download
 Session` — `CONTEXT.md`.
 
 ## Problem Statement
 
-GUI и TUI (M2) требуют прикладной логики, которой в headless-ядре нет: трекинг всех загрузок
+GUI (M1) и TUI (M2) требуют прикладной логики, которой в headless-ядре нет: трекинг всех загрузок
 (агрегация состояний в список для вида), координация flow `resolve→load→pick quality→enqueue`,
 отмена по `taskId`. `CoreFacade` — оркестрация ядра (роутинг, очередь, staging); он не должен
 расти UI-поверхностью («следить за всеми загрузками — не задача ядра», ADR-0009). Без слоя
@@ -15,13 +16,17 @@ GUI и TUI (M2) требуют прикладной логики, которой
 
 ## Solution
 
-Use-case слой в пакете `core.usecase` (внутри `:core` в M1, ADR-0009), обёртка над `CoreFacade`.
-Два модуля: `ResolveMedia` и `DownloadSession`. `ResolveMedia` заменяет пару `ResolveUrl` +
-`LoadMedia`: разрешение медиаэлемента — одна операция ядра, отдающая и ссылку, и метаданные,
-поэтому слой не разводит её на два вызова. `DownloadSession` — набор загрузок этого запуска:
-владеет трекером `taskId → DownloadHandle` как внутренностью, ставит и отменяет загрузки,
-агрегирует `Flow<List<DownloadState>>`. `CoreFacade` остаётся lean — observe-all в него не идёт.
-Вынос в модуль `:usecases` + rename `CoreFacade` — M2, по триггеру «первый фронтенд».
+Use-case слой — отдельный модуль `:usecases` над `:core`: `ResolveMedia` и `DownloadSession`.
+`ResolveMedia` заменяет пару `ResolveUrl` + `LoadMedia`: разрешение медиаэлемента — одна операция
+ядра, отдающая и ссылку, и метаданные, поэтому слой не разводит её на два вызова.
+`DownloadSession` — набор загрузок этого запуска: владеет трекером `taskId → DownloadHandle` как
+внутренностью, ставит и отменяет загрузки, агрегирует `Flow<List<DownloadState>>`. `CoreFacade`
+остаётся lean — observe-all в него не идёт.
+
+Вынос из `:core` выполнен как подготовка фронтендов: триггер ADR-0009 — «первый фронтенд» (GUI —
+M1 по ADR-0002 и tech-stack). Модуль зависит только от `:core` и `kotlinx.coroutines`; фронтенды
+и `tools:smoke` зависят от `:usecases`, а не от `:core`. Rename `CoreFacade` отложен: имя
+перестаёт быть внешней точкой входа не раньше первой фронтенд-фичи; отдельный тикет при нужде.
 
 ## User Stories
 
@@ -47,17 +52,15 @@ Use-case слой в пакете `core.usecase` (внутри `:core` в M1, AD
     на фейках ядра, без реальной сети и процессов.
 11. Как разработчик, я хочу, чтобы тонкий use-case (`ResolveMedia`) проверялся
     через существующий шов `CoreFacade` (`FacadeWorld`), чтобы не плодить новые фейки.
-12. Как мейнтейнер, я хочу, чтобы слой жил в `:core` как пакет `core.usecase` только временно, с
-    задокументированным триггером выноса в модуль, чтобы «временно» не стало «навсегда»
-    (ADR-0009).
+12. Как мейнтейнер, я хочу, чтобы слой жил в отдельном модуле `:usecases`, чтобы фронтенды не
+    зависели от `:core` и его внутренностей.
 
 ## Implementation Decisions
 
-**Место и границы.** Пакет `io.averkhogliad.tubeloader.core.usecase` внутри `:core` (M1).
-Временная резиденция, не часть ядра: семантически app-слой над `CoreFacade` (ADR-0009).
-Зависимости — только `:core` (домен + `CoreFacade`) и `kotlinx.coroutines`; UI-фреймворков нет.
-Вынос в модуль `:usecases` + rename `CoreFacade` — M2, одним рефакторингом, по триггеру «первый
-фронтенд». До этого слой зовут `tools/smoke` и тесты, которые и так видят `:core`.
+**Место и границы.** Модуль `:usecases`, пакет `io.averkhogliad.tubeloader.usecase`. Зависимости —
+`:core` (домен + `CoreFacade`) и `kotlinx.coroutines`; адаптеров, инфры и UI-фреймворков нет.
+Контракт ядра (`CoreFacade`, порты, доменные типы) объявляет `:core`; слой — прикладной, не
+часть ядра. Фронтенды и `tools:smoke` зависят от `:usecases`; вынос в модуль больше не отложен.
 
 **`CoreFacade` не растёт.** observe-all в фасад не добавляется. Трекинг живёт в use-cases.
 Контракт `CoreFacade` (`availableSources`, `findByUrl`, `findById(code, mediaId)`, `enqueue`,
@@ -81,7 +84,7 @@ out of scope). `quality` и `targetPath` — входные параметры �
 
 **Shutdown.** Слой не владеет очередью и не заводит модуль остановки: композиция передаёт
 `DownloadQueue.shutdown` лямбдой (ADR-0003, конфайнмент). `UseCaseShutdown` удалён как
-pass-through.
+pass-through; в новом layout остановку фронтенду отдаёт композиционный корень (`:app`).
 
 **Нет новой domain-модели.** Слой оперирует типами ядра (`MediaRef`, `MediaMeta`,
 `Quality`, `DownloadHandle`, `DownloadState`, `TaskId`, `MediaResult`): `MediaResult` — тип ядра
@@ -94,8 +97,8 @@ pass-through.
 процессы — никогда.
 
 **Высший шов — `CoreFacade` + `FacadeWorld`.** Переиспользуется существующий харнес
-`core/test/.../facade/CoreFacadeFixtures.kt` (`FacadeWorld`, `FakeSourceAdapter`, `resolve`,
-`enqueue`, `observedStatuses`, `state`). Новые фейки ядра не заводятся.
+`core/testFixtures` (`FacadeWorld`, `FakeSourceAdapter`, `resolve`, `enqueue`,
+`observedStatuses`, `state`) через testFixtures-зависимость; новые фейки ядра не заводятся.
 
 **Тонкий use-case** (`ResolveMedia`): focused-тест на делегирование — use-case зовёт фасад и
 возвращает маппинг; поведение равно `CoreFacadeFind`/`CoreFacadeEnqueue`. Prior art:
@@ -109,6 +112,9 @@ pass-through.
 изоляции агрегации допускается фейк хэндла с `MutableStateFlow<DownloadState>` (без
 `CoreFacade`), но предпочтён сквозной путь через `FacadeWorld`.
 
+**Тесты переезжают вместе с исходниками** в `:usecases:test`; `:core` больше не держит тестов
+слоя. Kover-гейт применяется к `:usecases` автоматически.
+
 **Prior art.** `CoreFacadeEnqueueTest`, `CoreFacadeCancelTest`, `CoreFacadeFindTest`,
 `CoreFacadeShutdownTest`, `FacadeWorld` харнес. Стандарт тестов — `docs/standards/testing.md`;
 моки — `docs/standards/testing.md` (query-методы заглушаются, command-методы верифицируются с
@@ -117,26 +123,27 @@ pass-through.
 
 ## Out of Scope
 
-- Модуль `:usecases` и rename `CoreFacade` — M2, ADR-0009.
+- Rename `CoreFacade` — отложен: косметика, трогает тесты ядра; отдельный тикет при появлении
+  первого фронтенд-потребителя имени.
 - Per-frontend UI-state (выделение в списке, диалоги, навигация, пикер качества/каталога) — слой
-  вида, M2 (спеки GUI/TUI).
+  вида, спеки фронтендов.
 - Политика удаления завершённых задач из списка — M2, с видом.
 - Persistence списка загрузок между сессиями (job journal) — `core/spec.md` вне M1.
 - TUI (mosaic) — M2.
-- Сокрытие `:core` от фронтендов (фронтенд → `:usecases` → `:core`) — актуально с M2 после выноса
-  модуля; в M1 `tools/smoke` и тесты видят `:core` напрямую.
+- Сборка графа приложения — `:app`, `docs/features/composition-root/spec.md` (ADR-0014).
 
 ## Further Notes
 
-- ADR-0009 — решение «use-case слой над `CoreFacade`, обёртка, вынос в M2».
+- ADR-0009 — решение «use-case слой над `CoreFacade`»; Status актуализирован выносом: триггер
+  «первый фронтенд» считается наступившим в подготовке фронтендов, слой вынесен, rename отложен.
 - ADR-0011 — решение «код источника и контракт адаптера»: `ResolveMedia` снимает пару
   `ResolveUrl` + `LoadMedia`, источник адресуется кодом.
 - `docs/features/core/spec.md` — контракт `CoreFacade`, capability-модель, staging.
 - `CONTEXT.md` — `Core`, `DownloadHandle`, `DownloadState`, `DownloadQueue`, `DownloadStatus`,
   `Download Session`.
 - `ResolveMedia` — тонкое делегирование; реальную логику несёт `DownloadSession`. Слой ради
-  сокрытия `:core` от фронтендов актуален с M2; в M1 pass-through обоснован подготовкой API и
-  валидацией через `tools/smoke` (ADR-0009, Consequences).
+  сокрытия `:core` от фронтендов теперь структурная: фронтенд зависит от `:usecases` и `:app`,
+  а не от внутренностей ядра.
 
 ## Tickets
 
@@ -152,3 +159,4 @@ pass-through.
 - 06 — usecases: smoke over use-cases layer (blocked by #99, #100, #101, #102) — #104
 - 07 — usecases: `ResolveMedia` вместо `ResolveUrl` + `LoadMedia` (blocked by #111) — #111
 - 08 — usecases: `DownloadSession` вместо `EnqueueDownload`/`CancelDownload`/`ObserveDownloads`/`DownloadTracker`, удаление `UseCaseShutdown` — #133
+- 09 — usecases: вынос `:usecases` из `:core` (blocked by #133) — #144

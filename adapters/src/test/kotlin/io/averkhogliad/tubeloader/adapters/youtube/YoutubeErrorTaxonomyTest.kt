@@ -7,7 +7,6 @@ import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.averkhogliad.tubeloader.core.contract.deleteWithRetry
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.Quality
-import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.infra.binaries.BinaryFetch
 import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
 import io.averkhogliad.tubeloader.infra.binaries.ProcessOutcome
@@ -23,7 +22,7 @@ import java.nio.file.Path
 
 private const val MEDIA_ID = "dQw4w9WgXcQ"
 
-private val QUALITY = Quality("720p", TrackKind.Video, "720p")
+private val QUALITY = Quality.ofHeight(720)
 
 /** One line of the mapping table of the spec: the recording of what the tool said and the class it names. */
 private data class TaxonomyCase(val fixture: String, val expected: DownloadError)

@@ -223,6 +223,30 @@ class MergedConfigTest :
             }
         }
 
+        "valueOrNull" - {
+            "later source overrides the value of an earlier one" {
+                // given
+                val config = MergedConfig(mapConfig("n" to "1"), TomlConfig.fromString("n = 2"))
+
+                // when
+                val actual = config.valueOrNull("n")
+
+                // then
+                actual shouldBe 2L
+            }
+
+            "answers null when no source has the key" {
+                // given
+                val config = MergedConfig(mapConfig("a" to "1"))
+
+                // when
+                val actual = config.valueOrNull("missing")
+
+                // then
+                actual shouldBe null
+            }
+        }
+
         "keys" - {
             "unions keys of all sources" {
                 // given

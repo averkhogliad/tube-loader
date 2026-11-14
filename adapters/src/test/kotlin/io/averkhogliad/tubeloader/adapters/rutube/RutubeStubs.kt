@@ -2,7 +2,6 @@ package io.averkhogliad.tubeloader.adapters.rutube
 
 import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.domain.Quality
-import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.averkhogliad.tubeloader.core.port.Headers
@@ -29,7 +28,7 @@ internal const val SEGMENT_1 = "${SEGMENT_BASE}segment-1-v1-a1.ts"
 internal const val SEGMENT_2 = "${SEGMENT_BASE}segment-2-v1-a1.ts"
 internal const val SEGMENT_3 = "${SEGMENT_BASE}segment-3-v1-a1.ts"
 
-internal val VIDEO_1080 = Quality(QUALITY_1080, TrackKind.Video, QUALITY_1080)
+internal val VIDEO_1080 = Quality.ofHeight(1080)
 
 internal val OPTIONS_URL = expectedOptionsUrl(MEDIA_ID)
 
