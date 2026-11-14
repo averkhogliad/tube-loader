@@ -3,14 +3,14 @@ package io.averkhogliad.tubeloader.tools.smoke
 import io.averkhogliad.tubeloader.core.domain.TaskId
 import io.averkhogliad.tubeloader.core.download.DownloadState
 import io.averkhogliad.tubeloader.core.download.isTerminal
-import io.averkhogliad.tubeloader.core.usecase.ObserveDownloads
+import io.averkhogliad.tubeloader.core.usecase.DownloadSession
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.ConcurrentHashMap
 
 /** Follows every download of the run and keeps its row of the live table up to date. */
 internal class DownloadStateObserver(
-    private val observeDownloads: ObserveDownloads,
+    private val downloadSession: DownloadSession,
     private val dashboard: ProgressDashboard,
 ) {
 
@@ -18,7 +18,7 @@ internal class DownloadStateObserver(
     private val rows = ConcurrentHashMap<TaskId, TargetRow>()
 
     suspend fun observe() {
-        observeDownloads.states().collect { current ->
+        downloadSession.states().collect { current ->
             states.value = current
             current.forEach { render(it) }
         }
