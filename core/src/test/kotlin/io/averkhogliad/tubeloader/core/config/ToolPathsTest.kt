@@ -34,5 +34,29 @@ class ToolPathsTest :
                 ToolPaths.executableName("Linux") shouldBe "ffmpeg"
                 ToolPaths.executableName("Mac OS X") shouldBe "ffmpeg"
             }
+
+            "points yt-dlp at the managed file the platform names" {
+                // given
+                val home = Paths.get("home", "tubeloader")
+
+                // when
+                val linux = ToolPaths.of(home, osName = "Linux")
+                val macos = ToolPaths.of(home, osName = "Mac OS X")
+                val windows = ToolPaths.of(home, osName = "Windows 11")
+
+                // then
+                linux.ytDlpBinary shouldBe Paths.get("home", "tubeloader", ToolPaths.YT_DLP_DIR, "yt-dlp")
+                macos.ytDlpBinary shouldBe Paths.get("home", "tubeloader", ToolPaths.YT_DLP_DIR, "yt-dlp")
+                windows.ytDlpBinary shouldBe Paths.get("home", "tubeloader", ToolPaths.YT_DLP_DIR, "yt-dlp.exe")
+            }
+        }
+
+        "ytDlpExecutableName" - {
+            "names the executable without the extension outside Windows" {
+                // given / when / then
+                ToolPaths.ytDlpExecutableName("Windows 11") shouldBe "yt-dlp.exe"
+                ToolPaths.ytDlpExecutableName("Linux") shouldBe "yt-dlp"
+                ToolPaths.ytDlpExecutableName("Mac OS X") shouldBe "yt-dlp"
+            }
         }
     })
