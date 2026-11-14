@@ -1,4 +1,4 @@
-package io.averkhogliad.tubeloader.core.http
+package io.averkhogliad.tubeloader.infra.http
 
 import io.averkhogliad.tubeloader.core.port.Headers
 import io.averkhogliad.tubeloader.core.port.HttpResponse

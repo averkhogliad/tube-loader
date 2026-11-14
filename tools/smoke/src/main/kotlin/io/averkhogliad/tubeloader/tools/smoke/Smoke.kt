@@ -15,10 +15,10 @@ import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.averkhogliad.tubeloader.core.download.DownloadQueue
 import io.averkhogliad.tubeloader.core.download.RandomTaskIdGenerator
 import io.averkhogliad.tubeloader.core.facade.CoreFacade
-import io.averkhogliad.tubeloader.core.http.HttpTools
-import io.averkhogliad.tubeloader.core.media.FfmpegMediaTool
 import io.averkhogliad.tubeloader.core.port.HttpTool
 import io.averkhogliad.tubeloader.core.port.MediaTool
+import io.averkhogliad.tubeloader.infra.http.HttpTools
+import io.averkhogliad.tubeloader.infra.media.FfmpegMediaTool
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout

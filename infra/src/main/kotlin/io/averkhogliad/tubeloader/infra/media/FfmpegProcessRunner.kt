@@ -1,4 +1,4 @@
-package io.averkhogliad.tubeloader.core.media
+package io.averkhogliad.tubeloader.infra.media
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
