@@ -5,7 +5,10 @@
 Принято. Применяется с M1 (пакет `core.usecase` в `:core`); вынос в модуль `:usecases`
 и rename `CoreFacade` — на M2, по триггеру «первый фронтенд». Частично заменено
 `docs/adr/0011-source-code-and-adapter-contract.md`: состав use-cases (четыре вместо пяти) и
-контракт `CoreFacade` (`findByUrl`/`findById` отдают данные о медиаэлементе).
+контракт `CoreFacade` (`findByUrl`/`findById` отдают данные о медиаэлементе). Состав слоя
+актуализирован спекой `docs/features/usecases/spec.md` (тикет #133): `ResolveMedia` +
+`DownloadSession`; `EnqueueDownload`/`CancelDownload`/`ObserveDownloads` сведены в сессию,
+`UseCaseShutdown` удалён — решение «слой над фасадом» не меняется.
 
 ## Context
 
