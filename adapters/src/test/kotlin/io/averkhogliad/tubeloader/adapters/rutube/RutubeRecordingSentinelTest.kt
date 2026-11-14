@@ -5,6 +5,7 @@ import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 private const val UNROUTED_MEDIA_ID = "22222222222222222222222222222222"
@@ -40,8 +41,12 @@ class RutubeRecordingSentinelTest :
                 val hiccupResult = adapter(hiccup).findById(MEDIA_ID)
 
                 // then
-                sentinelResult shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
-                hiccupResult shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
+                val sentinelFailure = sentinelResult.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                val hiccupFailure = hiccupResult.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                sentinelFailure.error shouldBe DownloadError.NetworkTransient
+                hiccupFailure.error shouldBe DownloadError.NetworkTransient
+                sentinelFailure.cause?.message.orEmpty() shouldContain "the recording knows no such url"
+                hiccupFailure.cause?.message.orEmpty() shouldContain "rutube.ru"
                 sentinel.opened.size shouldBe 1
                 hiccup.opened.size shouldBe 5
             }

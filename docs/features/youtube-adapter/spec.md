@@ -161,13 +161,18 @@ stderr/JSON:
 `ensureBinary`; при найденном исполнимом файле в `<homeDir>/yt-dlp/yt-dlp(.exe)` (`ToolPaths`)
 проверка файловая и дешёвая, промах — скачивание. `binaryPath` из конфига остаётся escape hatch:
 заданный путь используется как есть, без скачивания и без проверки. Источник — официальный
-GitHub-релиз yt-dlp: последний (`releases/latest/download/yt-dlp.exe`, свежесть важнее пиннинга —
+GitHub-релиз yt-dlp: последний (`releases/latest/download/<asset>`, свежесть важнее пиннинга —
 устаревший экстрактор и есть целевой отказ) и `SHA2-256SUMS` того же релиза; SHA-256 сверяется,
 файл кладётся через временный файл и `ATOMIC_MOVE`, чтобы параллельные вызовы не увидели
 полуфайл; fetch — под мьютексом дистрибуции. Канал — `java.net.http.HttpClient`, не `HttpTool`
 (один GET, без прогресса и ретраев, сбой — `IOException`; та же аргументация, что в ADR-0008).
-M1 — только Windows-бинарник; прочие платформы — `UnavailableOn`, как у ffmpeg. Промах ensure
-отдаётся как `LoadMetaResult.Failed(ExtractorBroken)` / `DownloadResult.Failed(ExtractorBroken)`:
+Ассет выбирается по ОС/архитектуре: `yt-dlp.exe` для Windows, `yt-dlp_linux` для Linux x86-64,
+`yt-dlp_linux_aarch64` для Linux aarch64 и universal `yt-dlp_macos` для macOS. На POSIX файл
+кладётся как `<homeDir>/yt-dlp/yt-dlp` без расширения и получает exec-bit (`markExecutable`);
+на Windows — `<homeDir>/yt-dlp/yt-dlp.exe`. Неподдерживаемые ОС/архитектуры — `UnavailableOn`.
+musl Linux получает glibc-ассет `yt-dlp_linux`: определение libc вне скоупа, `yt-dlp_musllinux`
+не выбирается. Промах ensure
+отдаётся как `LoadMetaResult.Failed(ExtractorBroken, cause)` / `DownloadResult.Failed(ExtractorBroken, cause)`:
 класс приблизительный, точный вердикт — причина (`errors.md`). Корень сборки может обеспечить
 бинарник заранее (`ensureManagedYtDlp`, идемпотентен): адаптер при первом вызове найдёт файл на
 диске и в сеть не пойдёт.
@@ -216,7 +221,8 @@ YouTube не используется — запись живёт в YouTube-fix
 файла, не тестового кода.
 
 **Таксономия ошибок.** На каждый класс `DownloadError` (включая новый `AntiBotBlocked`) —
-минимум один кейс с эталонным stderr/JSON yt-dlp и ожидаемым `DownloadResult.Failed`.
+минимум один кейс с эталонным stderr/JSON yt-dlp и ожидаемым `DownloadResult.Failed`, плюс
+причина — текст stderr, наблюдаемый в сообщении причины.
 
 **Прогресс.** Golden progress-линии → ожидаемая последовательность `Progress`, достигающая
 завершения (`fraction() == 1.0`), монотонная, последний `Progress.Absolute(fileSize, fileSize)` —
@@ -248,7 +254,8 @@ tagged IT вне `check`), `FfmpegProcessRunner` (injectable start, tree-kill). 
 
 - Обновление и версионирование yt-dlp-бинарника (`ComponentUpdater`, manifest, mirror, пиннинг
   версии, атомарный swap) — M2. Первичное скачивание при первом обращении — в скоупе (ADR-0012).
-  Бинарники не-Windows платформ — отдельный тикет.
+- Определение musl Linux: политика берёт glibc-ассет `yt-dlp_linux`, `yt-dlp_musllinux` не
+  выбирается. Linux armv7l и 32-битные Linux: релиз не публикует готового файла (только zip).
 - `MetadataCache`, батчинг URL, префетч при старте.
 - `FormatSelector` как отдельный компонент (§7) — M1 использует инлайн-маппинг.
 - Консолидация `ProcessRunner` (общий для ffmpeg и yt-dlp, §9.1).

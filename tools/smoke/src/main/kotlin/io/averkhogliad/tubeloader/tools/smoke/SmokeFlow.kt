@@ -37,7 +37,7 @@ internal suspend fun runOne(session: SmokeSession, target: SmokeTarget, row: Tar
         return
     }
     val path = session.targetDir.resolve(row.fileName)
-    val handle = session.useCases.enqueueDownload.enqueue(plan.ref, pickQuality(plan.meta), path)
+    val handle = session.downloadSession.enqueue(plan.ref, pickQuality(plan.meta), path)
     session.observer.register(handle.taskId, row)
     session.observer.awaitTerminal(handle.taskId)
 }
@@ -85,8 +85,8 @@ private fun skip(session: SmokeSession, row: TargetRow, reason: String) {
  */
 private suspend fun resolve(session: SmokeSession, target: SmokeTarget): MediaResult =
     when (target) {
-        is SmokeTarget.ByUrl -> session.useCases.resolveMedia.byUrl(target.url)
-        is SmokeTarget.ById -> session.useCases.resolveMedia.byId(target.code, target.mediaId)
+        is SmokeTarget.ByUrl -> session.resolveMedia.byUrl(target.url)
+        is SmokeTarget.ById -> session.resolveMedia.byId(target.code, target.mediaId)
     }
 
 private fun pickQuality(meta: MediaMeta): Quality =

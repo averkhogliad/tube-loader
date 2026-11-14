@@ -53,8 +53,9 @@ class CoreFacadeEnqueueStagingTest :
                         val mediaId = mediaIds.next()
                         val world = facadeWorld(tempDir)
                         world.adapters.single().onResolveId = { ResolveIdResult.Found(mediaId) }
+                        val adapterFailure = IllegalStateException("the adapter broke")
                         world.adapters.single().onDownload = { _, _ ->
-                            DownloadResult.Failed(DownloadError.NetworkTransient)
+                            DownloadResult.Failed(DownloadError.NetworkTransient, adapterFailure)
                         }
                         val ref = world.resolve(mediaId)
                         val target = world.targetPath()
@@ -63,7 +64,8 @@ class CoreFacadeEnqueueStagingTest :
                         val handle = world.enqueue(ref, target)
 
                         // then
-                        world.state(handle.taskId).status.shouldBeInstanceOf<DownloadStatus.Failed>()
+                        world.state(handle.taskId).status shouldBe
+                            DownloadStatus.Failed(DownloadError.NetworkTransient, adapterFailure)
                         Files.exists(target) shouldBe false
                         leftoverFilesIn(target.parent, target) shouldBe emptyList()
                     }
@@ -262,7 +264,7 @@ class CoreFacadeEnqueueStagingTest :
                         world.adapters.single().onDownload = { _, onProgress ->
                             lateProgress = onProgress
                             onProgress(absolute)
-                            DownloadResult.Failed(DownloadError.NetworkTransient)
+                            DownloadResult.Failed(DownloadError.NetworkTransient, null)
                         }
                         val handle = world.enqueue(ref)
                         world.awaitState(handle.taskId) { it.status is DownloadStatus.Failed }

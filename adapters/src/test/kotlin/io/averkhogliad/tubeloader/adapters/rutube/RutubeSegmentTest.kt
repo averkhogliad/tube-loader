@@ -8,6 +8,7 @@ import io.averkhogliad.tubeloader.core.port.HttpStub
 import io.averkhogliad.tubeloader.core.port.httpBody
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import java.io.IOException
 import java.nio.file.Files
@@ -49,7 +50,9 @@ class RutubeSegmentTest :
                 val actual = adapter(http).download(MEDIA_ID, VIDEO_1080, dir.resolve("clip.mp4")) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.NetworkTransient)
+                val failed = actual.shouldBeInstanceOf<DownloadResult.Failed>()
+                failed.error shouldBe DownloadError.NetworkTransient
+                failed.cause?.message.orEmpty() shouldContain "reset"
                 Files.exists(dir.resolve("clip.mp4.tmp")) shouldBe false
             }
 
@@ -62,7 +65,9 @@ class RutubeSegmentTest :
                 val actual = adapter(http).download(MEDIA_ID, VIDEO_1080, clip("segments")) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken)
+                val failed = actual.shouldBeInstanceOf<DownloadResult.Failed>()
+                failed.error shouldBe DownloadError.ExtractorBroken
+                failed.cause.shouldBeInstanceOf<RutubeStatusFailure>().status shouldBe 404
                 refused.isClosed shouldBe true
             }
 
@@ -74,7 +79,9 @@ class RutubeSegmentTest :
                 val actual = adapter(http).download(MEDIA_ID, VIDEO_1080, clip("segments")) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.NetworkTransient)
+                val failed = actual.shouldBeInstanceOf<DownloadResult.Failed>()
+                failed.error shouldBe DownloadError.NetworkTransient
+                failed.cause.shouldBeInstanceOf<RutubeStatusFailure>().status shouldBe 503
             }
 
             "leaves no tmp file behind when the transfer is cancelled" {

@@ -88,7 +88,7 @@ Gradle-модуль `:adapters:rutube`, который появится вмес
 внутри `:core`. Решение обратимо `move`-рефакторингом, ADR не нужен.
 
 **Контракт SourceAdapter.** Реализуется контракт ядра со одной правкой:
-`LoadMetaResult` получает исход `Failed(DownloadError)` — без него структурный сбой
+`LoadMetaResult` получает исход `Failed(DownloadError, cause)` — без него структурный сбой
 ответа некуда деть: `NotFound` значит «видео нет», а не «ответ сломан».
 
 - `capability = DownloadCapability.Native` — адаптер скачивает сам, без Delegate.
@@ -97,9 +97,9 @@ Gradle-модуль `:adapters:rutube`, который появится вмес
   хост) / `NotFound` (хост Rutube, но валидный id из URL не извлёкся). Несуществующее видео
   обнаруживается только на `findById`, там же приходит `DownloadError.NotFound`.
 - `findById(id)` — один HTTP-запрос `playOptions` через `HttpTool.open(...)`. Исходы
-  `Found(MediaMeta)` / `NotFound` / `Failed(DownloadError)`. Последний несёт
-  `ExtractorBroken` на структурный сбой ответа. `Unsupported` невозможен (поддержка уже
-  определена в `resolveId`).
+  `Found(MediaMeta)` / `NotFound` / `Failed(DownloadError, cause)`. Последний несёт
+  `ExtractorBroken` на структурный сбой ответа, а причиной — статус отказа или транспортное
+  сообщение. `Unsupported` невозможен (поддержка уже определена в `resolveId`).
 - `download(mediaId, quality, targetPath, onProgress)` — линейное скачивание HLS-
   плейлиста нужного качества в `<targetPath>.tmp` рядом с целевым файлом, затем
   `MediaTool.remux(<targetPath>.tmp, targetPath, onProgress)`. Промежуточный файл
@@ -186,8 +186,9 @@ API. Адаптер читает его (через `HttpTool.open`), фильт
 `DownloadResult.Success`. Ядро само делает `Files.move(part → target)`.
 
 Если `remux` вернул `Result.failure`, адаптер возвращает
-`DownloadResult.Failed(ExtractorBroken)`: сбой контейнерной перезаписи (несовместимый
-вход, сломанная установка) для адаптера неотличим от поломки источника.
+`DownloadResult.Failed(ExtractorBroken, cause)`: сбой контейнерной перезаписи (несовместимый
+вход, сломанная установка) для адаптера неотличим от поломки источника, причина — исключение
+порта.
 
 **Retry.** Границы:
 
@@ -217,7 +218,7 @@ API. Адаптер читает его (через `HttpTool.open`), фильт
 - Отклонение от `docs/standards/errors.md`: движок принимает блок как `Result<T>`, то есть
   сбой едет исключением, хотя по стандарту бизнес-исход едет значением. Причина в самой
   форме `kotlin.Result` — она несёт только `Throwable`. Наружу отклонение не выходит:
-  шов `SourceAdapter` по-прежнему отдаёт `DownloadResult.Failed(error)`.
+  шов `SourceAdapter` по-прежнему отдаёт `DownloadResult.Failed(error, cause)`.
 - Плохой статус HTTP — значение, а не исключение: адаптер передаёт в `retry` контекст
   с `judging`, который смотрит на `HttpResponse.status` и отказывает только статусам из
   `retriable-statuses`. Синтетического `HttpStatusException` в адаптере нет; прочие
@@ -271,7 +272,8 @@ API. Адаптер читает его (через `HttpTool.open`), фильт
    `NetworkTransient` с ретраем. Проверка `ensureActive()` через `Job` с
    отменой во время `delay` — отдельный кейс.
 3. **Тесты таксономии ошибок — тот же suite.** Каждый класс `DownloadError` —
-   минимум один кейс с эталонным ответом `FakeHttpTool`.
+   минимум один кейс с эталонным ответом `FakeHttpTool`; причина наблюдаема — статус отказа
+   или транспортное сообщение.
 4. **Интеграционный прогон — отдельный `*IT.kt`, помеченный tag'ом
    `integration` (JUnit `@Tag`).** Настоящей реализации `MediaTool` в репозитории
    нет (см. Out of Scope), поэтому прогон воспроизводит записанные ответы
