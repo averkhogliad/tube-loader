@@ -7,6 +7,7 @@ import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
 import io.averkhogliad.tubeloader.infra.binaries.ProcessLaunch
 import io.averkhogliad.tubeloader.infra.binaries.ProcessOutcome
 import io.averkhogliad.tubeloader.infra.binaries.ProcessRunner
+import io.averkhogliad.tubeloader.infra.logging.slf4j
 import java.io.IOException
 import java.nio.file.Path
 
@@ -24,6 +25,8 @@ class FfmpegMediaTool(
     private val runner: ProcessRunner,
     private val distribution: ManagedBinary,
 ) : MediaTool {
+
+    private val logger by slf4j()
 
     override fun close() = Unit
 
@@ -80,17 +83,17 @@ class FfmpegMediaTool(
     private suspend fun execute(build: (Path) -> List<String>, onProgress: (Progress) -> Unit): Result<Unit> {
         val binary =
             distribution.ensureBinary(config.binaryPath).getOrElse { failure ->
-                log("the tool is not available: ${failure.message}")
+                logger.warn("the tool is not available: {}", failure.message)
                 return Result.failure(failure)
             }
         val command = build(binary)
-        log(command.joinToString(" "))
+        logger.info(command.joinToString(" "))
         // the duration of a stream copy is unpredictable, so the progress stays indeterminate
         onProgress(Progress.Indeterminate)
         return runner
             .run(ProcessLaunch(command))
             .judgement()
-            .onFailure { failure -> log("the tool failed: ${failure.message}") }
+            .onFailure { failure -> logger.warn("the tool failed: {}", failure.message) }
     }
 
     private fun ProcessOutcome.judgement(): Result<Unit> =
@@ -108,10 +111,6 @@ class FfmpegMediaTool(
             }
         }
 
-    private fun log(message: String) {
-        System.err.println("$LOG_PREFIX $message")
-    }
-
     private companion object {
         const val OVERWRITE = "-y"
         const val INPUT = "-i"
@@ -122,7 +121,6 @@ class FfmpegMediaTool(
         const val ERROR = "error"
         const val HIDE_BANNER = "-hide_banner"
         const val FORMAT = "-f"
-        const val LOG_PREFIX = "FfmpegMediaTool:"
     }
 }
 
