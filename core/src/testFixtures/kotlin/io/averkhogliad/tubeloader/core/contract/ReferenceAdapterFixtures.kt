@@ -7,6 +7,7 @@ import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
+import java.io.IOException
 import kotlin.time.Duration.Companion.seconds
 
 private const val REFERENCE_STREAM_URL = "https://cdn.reference.example/stream/ref-1/hls-720"
@@ -72,6 +73,15 @@ fun referenceAdapterFixtures(): SourceAdapterFixtures {
                     id = "ref-absent",
                     expected = LoadMetaResult.NotFound,
                 ),
+                MetaCase(
+                    name = "carries the transport failure of the source as the cause",
+                    id = "ref-unreachable",
+                    expected =
+                        LoadMetaResult.Failed(
+                            DownloadError.NetworkTransient,
+                            IOException("no response from https://api.reference.example/video/ref-unreachable"),
+                        ),
+                ),
             ),
         download =
             listOf(
@@ -86,13 +96,24 @@ fun referenceAdapterFixtures(): SourceAdapterFixtures {
                     name = "returns NetworkTransient when the recorded response is unreachable",
                     id = "ref-2",
                     quality = Quality("hls-720", TrackKind.Video, "720p"),
-                    expected = DownloadResult.Failed(DownloadError.NetworkTransient),
+                    expected =
+                        DownloadResult.Failed(
+                            DownloadError.NetworkTransient,
+                            IOException("no response from https://cdn.reference.example/stream/ref-2/hls-720"),
+                        ),
                 ),
                 DownloadCase(
                     name = "returns NotFound when the recording has no stream for the quality",
                     id = "ref-1",
                     quality = Quality("hls-1080", TrackKind.Video, "1080p"),
-                    expected = DownloadResult.Failed(DownloadError.NotFound),
+                    expected =
+                        DownloadResult.Failed(
+                            DownloadError.NotFound,
+                            IllegalArgumentException(
+                                "no recorded response for " +
+                                    "https://cdn.reference.example/stream/ref-1/hls-1080",
+                            ),
+                        ),
                 ),
             ),
     )

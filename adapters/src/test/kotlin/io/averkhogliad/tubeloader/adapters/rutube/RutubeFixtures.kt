@@ -12,11 +12,15 @@ import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.HttpStub
+import io.averkhogliad.tubeloader.core.port.textBody
+import java.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
 
 const val RECORDED_MEDIA_ID = MEDIA_ID
 
 private const val MARKERLESS_MEDIA_ID = "11111111111111111111111111111111"
+private const val REFUSED_MEDIA_ID = "33333333333333333333333333333333"
+private const val UNREACHABLE_MEDIA_ID = "44444444444444444444444444444444"
 private const val RECORDED_MASTER = MASTER_URL
 private const val MARKERLESS_MASTER = "https://bl.rutube.ru/route/no-quality.m3u8?sign=s"
 private const val RECORDED_VARIANT = VARIANT_1080
@@ -33,6 +37,8 @@ fun rutubeRecordedHttp(): FakeHttpTool =
         .always(HttpStub.Fail(IllegalArgumentException("the recording knows no such url")))
         .routeRecording(expectedOptionsUrl(RECORDED_MEDIA_ID), RECORDING_OPTIONS)
         .routeRecording(expectedOptionsUrl(MARKERLESS_MEDIA_ID), "rutube/playOptions-no-quality.json")
+        .route(expectedOptionsUrl(REFUSED_MEDIA_ID), HttpStub.Respond(textBody("unavailable", status = 500)))
+        .route(expectedOptionsUrl(UNREACHABLE_MEDIA_ID), HttpStub.Fail(IOException("no route to rutube.ru")))
         .routeRecording(RECORDED_MASTER, "rutube/m3u8-master.m3u8")
         .routeRecording(MARKERLESS_MASTER, "rutube/m3u8-master-no-quality.m3u8")
         .routeRecording(RECORDED_VARIANT, "rutube/m3u8-leaf.m3u8")
@@ -80,6 +86,15 @@ private fun rutubeMetaCases() =
             id = RECORDED_MEDIA_ID,
             expected = LoadMetaResult.Found(RECORDED_META),
         ),
+        MetaCase(
+            name = "carries the status of a refused request as the cause",
+            id = REFUSED_MEDIA_ID,
+            expected =
+                LoadMetaResult.Failed(
+                    DownloadError.ExtractorBroken,
+                    IOException("the source answered HTTP 500"),
+                ),
+        ),
     )
 
 private val RECORDED_META =
@@ -109,7 +124,17 @@ private fun rutubeDownloadCases() =
             name = "reports a broken extractor when the master names no quality",
             id = MARKERLESS_MEDIA_ID,
             quality = RECORDED_VIDEO_1080,
-            expected = DownloadResult.Failed(DownloadError.ExtractorBroken),
+            expected = DownloadResult.Failed(DownloadError.ExtractorBroken, null),
+        ),
+        DownloadCase(
+            name = "carries the transport failure of the source as the cause",
+            id = UNREACHABLE_MEDIA_ID,
+            quality = RECORDED_VIDEO_1080,
+            expected =
+                DownloadResult.Failed(
+                    DownloadError.NetworkTransient,
+                    IOException("no route to rutube.ru"),
+                ),
         ),
     )
 

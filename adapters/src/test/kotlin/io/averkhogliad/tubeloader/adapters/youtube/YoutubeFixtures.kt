@@ -20,6 +20,7 @@ import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
 import io.averkhogliad.tubeloader.infra.binaries.ProcessLaunch
 import io.averkhogliad.tubeloader.infra.binaries.ProcessOutcome
 import io.averkhogliad.tubeloader.infra.binaries.ProcessRunner
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.time.Duration
@@ -113,18 +114,43 @@ private val META_CASES: List<MetaCase> =
             id = SPARSE,
             expected = LoadMetaResult.Found(SPARSE_META),
         ),
-        failedMeta("names a media the source no longer serves", GONE, DownloadError.NotFound),
-        failedMeta("names a stale address", EXPIRED, DownloadError.UrlExpired),
-        failedMeta("names a source that was not reached", UNREACHABLE, DownloadError.NetworkTransient),
-        failedMeta("names the bot check", ANTIBOT, DownloadError.AntiBotBlocked),
-        failedMeta("names a translation of its own as broken", BROKEN, DownloadError.ExtractorBroken),
+        failedMeta(
+            "names a media the source no longer serves",
+            GONE,
+            DownloadError.NotFound,
+            "error-unavailable.txt",
+        ),
+        failedMeta(
+            "names a stale address",
+            EXPIRED,
+            DownloadError.UrlExpired,
+            "error-forbidden.txt",
+        ),
+        failedMeta(
+            "names a source that was not reached",
+            UNREACHABLE,
+            DownloadError.NetworkTransient,
+            "error-network.txt",
+        ),
+        failedMeta(
+            "names the bot check",
+            ANTIBOT,
+            DownloadError.AntiBotBlocked,
+            "error-antibot.txt",
+        ),
+        failedMeta(
+            "names a translation of its own as broken",
+            BROKEN,
+            DownloadError.ExtractorBroken,
+            "error-format.txt",
+        ),
     )
 
-private fun failedMeta(name: String, id: String, error: DownloadError): MetaCase =
+private fun failedMeta(name: String, id: String, error: DownloadError, fixture: String): MetaCase =
     MetaCase(
         name = name,
         id = id,
-        expected = LoadMetaResult.Failed(error),
+        expected = LoadMetaResult.Failed(error, IOException(goldenText(fixture).trim())),
     )
 
 private fun downloadCases(content: ByteArray): List<DownloadCase> =
@@ -136,19 +162,44 @@ private fun downloadCases(content: ByteArray): List<DownloadCase> =
             expected = DownloadResult.Success,
             expectedContent = content,
         ),
-        failedTransfer("names a media the source no longer serves", GONE, DownloadError.NotFound),
-        failedTransfer("names a stale address", EXPIRED, DownloadError.UrlExpired),
-        failedTransfer("names a source that was not reached", UNREACHABLE, DownloadError.NetworkTransient),
-        failedTransfer("names the bot check", ANTIBOT, DownloadError.AntiBotBlocked),
-        failedTransfer("names a broken transfer", BROKEN, DownloadError.ExtractorBroken),
+        failedTransfer(
+            "names a media the source no longer serves",
+            GONE,
+            DownloadError.NotFound,
+            "error-unavailable.txt",
+        ),
+        failedTransfer(
+            "names a stale address",
+            EXPIRED,
+            DownloadError.UrlExpired,
+            "error-forbidden.txt",
+        ),
+        failedTransfer(
+            "names a source that was not reached",
+            UNREACHABLE,
+            DownloadError.NetworkTransient,
+            "error-network.txt",
+        ),
+        failedTransfer(
+            "names the bot check",
+            ANTIBOT,
+            DownloadError.AntiBotBlocked,
+            "error-antibot.txt",
+        ),
+        failedTransfer(
+            "names a broken transfer",
+            BROKEN,
+            DownloadError.ExtractorBroken,
+            "error-format.txt",
+        ),
     )
 
-private fun failedTransfer(name: String, id: String, error: DownloadError): DownloadCase =
+private fun failedTransfer(name: String, id: String, error: DownloadError, fixture: String): DownloadCase =
     DownloadCase(
         name = name,
         id = id,
         quality = RECORDED_QUALITY,
-        expected = DownloadResult.Failed(error),
+        expected = DownloadResult.Failed(error, IOException(goldenText(fixture).trim())),
     )
 
 /** What the recorded tool answers about one media: the resolve payload, the transfer lines, or the failure. */
@@ -291,7 +342,8 @@ internal fun adapterOver(settings: YtDlpConfig, replyOf: (ProcessLaunch) -> Tool
     YoutubeSourceAdapter(
         runner = YtDlpProcessRunner(FakeToolRunner(replyOf), Path.of("work")),
         config = { settings },
-        distribution = ManagedBinary(settings.paths.ytDlpBinary, { ytDlpPolicy() }),
+        // M1 publishes the Windows build only: the policy is pinned so the host decides nothing here
+        distribution = ManagedBinary(settings.paths.ytDlpBinary, { ytDlpPolicy("Windows 11") }),
     )
 
 /** The adapter over a process mechanism that answers every call with [outcome]. */

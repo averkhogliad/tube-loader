@@ -132,7 +132,7 @@ private fun buildComposition(targetDir: Path, parallel: Int): SmokeComposition {
             expectSuccess = false
             followRedirects = false
         }
-    val httpTool = LoggingHttpTool(HttpTools.create(client), dashboard::note)
+    val httpTool = HttpTools.create(client)
     val paths = ToolPaths.of(homeDir)
     val ffmpegBinary = ManagedBinary(paths.ffmpegBinary, { ffmpegPolicy() })
     val ytDlpBinary = ManagedBinary(paths.ytDlpBinary, { ytDlpPolicy() })
@@ -148,15 +148,13 @@ private fun buildComposition(targetDir: Path, parallel: Int): SmokeComposition {
     val scope = CoroutineScope(Dispatchers.IO + parentJob)
     val queue = DownloadQueue(scope, Dispatchers.IO, Dispatchers.IO, appConfig)
     val facade = CoreFacade(adapters, queue, RandomTaskIdGenerator, Clock.System)
-    val useCases = UseCases(facade, queue::shutdown)
-    val observer = DownloadStateObserver(useCases.observeDownloads, dashboard)
     val tools =
         SmokeTools(
             dashboard,
             ensure = { ffmpegBinary.ensureBinary(null) },
             ytDlpFetch = { ytDlpBinary.ensureBinary(null) },
         )
-    val session = SmokeSession(targetDir, dashboard, useCases, observer, tools)
+    val session = SmokeSession(facade, targetDir, dashboard, tools, queue::shutdown)
     return SmokeComposition(session, client, mediaTool, scope)
 }
 
@@ -214,8 +212,7 @@ internal fun requireKnownSourceCodes(targets: List<SmokeTarget>, knownCodes: Lis
  * next to its rows; the stack trace of the failure leaves through stderr as any other failure.
  */
 private fun checkSourceCodes(session: SmokeSession, targets: List<SmokeTarget>) {
-    val resolveMedia = session.useCases.resolveMedia
-    val codes = resolveMedia.sources.map { it.code }
+    val codes = session.resolveMedia.sources.map { it.code }
     try {
         requireKnownSourceCodes(targets, codes)
     } catch (failure: IllegalStateException) {
