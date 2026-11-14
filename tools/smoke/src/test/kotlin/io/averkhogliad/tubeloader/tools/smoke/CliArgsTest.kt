@@ -1,16 +1,18 @@
 package io.averkhogliad.tubeloader.tools.smoke
 
+import io.averkhogliad.tubeloader.app.AppOverrides
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import java.nio.file.Path
 import kotlin.time.Duration.Companion.seconds
 
 class CliArgsTest :
     FreeSpec({
 
         "parseCli" - {
-            "keeps the default target dir and parallelism when no flag is given" {
+            "leaves the target dir and the parallelism to the config when no flag is given" {
                 // given
                 val rawArgs = emptyArray<String>()
 
@@ -19,9 +21,31 @@ class CliArgsTest :
 
                 // then
                 actual.targets shouldBe emptyList()
-                actual.targetDir shouldBe DEFAULT_TARGET_DIR
-                actual.parallel shouldBe DEFAULT_PARALLEL
+                actual.targetDir shouldBe null
+                actual.parallel shouldBe null
                 actual.cancelAfter shouldBe null
+            }
+
+            "reads the target dir and the parallelism the command names" {
+                // given
+                val rawArgs = arrayOf("-out", "D:/videos", "-parallel", "4")
+
+                // when
+                val actual = parseCli(rawArgs)
+
+                // then
+                actual.targetDir shouldBe "D:/videos"
+                actual.parallel shouldBe 4
+            }
+
+            "rejects a parallelism below one" {
+                // given
+                val rawArgs = arrayOf("-parallel", "0")
+
+                // when + then
+                shouldThrow<IllegalArgumentException> {
+                    parseCli(rawArgs)
+                }
             }
 
             "reads the code, the id and the name of a target" {
@@ -237,6 +261,30 @@ class CliArgsTest :
 
                 // when + then
                 usage shouldContain "<code>:<mediaId>"
+            }
+        }
+
+        "overrides" - {
+            "passes the values the command names" {
+                // given
+                val cli = parseCli(arrayOf("-out", "D:/videos", "-parallel", "4"))
+
+                // when
+                val actual = cli.overrides()
+
+                // then
+                actual shouldBe AppOverrides(maxParallelDownloads = 4, defaultTargetDir = Path.of("D:/videos"))
+            }
+
+            "leaves the values the command does not name to the config" {
+                // given
+                val cli = parseCli(emptyArray())
+
+                // when
+                val actual = cli.overrides()
+
+                // then
+                actual shouldBe AppOverrides()
             }
         }
     })

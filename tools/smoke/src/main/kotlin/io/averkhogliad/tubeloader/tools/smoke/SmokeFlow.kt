@@ -1,5 +1,7 @@
 package io.averkhogliad.tubeloader.tools.smoke
 
+import io.averkhogliad.tubeloader.app.PreparedTools
+import io.averkhogliad.tubeloader.app.ToolStatus
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.MediaRef
 import io.averkhogliad.tubeloader.core.domain.Quality
@@ -25,19 +27,18 @@ internal fun targetRows(targets: List<SmokeTarget>): List<TargetRow> {
     }
 }
 
-internal suspend fun runOne(session: SmokeSession, target: SmokeTarget, row: TargetRow) {
+internal suspend fun runOne(session: SmokeSession, tools: PreparedTools, target: SmokeTarget, row: TargetRow) {
     // the row answers while the media is being read from the source: a silent resolve looks dead
     session.dashboard.update(row.key, formatResolving(row))
     val plan = planDownload(session, target, row) ?: return
-    // the tools are fetched at the startup of the run: this call only answers the cached result,
+    // the tools are fetched at the startup of the run: this check only reads the cached status,
     // and the binary has to be on the disk before the tool of the adapter starts
-    val ffmpeg = session.tools.ensureFfmpeg()
-    if (ffmpeg.isFailure) {
+    if (tools.ffmpeg !is ToolStatus.Ready) {
         session.dashboard.update(row.key, formatSkipped(row, "ffmpeg is not available"))
         return
     }
     val path = session.targetDir.resolve(row.fileName)
-    val handle = session.downloadSession.enqueue(plan.ref, pickQuality(plan.meta), path)
+    val handle = session.app.downloads.enqueue(plan.ref, pickQuality(plan.meta), path)
     session.observer.register(handle.taskId, row)
     session.observer.awaitTerminal(handle.taskId)
 }
@@ -85,8 +86,8 @@ private fun skip(session: SmokeSession, row: TargetRow, reason: String) {
  */
 private suspend fun resolve(session: SmokeSession, target: SmokeTarget): MediaResult =
     when (target) {
-        is SmokeTarget.ByUrl -> session.resolveMedia.byUrl(target.url)
-        is SmokeTarget.ById -> session.resolveMedia.byId(target.code, target.mediaId)
+        is SmokeTarget.ByUrl -> session.app.resolveMedia.byUrl(target.url)
+        is SmokeTarget.ById -> session.app.resolveMedia.byId(target.code, target.mediaId)
     }
 
 private fun pickQuality(meta: MediaMeta): Quality =
