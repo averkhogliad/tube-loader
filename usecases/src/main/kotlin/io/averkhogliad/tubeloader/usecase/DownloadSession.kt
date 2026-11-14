@@ -1,4 +1,4 @@
-package io.averkhogliad.tubeloader.core.usecase
+package io.averkhogliad.tubeloader.usecase
 
 import io.averkhogliad.tubeloader.core.domain.MediaRef
 import io.averkhogliad.tubeloader.core.domain.Quality
