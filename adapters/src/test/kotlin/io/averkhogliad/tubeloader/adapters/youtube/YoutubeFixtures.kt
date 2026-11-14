@@ -16,6 +16,7 @@ import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
+import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
 import io.mockk.every
 import io.mockk.mockk
 import java.io.ByteArrayInputStream
@@ -298,6 +299,7 @@ internal fun adapterOver(settings: YtDlpConfig, start: (YtDlpLaunch) -> Process)
                 start = start,
             ),
         config = { settings },
+        distribution = ManagedBinary(settings.paths.ytDlpBinary, { ytDlpPolicy() }),
     )
 
 internal fun toolProcess(reply: ToolReply): Process {

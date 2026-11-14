@@ -5,6 +5,7 @@ import io.averkhogliad.tubeloader.core.config.ToolPaths
 import io.averkhogliad.tubeloader.core.contract.deleteWithRetry
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.port.MediaTool
+import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import java.nio.file.Files
@@ -50,8 +51,10 @@ private class MediaToolUnderTest(temp: TempHome, runner: ProcessRunner) {
 
     val binary: Path = temp.binary()
     val config = MediaToolConfig(paths = ToolPaths.of(temp.home()), binaryPath = binary)
-    val tool: MediaTool = FfmpegMediaTool(config, runner)
+    val tool: MediaTool = FfmpegMediaTool(config, runner, managedBinary(config.paths))
 }
+
+private fun managedBinary(paths: ToolPaths): ManagedBinary = ManagedBinary(paths.ffmpegBinary, { ffmpegPolicy() })
 
 class FfmpegMediaToolTest :
     FreeSpec({
@@ -169,7 +172,7 @@ class FfmpegMediaToolTest :
                         binaryPath = binary,
                         containerFormat = "mkv",
                     )
-                val tool = FfmpegMediaTool(config, runner)
+                val tool = FfmpegMediaTool(config, runner, managedBinary(config.paths))
 
                 // when
                 tool.remux(VIDEO, OUTPUT) {}
@@ -199,7 +202,8 @@ class FfmpegMediaToolTest :
                 val runner = RecordingRunner()
                 val home = temp.home()
                 val injected = temp.binary()
-                val tool = FfmpegMediaTool(MediaToolConfig(paths = ToolPaths.of(home), binaryPath = injected), runner)
+                val config = MediaToolConfig(paths = ToolPaths.of(home), binaryPath = injected)
+                val tool = FfmpegMediaTool(config, runner, managedBinary(config.paths))
 
                 // when
                 tool.remux(VIDEO, OUTPUT) {}
@@ -219,7 +223,7 @@ class FfmpegMediaToolTest :
                         writeText("stub")
                         toFile().setExecutable(true, false)
                     }
-                val tool = FfmpegMediaTool(MediaToolConfig(paths = paths), runner)
+                val tool = FfmpegMediaTool(MediaToolConfig(paths = paths), runner, managedBinary(paths))
 
                 // when
                 tool.remux(VIDEO, OUTPUT) {}

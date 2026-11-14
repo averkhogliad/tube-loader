@@ -81,13 +81,16 @@ internal data class YtDlpRun(val output: List<String>)
  * A timeout is an outcome, not a cancellation: the process tree is killed and the call returns.
  * Cancelling the coroutine of the call kills the tree as well, so no orphaned child survives.
  */
-internal class YtDlpProcessRunner(
+class YtDlpProcessRunner internal constructor(
     private val workingDirectory: Path,
     private val graceTimeoutMillis: Long = GRACE_TIMEOUT_MILLIS,
     private val start: (YtDlpLaunch) -> Process = YtDlpLaunch::toProcess,
 ) {
 
-    suspend fun run(
+    /** The composition root starts the tool as it is; the process seam of a test stays internal. */
+    constructor(workingDirectory: Path) : this(workingDirectory, GRACE_TIMEOUT_MILLIS)
+
+    internal suspend fun run(
         command: List<String>,
         timeout: Duration? = null,
         onOutputLine: (String) -> Unit = {},

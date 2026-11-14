@@ -4,6 +4,7 @@ import io.averkhogliad.tubeloader.core.adapter.LoadMetaResult
 import io.averkhogliad.tubeloader.core.config.ToolPaths
 import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.averkhogliad.tubeloader.core.domain.TrackKind
+import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
 import io.kotest.core.annotation.Tags
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldNotBeEmpty
@@ -31,10 +32,13 @@ class YoutubeSourceAdapterIT :
         "findById" - {
             "resolves the metadata and the video qualities of a live video" {
                 // given
+                val config = YtDlpConfig(paths = ToolPaths.of(HOME), resolveTimeout = 60.seconds)
                 val adapter =
-                    YoutubeSourceAdapter {
-                        YtDlpConfig(paths = ToolPaths.of(HOME), resolveTimeout = 60.seconds)
-                    }
+                    YoutubeSourceAdapter(
+                        YtDlpProcessRunner(workingDirectory = config.paths.homeDir),
+                        { config },
+                        ManagedBinary(config.paths.ytDlpBinary, { ytDlpPolicy() }),
+                    )
 
                 // when
                 val actual = adapter.findById(LIVE_MEDIA_ID)

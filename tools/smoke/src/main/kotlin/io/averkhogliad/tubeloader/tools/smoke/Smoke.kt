@@ -2,6 +2,8 @@ package io.averkhogliad.tubeloader.tools.smoke
 
 import io.averkhogliad.tubeloader.adapters.rutube.RutubeSourceAdapter
 import io.averkhogliad.tubeloader.adapters.youtube.YoutubeSourceAdapter
+import io.averkhogliad.tubeloader.adapters.youtube.YtDlpProcessRunner
+import io.averkhogliad.tubeloader.adapters.youtube.ytDlpPolicy
 import io.averkhogliad.tubeloader.config.Config
 import io.averkhogliad.tubeloader.config.ConfigProvider
 import io.averkhogliad.tubeloader.config.defaultSources
@@ -17,8 +19,10 @@ import io.averkhogliad.tubeloader.core.download.RandomTaskIdGenerator
 import io.averkhogliad.tubeloader.core.facade.CoreFacade
 import io.averkhogliad.tubeloader.core.port.HttpTool
 import io.averkhogliad.tubeloader.core.port.MediaTool
+import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
 import io.averkhogliad.tubeloader.infra.http.HttpTools
 import io.averkhogliad.tubeloader.infra.media.FfmpegMediaTool
+import io.averkhogliad.tubeloader.infra.media.ffmpegPolicy
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -132,20 +136,28 @@ private fun buildComposition(targetDir: Path, parallel: Int): SmokeComposition {
         }
     val httpTool = LoggingHttpTool(HttpTools.create(client), dashboard::note)
     val paths = ToolPaths.of(homeDir)
+    val ffmpegBinary = ManagedBinary(paths.ffmpegBinary, { ffmpegPolicy() })
+    val ytDlpBinary = ManagedBinary(paths.ytDlpBinary, { ytDlpPolicy() })
     val mediaTool =
         FfmpegMediaTool(
             MediaToolConfig(paths = paths, containerFormat = containerFormat),
             LocalProcessRunner(),
+            ffmpegBinary,
         )
     val ytDlpConfig = YtDlpConfig.fromConfig(config, paths)
-    val adapters = smokeSources(httpTool, mediaTool, httpToolConfig, ytDlpConfig)
+    val adapters = smokeSources(httpTool, mediaTool, httpToolConfig, ytDlpConfig, ytDlpBinary)
     val parentJob = SupervisorJob()
     val scope = CoroutineScope(Dispatchers.IO + parentJob)
     val queue = DownloadQueue(scope, Dispatchers.IO, Dispatchers.IO, appConfig)
     val facade = CoreFacade(adapters, queue, RandomTaskIdGenerator, Clock.System)
     val useCases = UseCases(facade, queue::shutdown)
     val observer = DownloadStateObserver(useCases.observeDownloads, dashboard)
-    val tools = SmokeTools(paths, dashboard)
+    val tools =
+        SmokeTools(
+            dashboard,
+            ensure = { ffmpegBinary.ensureBinary(null) },
+            ytDlpFetch = { ytDlpBinary.ensureBinary(null) },
+        )
     val session = SmokeSession(targetDir, dashboard, useCases, observer, tools)
     return SmokeComposition(session, stderr, client, mediaTool, scope)
 }
@@ -162,11 +174,17 @@ internal fun smokeSources(
     mediaTool: MediaTool,
     httpToolConfig: HttpToolConfig,
     ytDlpConfig: YtDlpConfig,
+    ytDlpBinary: ManagedBinary,
 ): Map<String, SourceAdapter> =
     adaptersByCode(
         listOf(
             RUTUBE_CODE to RutubeSourceAdapter(httpTool, mediaTool) { httpToolConfig },
-            YOUTUBE_CODE to YoutubeSourceAdapter { ytDlpConfig },
+            YOUTUBE_CODE to
+                YoutubeSourceAdapter(
+                    YtDlpProcessRunner(workingDirectory = ytDlpConfig.paths.homeDir),
+                    { ytDlpConfig },
+                    ytDlpBinary,
+                ),
         ),
     )
 

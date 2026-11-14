@@ -9,6 +9,7 @@ import io.averkhogliad.tubeloader.core.config.YtDlpConfig
 import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
+import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
 import io.averkhogliad.tubeloader.retry.RetryPolicy
 import io.averkhogliad.tubeloader.retry.continueIf
 import io.averkhogliad.tubeloader.retry.exponentialBackoff
@@ -38,18 +39,15 @@ private val MEDIA_ID = Regex("[A-Za-z0-9_-]+")
  * never reaches it, and the process boundary is a seam of its own, so a test drives the adapter
  * without starting anything.
  *
- * The binary itself is not shipped with the application: the first call fetches the official build
- * into the home directory and every call starts the file by its absolute path, so the machine does
- * not have to carry the tool.
+ * The binary itself is not shipped with the application: the composition root hands in the managed
+ * distribution, so every call of the run shares one instance and starts the file by its absolute
+ * path; the machine does not have to carry the tool.
  */
-class YoutubeSourceAdapter internal constructor(
+class YoutubeSourceAdapter(
     private val runner: YtDlpProcessRunner,
     private val config: () -> YtDlpConfig,
+    private val distribution: ManagedBinary,
 ) : SourceAdapter {
-
-    private val distribution = YtDlpDistribution(config().paths)
-
-    constructor(config: () -> YtDlpConfig) : this(YtDlpProcessRunner(workingDirectoryOf(config())), config)
 
     override val capability: DownloadCapability = DownloadCapability.Delegate
 
@@ -137,8 +135,6 @@ class YoutubeSourceAdapter internal constructor(
     private fun withScheme(input: String): String =
         if (input.contains(SCHEME_SEPARATOR)) input else DEFAULT_SCHEME + input.trimStart('/')
 }
-
-private fun workingDirectoryOf(settings: YtDlpConfig): Path = settings.paths.homeDir
 
 private val RETRIABLE = setOf(DownloadError.NetworkTransient, DownloadError.UrlExpired)
 

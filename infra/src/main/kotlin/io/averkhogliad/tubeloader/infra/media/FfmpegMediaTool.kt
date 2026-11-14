@@ -3,6 +3,7 @@ package io.averkhogliad.tubeloader.infra.media
 import io.averkhogliad.tubeloader.core.config.MediaToolConfig
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.port.MediaTool
+import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
 import java.nio.file.Path
 
 /**
@@ -17,12 +18,14 @@ interface ProcessRunner {
  * The tool runs as an external `ffmpeg` process, one per operation; nothing outlives the call, so
  * closing has nothing to release.
  *
- * The binary is not shipped with the application: the first operation fetches the official static
- * build into the ffmpeg directory of the home directory, later ones reuse the file already there.
+ * The binary is not shipped with the application: the composition root hands in the managed
+ * distribution, so every operation of the run shares one instance and one fetch.
  */
-class FfmpegMediaTool(private val config: MediaToolConfig, private val runner: ProcessRunner) : MediaTool {
-
-    private val distribution = FfmpegDistribution(config.paths)
+class FfmpegMediaTool(
+    private val config: MediaToolConfig,
+    private val runner: ProcessRunner,
+    private val distribution: ManagedBinary,
+) : MediaTool {
 
     override fun close() = Unit
 

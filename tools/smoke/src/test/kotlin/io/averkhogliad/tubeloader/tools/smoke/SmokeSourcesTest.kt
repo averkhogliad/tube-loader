@@ -1,5 +1,6 @@
 package io.averkhogliad.tubeloader.tools.smoke
 
+import io.averkhogliad.tubeloader.adapters.youtube.ytDlpPolicy
 import io.averkhogliad.tubeloader.core.adapter.ResolveIdResult
 import io.averkhogliad.tubeloader.core.adapter.SourceAdapter
 import io.averkhogliad.tubeloader.core.config.AppConfig
@@ -11,6 +12,7 @@ import io.averkhogliad.tubeloader.core.download.RandomTaskIdGenerator
 import io.averkhogliad.tubeloader.core.facade.CoreFacade
 import io.averkhogliad.tubeloader.core.port.FakeHttpTool
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
+import io.averkhogliad.tubeloader.infra.binaries.ManagedBinary
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
@@ -27,13 +29,16 @@ import kotlin.time.Duration.Companion.seconds
 
 private val HOME = Path.of("home")
 
-private fun sources(): Map<String, SourceAdapter> =
-    smokeSources(
+private fun sources(): Map<String, SourceAdapter> {
+    val ytDlpConfig = YtDlpConfig(paths = ToolPaths.of(HOME))
+    return smokeSources(
         FakeHttpTool(),
         FakeMediaTool(),
         HttpToolConfig(perAttemptTimeout = 60.seconds),
-        YtDlpConfig(paths = ToolPaths.of(HOME)),
+        ytDlpConfig,
+        ManagedBinary(ytDlpConfig.paths.ytDlpBinary, { ytDlpPolicy() }),
     )
+}
 
 /**
  * A facade over the sources of the tool: the codes of the sources are the ones the tool registers,
