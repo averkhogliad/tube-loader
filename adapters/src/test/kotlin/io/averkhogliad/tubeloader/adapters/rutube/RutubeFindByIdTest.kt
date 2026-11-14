@@ -96,7 +96,7 @@ class RutubeFindByIdTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken, null)
             }
 
             "returns Failed(ExtractorBroken) when the body carries no video_id" {
@@ -109,7 +109,7 @@ class RutubeFindByIdTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken, null)
             }
 
             "returns Failed(ExtractorBroken) for a media that is not the requested one" {
@@ -122,7 +122,7 @@ class RutubeFindByIdTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken, null)
             }
 
             "returns Failed(ExtractorBroken) when the title is missing" {
@@ -135,7 +135,7 @@ class RutubeFindByIdTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken, null)
             }
 
             "returns Failed(ExtractorBroken) when the body carries no playlist url" {
@@ -148,7 +148,7 @@ class RutubeFindByIdTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken, null)
             }
 
             "returns Failed(NetworkTransient) for a server error" {
@@ -161,7 +161,9 @@ class RutubeFindByIdTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.NetworkTransient
+                failed.cause.shouldBeInstanceOf<RutubeStatusFailure>().status shouldBe 503
             }
 
             "tolerates a response without author and duration" {

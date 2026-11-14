@@ -16,5 +16,5 @@ sealed interface MediaResult {
 
     data object Unsupported : MediaResult
 
-    data class Failed(val error: DownloadError) : MediaResult
+    data class Failed(val error: DownloadError, val cause: Throwable?) : MediaResult
 }

@@ -6,5 +6,5 @@ sealed interface DownloadResult {
 
     data object Success : DownloadResult
 
-    data class Failed(val error: DownloadError) : DownloadResult
+    data class Failed(val error: DownloadError, val cause: Throwable?) : DownloadResult
 }

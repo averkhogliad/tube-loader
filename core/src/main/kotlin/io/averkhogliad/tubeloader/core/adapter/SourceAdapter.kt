@@ -29,7 +29,7 @@ sealed interface LoadMetaResult {
 
     data object NotFound : LoadMetaResult
 
-    data class Failed(val error: DownloadError) : LoadMetaResult
+    data class Failed(val error: DownloadError, val cause: Throwable?) : LoadMetaResult
 }
 
 interface SourceAdapter {

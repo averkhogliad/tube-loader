@@ -17,10 +17,10 @@
 **Бизнесовая ошибка.** Ожидаемый исход, который вызывающий обязан разобрать: «не найдено»,
 «временная сеть», «протух URL», «поломка экстрактора». Возвращается значением — вызывающий
 разбирает исход, а не ловит исключение. Форма: sealed-тип исхода операции — `MediaResult`
-(`Found(ref, meta)` / `NotFound` / `Unsupported` / `Failed(error)`), `ResolveIdResult`
+(`Found(ref, meta)` / `NotFound` / `Unsupported` / `Failed(error, cause)`), `ResolveIdResult`
 (`Found` / `Unsupported` / `NotFound`), `LoadMetaResult` (`Found` / `NotFound` /
-`Failed(error)`),
-`DownloadResult` (`Success` / `Failed(error)`).
+`Failed(error, cause)`),
+`DownloadResult` (`Success` / `Failed(error, cause)`).
 
 **Инвариант поведения или состояния.** Конечный набор состояний, каждому из которых
 соответствует своя реакция: `DownloadStatus` (жизненный цикл задачи).

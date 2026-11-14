@@ -1,5 +1,6 @@
 # Recorded responses of the reference source. One line per URL: <url>=<file>, or =!unreachable for
 # a transport failure the recording captured.
 https://api.reference.example/video/ref-1=meta-ref-1.txt
+https://api.reference.example/video/ref-unreachable=!unreachable
 https://cdn.reference.example/stream/ref-1/hls-720=stream-ref-1-hls-720.bin
 https://cdn.reference.example/stream/ref-2/hls-720=!unreachable

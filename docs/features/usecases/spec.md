@@ -69,7 +69,7 @@ M1 по ADR-0002 и tech-stack). Модуль зависит только от `
 
 **`ResolveMedia`.** Обёртка над `CoreFacade.availableSources` + `findByUrl(input)` /
 `findById(code, mediaId)`. Возвращает `MediaResult` (`Found(ref, meta)` / `NotFound` /
-`Unsupported` / `Failed(error)`) — ссылку на медиаэлемент вместе с метаданными, — и/или список
+`Unsupported` / `Failed(error, cause)`) — ссылку на медиаэлемент вместе с метаданными, — и/или список
 `Source` для выбора источника по коду. Без состояния. Код источника приходит от вызывающего:
 неизвестный код — ошибка вызывающей стороны, а не исход с пустым результатом.
 

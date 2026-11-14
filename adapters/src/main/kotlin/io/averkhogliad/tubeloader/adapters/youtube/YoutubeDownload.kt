@@ -115,8 +115,9 @@ internal suspend fun transfer(
         }
     val failure = result.exceptionOrNull()
     return when {
-        failure != null -> DownloadResult.Failed(downloadErrorOf(failure))
-        produced == null || !Files.isRegularFile(produced) -> DownloadResult.Failed(DownloadError.ExtractorBroken)
+        failure != null -> DownloadResult.Failed(downloadErrorOf(failure), failure)
+        produced == null -> DownloadResult.Failed(DownloadError.ExtractorBroken, null)
+        !Files.isRegularFile(produced) -> DownloadResult.Failed(DownloadError.ExtractorBroken, null)
         else -> placeIn(produced, targetPath, feed)
     }
 }
@@ -127,6 +128,6 @@ private fun placeIn(produced: Path, targetPath: Path, feed: ProgressFeed): Downl
         // the core reads the completion of a download as an absolute update, not a fraction
         feed.complete(Files.size(targetPath))
         DownloadResult.Success
-    } catch (_: IOException) {
-        DownloadResult.Failed(DownloadError.ExtractorBroken)
+    } catch (failure: IOException) {
+        DownloadResult.Failed(DownloadError.ExtractorBroken, failure)
     }

@@ -50,8 +50,8 @@ class ReferenceSourceAdapter(private val fixtures: SourceAdapterFixtures) : Sour
         val text =
             try {
                 fixtures.responses.bodyFor(metaUrl(id)).decodeToString()
-            } catch (_: IOException) {
-                return LoadMetaResult.NotFound
+            } catch (failure: IOException) {
+                return LoadMetaResult.Failed(DownloadError.NetworkTransient, failure)
             } catch (_: IllegalArgumentException) {
                 return LoadMetaResult.NotFound
             }
@@ -67,10 +67,10 @@ class ReferenceSourceAdapter(private val fixtures: SourceAdapterFixtures) : Sour
         val bytes =
             try {
                 fixtures.responses.bodyFor(streamUrl(mediaId, quality.id))
-            } catch (_: IOException) {
-                return DownloadResult.Failed(DownloadError.NetworkTransient)
-            } catch (_: IllegalArgumentException) {
-                return DownloadResult.Failed(DownloadError.NotFound)
+            } catch (failure: IOException) {
+                return DownloadResult.Failed(DownloadError.NetworkTransient, failure)
+            } catch (failure: IllegalArgumentException) {
+                return DownloadResult.Failed(DownloadError.NotFound, failure)
             }
         val total = bytes.size.toLong()
         emit(Progress.Absolute(0, total), onProgress)

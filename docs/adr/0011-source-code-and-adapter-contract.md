@@ -4,7 +4,7 @@
 
 Принято. Требования зафиксированы в `docs/features/core/spec.md`,
 `docs/features/usecases/spec.md`, `docs/features/smoke/spec.md`; реализация — тикеты в
-`## Tickets` этих спек.
+`## Tickets` этих спек. Форма `MediaResult.Failed(error, cause)` уточнена тикетом #135.
 
 ## Context
 
@@ -46,7 +46,7 @@
 ошибка.
 
 **Фасад отдаёт данные о медиаэлементе.** `findByUrl(input)` и `findById(code, mediaId)` возвращают
-`MediaResult`: `Found(ref, meta)` / `NotFound` / `Unsupported` / `Failed(error)`. Метаданные приезжают
+`MediaResult`: `Found(ref, meta)` / `NotFound` / `Unsupported` / `Failed(error, cause)`. Метаданные приезжают
 вместе со ссылкой; отдельной операции «загрузить метаданные» у ядра нет. `findById` источник не
 ищет — код уже назван, ядро собирает ссылку и идёт за данными через `findById` адаптера.
 

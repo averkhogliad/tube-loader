@@ -69,7 +69,7 @@ class YoutubeSourceAdapter(
             .ensureBinary(settings.binaryPath)
             .fold(
                 onSuccess = { binary -> resolveMeta(settings, binary, id) },
-                onFailure = { LoadMetaResult.Failed(DownloadError.ExtractorBroken) },
+                onFailure = { failure -> LoadMetaResult.Failed(DownloadError.ExtractorBroken, failure) },
             )
     }
 
@@ -83,9 +83,9 @@ class YoutubeSourceAdapter(
                 val meta =
                     ytDlpPayload(run.output.joinToString("\n"))?.let { payload -> mediaMetaOf(payload, id) }
                 meta?.let(LoadMetaResult::Found)
-                    ?: LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                    ?: LoadMetaResult.Failed(DownloadError.ExtractorBroken, null)
             },
-            onFailure = { failure -> LoadMetaResult.Failed(downloadErrorOf(failure)) },
+            onFailure = { failure -> LoadMetaResult.Failed(downloadErrorOf(failure), failure) },
         )
     }
 
@@ -96,14 +96,15 @@ class YoutubeSourceAdapter(
         onProgress: (Progress) -> Unit,
     ): DownloadResult {
         val settings = config()
-        val binary = distribution.ensureBinary(settings.binaryPath).getOrNull()
+        val binary = distribution.ensureBinary(settings.binaryPath)
         val selector = formatSelectorOf(quality)
-        return if (binary == null || selector == null) {
-            DownloadResult.Failed(DownloadError.ExtractorBroken)
+        val binaryPath = binary.getOrNull()
+        return if (binaryPath == null || selector == null) {
+            DownloadResult.Failed(DownloadError.ExtractorBroken, binary.exceptionOrNull())
         } else {
             val staging = stagingDirectoryOf(settings, mediaId)
             try {
-                val command = downloadCommand(settings, binary, mediaId, selector, staging)
+                val command = downloadCommand(settings, binaryPath, mediaId, selector, staging)
                 transfer(runner, command, settings, targetPath, onProgress)
             } finally {
                 runCatching { staging.removeTree() }

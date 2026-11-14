@@ -103,7 +103,7 @@ class CoreFacade(
         return when (meta) {
             is LoadMetaResult.Found -> MediaResult.Found(MediaRef(registration.source, mediaId), meta.meta)
             LoadMetaResult.NotFound -> MediaResult.NotFound
-            is LoadMetaResult.Failed -> MediaResult.Failed(meta.error)
+            is LoadMetaResult.Failed -> MediaResult.Failed(meta.error, meta.cause)
         }
     }
 
@@ -127,7 +127,7 @@ class CoreFacade(
                 }
             if (outcome is DownloadResult.Failed) {
                 deleteQuietly(part)
-                registry.transition(taskId, DownloadStatus.Failed(outcome.error))
+                registry.transition(taskId, DownloadStatus.Failed(outcome.error, outcome.cause))
                 return@runCatching
             }
             registry.transition(taskId, DownloadStatus.Finalizing)

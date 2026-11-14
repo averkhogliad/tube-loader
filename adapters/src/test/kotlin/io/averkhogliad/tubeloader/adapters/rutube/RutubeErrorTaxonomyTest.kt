@@ -8,6 +8,8 @@ import io.averkhogliad.tubeloader.core.port.HttpStub
 import io.averkhogliad.tubeloader.core.port.textBody
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class RutubeErrorTaxonomyTest :
     FreeSpec({
@@ -35,7 +37,7 @@ class RutubeErrorTaxonomyTest :
                 actual shouldBe LoadMetaResult.NotFound
             }
 
-            "reports NetworkTransient once the attempts of server errors run out" {
+            "reports NetworkTransient with the last status as the cause once the attempts run out" {
                 // given
                 val http = FakeHttpTool().always(SERVER_ERROR_STUB)
 
@@ -43,10 +45,14 @@ class RutubeErrorTaxonomyTest :
                 val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.NetworkTransient
+                val cause = failed.cause.shouldBeInstanceOf<RutubeStatusFailure>()
+                cause.status shouldBe 503
+                cause.message.orEmpty() shouldContain "HTTP 503"
             }
 
-            "reports NetworkTransient when the body breaks in the middle of the read" {
+            "reports NetworkTransient with the broken body as the cause" {
                 // given
                 val http = FakeHttpTool().always(BROKEN_BODY_STUB)
 
@@ -54,7 +60,9 @@ class RutubeErrorTaxonomyTest :
                 val actual = adapter(http).findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.NetworkTransient)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.NetworkTransient
+                failed.cause?.message.orEmpty() shouldContain "connection reset mid-body"
             }
         }
 
@@ -70,7 +78,7 @@ class RutubeErrorTaxonomyTest :
                 val actual = adapter(http).download(MEDIA_ID, VIDEO_1080, clip("taxonomy")) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken, null)
             }
 
             "reports ExtractorBroken when the master playlist is empty" {
@@ -84,10 +92,10 @@ class RutubeErrorTaxonomyTest :
                 val actual = adapter(http).download(MEDIA_ID, VIDEO_1080, clip("taxonomy")) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken)
+                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken, null)
             }
 
-            "reports ExtractorBroken when a segment answers 404" {
+            "reports ExtractorBroken with the refused status of a segment as the cause" {
                 // given
                 val http =
                     FakeHttpTool()
@@ -100,10 +108,14 @@ class RutubeErrorTaxonomyTest :
                 val actual = adapter(http).download(MEDIA_ID, VIDEO_1080, clip("taxonomy")) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.ExtractorBroken)
+                val failed = actual.shouldBeInstanceOf<DownloadResult.Failed>()
+                failed.error shouldBe DownloadError.ExtractorBroken
+                val cause = failed.cause.shouldBeInstanceOf<RutubeStatusFailure>()
+                cause.status shouldBe 404
+                cause.message.orEmpty() shouldContain "HTTP 404"
             }
 
-            "repeats a rate limit answer and reports NetworkTransient once the attempts run out" {
+            "repeats a rate limit answer and reports the last status as the cause" {
                 // given
                 val http =
                     FakeHttpTool()
@@ -116,7 +128,10 @@ class RutubeErrorTaxonomyTest :
                 val actual = adapter(http).download(MEDIA_ID, VIDEO_1080, clip("taxonomy")) {}
 
                 // then
-                actual shouldBe DownloadResult.Failed(DownloadError.NetworkTransient)
+                val failed = actual.shouldBeInstanceOf<DownloadResult.Failed>()
+                failed.error shouldBe DownloadError.NetworkTransient
+                val cause = failed.cause.shouldBeInstanceOf<RutubeStatusFailure>()
+                cause.status shouldBe 429
                 http.opened.count { it.url == SEGMENT_1 } shouldBe 5
             }
         }

@@ -7,6 +7,8 @@ import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.infra.binaries.ProcessLaunch
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.types.shouldBeInstanceOf
 import java.nio.file.Path
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -89,7 +91,9 @@ class YoutubeRetryTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.NotFound)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.NotFound
+                failed.cause?.message.orEmpty() shouldContain "Video unavailable"
                 seq.launches().size shouldBe 1
             }
 
@@ -105,7 +109,9 @@ class YoutubeRetryTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.AntiBotBlocked)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.AntiBotBlocked
+                failed.cause?.message.orEmpty() shouldContain "not a bot"
                 seq.launches().size shouldBe 1
             }
 
@@ -121,7 +127,9 @@ class YoutubeRetryTest :
                 val actual = adapter.findById(MEDIA_ID)
 
                 // then
-                actual shouldBe LoadMetaResult.Failed(DownloadError.ExtractorBroken)
+                val failed = actual.shouldBeInstanceOf<LoadMetaResult.Failed>()
+                failed.error shouldBe DownloadError.ExtractorBroken
+                failed.cause?.message.orEmpty() shouldContain "Requested format is not available"
                 seq.launches().size shouldBe 1
             }
         }

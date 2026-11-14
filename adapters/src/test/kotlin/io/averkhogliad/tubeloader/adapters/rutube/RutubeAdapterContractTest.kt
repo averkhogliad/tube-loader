@@ -4,6 +4,7 @@ import io.averkhogliad.tubeloader.core.config.HttpToolConfig
 import io.averkhogliad.tubeloader.core.contract.sourceAdapterContract
 import io.averkhogliad.tubeloader.core.port.FakeMediaTool
 import io.kotest.core.spec.style.FreeSpec
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -17,7 +18,7 @@ class RutubeAdapterContractTest :
                 RutubeSourceAdapter(
                     rutubeRecordedHttp(),
                     FakeMediaTool().copyStreams(),
-                    { HttpToolConfig(perAttemptTimeout = 30.seconds) },
+                    { HttpToolConfig(perAttemptTimeout = 30.seconds, retryBaseDelay = 1.milliseconds) },
                 )
             },
         )
