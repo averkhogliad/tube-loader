@@ -15,6 +15,14 @@ class MergedConfig(private val sources: List<Config>) : Config {
         return null
     }
 
+    override fun valueOrNull(path: String): Any? {
+        for (source in sources.asReversed()) {
+            val value = source.valueOrNull(path)
+            if (value != null) return value
+        }
+        return null
+    }
+
     override fun getTableOrNull(path: String): Map<String, Any>? =
         sources.fold(null as Map<String, Any>?) {
             merged,

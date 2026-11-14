@@ -52,6 +52,19 @@ class ConfigTest :
             }
         }
 
+        "valueOrNull" - {
+            "answers the text of a source that keeps only strings" {
+                // given
+                val config = mapConfig("a" to "1")
+
+                // when
+                val actual = config.valueOrNull("a")
+
+                // then
+                actual shouldBe "1"
+            }
+        }
+
         "getTableOrNull with a transform" - {
             "applies the transform to the table that is present" {
                 // given

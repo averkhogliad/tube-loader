@@ -21,6 +21,8 @@ class TomlConfig private constructor(private val leaves: Map<String, Any>) : Con
 
     override fun getOrNull(path: String): String? = leaves[path]?.toString()
 
+    override fun valueOrNull(path: String): Any? = leaves[path]
+
     override fun getTableOrNull(path: String): Map<String, Any>? {
         val prefix = "$path."
         val matching = leaves.keys.filter { it.startsWith(prefix) }

@@ -22,6 +22,8 @@ fun configOf(table: Map<String, Any>): Config =
 
         override fun getOrNull(path: String): String? = null
 
+        override fun valueOrNull(path: String): Any? = table[path]
+
         @Suppress("UNCHECKED_CAST")
         override fun getTableOrNull(path: String): Map<String, Any>? = table[path] as? Map<String, Any>
     }
