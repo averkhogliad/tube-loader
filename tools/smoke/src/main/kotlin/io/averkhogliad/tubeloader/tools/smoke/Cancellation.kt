@@ -18,7 +18,7 @@ internal fun CoroutineScope.launchCancelJobs(session: SmokeSession, cancelAfter:
 internal fun cancelRunning(session: SmokeSession, reason: String) {
     var cancelled = 0
     session.observer.snapshot().forEach { state ->
-        if (!state.status.isTerminal && session.useCases.cancelDownload.cancel(state.taskId)) {
+        if (!state.status.isTerminal && session.downloadSession.cancel(state.taskId)) {
             cancelled++
         }
     }
