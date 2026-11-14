@@ -23,9 +23,9 @@ private val EXPECTED_META =
         thumbnailUrl = "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
         qualities =
             listOf(
-                Quality("1080p", TrackKind.Video, "1080p"),
-                Quality("720p", TrackKind.Video, "720p"),
-                Quality("360p", TrackKind.Video, "360p"),
+                Quality("1080p", TrackKind.Video, "1080p", height = 1080),
+                Quality("720p", TrackKind.Video, "720p", height = 720),
+                Quality("360p", TrackKind.Video, "360p", height = 360),
             ),
     )
 
@@ -75,7 +75,29 @@ class YoutubeFindByIdTest :
                 found.meta.author shouldBe ""
                 found.meta.duration shouldBe Duration.ZERO
                 found.meta.thumbnailUrl shouldBe null
-                found.meta.qualities shouldBe listOf(Quality("360p", TrackKind.Video, "360p"))
+                found.meta.qualities shouldBe listOf(Quality("360p", TrackKind.Video, "360p", height = 360))
+            }
+
+            "drops a format whose height does not fit the quality model" {
+                // given
+                val payload =
+                    """
+                    {
+                      "id": "$MEDIA_ID",
+                      "formats": [
+                        { "vcodec": "avc1.4d401f", "height": 4294967296 },
+                        { "vcodec": "avc1.640028", "height": 720 }
+                      ]
+                    }
+                    """.trimIndent()
+                val adapter = youtubeAdapter(reply = ToolReply(output = payload))
+
+                // when
+                val actual = adapter.findById(MEDIA_ID)
+
+                // then
+                val found = actual.shouldBeInstanceOf<LoadMetaResult.Found>()
+                found.meta.qualities shouldBe listOf(Quality("720p", TrackKind.Video, "720p", height = 720))
             }
 
             "returns Failed(NotFound) when the tool says the media is gone" {

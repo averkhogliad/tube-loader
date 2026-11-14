@@ -91,7 +91,8 @@ id пуст/отсутствует). Контракт `SourceAdapterContract` т
 Маппинг defensive: неизвестные поля игнорируются (схема `-J` не версионирована, §5.5). Спека
 адаптера Rutube и `core/spec.md` фиксируют форму `MediaMeta` (`id`, `title`, `author`,
 `duration`, `thumbnailUrl`, `qualities`). `Quality` — `id`, `kind` (`TrackKind.Video` в M1),
-`label`; M1 использует только видео-качество, audio-only отложен на M2 (модель сохранена).
+`label`, `height: Int?` (универсальная высота видео в пикселях; `id` остаётся непрозрачным);
+M1 использует только видео-качество, audio-only отложен на M2 (модель сохранена).
 
 **`download` — yt-dlp Delegate (R-2).** yt-dlp скачивает и мёрджит video+audio сам, через
 bundled ffmpeg (`--ffmpeg-location` указывает на бинарник из `FfmpegDistribution`,

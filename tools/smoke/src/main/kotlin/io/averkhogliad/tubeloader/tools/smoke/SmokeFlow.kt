@@ -6,7 +6,9 @@ import io.averkhogliad.tubeloader.core.domain.Quality
 import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.facade.MediaResult
 
-private val QUALITY_1080P = Quality("1080p", TrackKind.Video, "1080p")
+private const val FALLBACK_VIDEO_HEIGHT = 1080
+
+private val QUALITY_1080P = Quality.ofHeight(FALLBACK_VIDEO_HEIGHT)
 
 internal data class DownloadPlan(val ref: MediaRef, val meta: MediaMeta)
 

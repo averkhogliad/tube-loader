@@ -20,7 +20,7 @@ private val expectedMeta =
         author = "Reference author",
         duration = 4200.milliseconds,
         thumbnailUrl = "https://pic.rtbcdn.ru/video/thumb.jpg",
-        qualities = listOf(Quality("1080p", TrackKind.Video, "1080p")),
+        qualities = listOf(Quality("1080p", TrackKind.Video, "1080p", height = 1080)),
     )
 
 private fun adapter(body: String) =

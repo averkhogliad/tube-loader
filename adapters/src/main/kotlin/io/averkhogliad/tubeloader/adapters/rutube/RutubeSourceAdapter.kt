@@ -10,7 +10,6 @@ import io.averkhogliad.tubeloader.core.domain.DownloadError
 import io.averkhogliad.tubeloader.core.domain.MediaMeta
 import io.averkhogliad.tubeloader.core.domain.Progress
 import io.averkhogliad.tubeloader.core.domain.Quality
-import io.averkhogliad.tubeloader.core.domain.TrackKind
 import io.averkhogliad.tubeloader.core.port.HttpResponse
 import io.averkhogliad.tubeloader.core.port.HttpTool
 import io.averkhogliad.tubeloader.core.port.MediaTool
@@ -53,7 +52,7 @@ private val SUCCESS_STATUS = HTTP_OK..HTTP_LAST_SUCCESS
 
 private const val MISSING_VIDEO_REASON = "default_does_not_exists_video"
 
-internal const val QUALITY_1080 = "1080p"
+private const val QUALITY_1080_HEIGHT = 1080
 
 private val HOST = Regex("""^(?:[a-z0-9-]+\.)*rutube\.ru$""", RegexOption.IGNORE_CASE)
 private val MEDIA_ID = Regex("[0-9a-f]{32}")
@@ -163,7 +162,7 @@ class RutubeSourceAdapter(
      * no usable one.
      */
     private suspend fun variantOf(mediaId: String, quality: Quality): Result<String> {
-        val height = heightOf(quality.id)
+        val height = quality.height
         val playlist = playlistUrlOf(mediaId)
         val url = playlist.getOrNull()
         return if (height == null || url.isNullOrEmpty()) {
@@ -329,7 +328,7 @@ private fun parseMeta(id: String, text: String): LoadMetaResult {
                 author = options.nested("author")?.string("name").orEmpty(),
                 duration = options.number("duration")?.milliseconds ?: Duration.ZERO,
                 thumbnailUrl = options.string("thumbnail_url")?.takeIf { it.isNotBlank() },
-                qualities = listOf(Quality(QUALITY_1080, TrackKind.Video, QUALITY_1080)),
+                qualities = listOf(Quality.ofHeight(QUALITY_1080_HEIGHT)),
             ),
         )
     } else {
